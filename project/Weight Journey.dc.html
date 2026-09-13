@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet"><style>body{margin:0;background:#e9e5ee}*{box-sizing:border-box}a{color:#6B3FA0}a:hover{color:#4d2a76}input,button,textarea{font-family:inherit}input:focus,textarea:focus{outline:none}@keyframes pop{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}@keyframes rise{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes toastIn{0%{transform:translateY(14px);opacity:0}12%{transform:translateY(0);opacity:1}88%{transform:translateY(0);opacity:1}100%{transform:translateY(14px);opacity:0}}</style></helmet>
+<div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;gap:28px;padding:36px 20px 60px;font-family:'Public Sans',system-ui,sans-serif;background:#e9e5ee;{{ themeVars }}">
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ dark }}" hint-size="428px,908px">
+<div style="height:100%;display:flex;flex-direction:column;background:var(--bg,#F7F5FA);color:var(--ink,#1C1420);position:relative;overflow:hidden">
+
+<sc-if value="{{ showChrome }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px 8px;flex:none">
+<div style="display:flex;flex-direction:column;gap:1px">
+<span style="font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted,#6B6472)">{{ screenKicker }}</span>
+<span style="font-size:23px;font-weight:700;letter-spacing:-.02em;line-height:1.1">{{ screenTitle }}</span>
+</div>
+<div style="display:flex;gap:8px;align-items:center">
+<button onClick="{{ toggleDark }}" style="width:44px;height:44px;border-radius:999px;border:1px solid var(--line,#E4DEEC);background:var(--surface,#fff);color:var(--ink,#1C1420);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none" style-hover="border-color:var(--accent,#6B3FA0)">
+<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="5" stroke="currentColor" strokeWidth="1.5"></circle><path d="M9 4V1M9 17v-3M4 9H1M17 9h-3M5.1 5.1L3 3M15 15l-2.1-2.1M12.9 5.1L15 3M3 15l2.1-2.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path></svg>
+</button>
+</div>
+</div>
+</sc-if>
+
+<div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:0 18px 18px">
+
+<sc-if value="{{ isOnboarding }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Onboarding" style="padding-top:6px;animation:rise .3s ease both">
+<div style="display:flex;gap:6px;margin-bottom:26px">
+<sc-for list="{{ obDots }}" as="d" hint-placeholder-count="5"><div style="height:4px;flex:1;border-radius:99px;background:{{ d.bg }}"></div></sc-for>
+</div>
+<span style="font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent,#6B3FA0)">Step {{ obStep }} of 5</span>
+<h1 style="font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1.15;margin:8px 0 10px;text-wrap:pretty">{{ ob.title }}</h1>
+<p style="font-size:15px;line-height:1.5;color:var(--muted,#6B6472);margin:0 0 26px;text-wrap:pretty">{{ ob.body }}</p>
+<div style="display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{ ob.fields }}" as="f" hint-placeholder-count="3">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px">
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+<span style="font-size:14px;font-weight:600">{{ f.label }}</span>
+<span style="font-size:12px;color:var(--muted,#6B6472);line-height:1.35">{{ f.hint }}</span>
+</div>
+<sc-if value="{{ f.isEnum }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ f.cycle }}" style="flex:none;border:none;border-radius:999px;padding:10px 16px;background:var(--accentSoft,#EDE4F7);color:var(--accentInk,#4d2a76);font-size:14px;font-weight:600;cursor:pointer;max-width:150px;text-align:right">{{ f.value }}</button>
+</sc-if>
+<sc-if value="{{ f.isNum }}" hint-placeholder-val="{{ true }}">
+<div style="flex:none;display:flex;align-items:baseline;gap:5px;background:var(--accentSoft,#EDE4F7);border-radius:999px;padding:8px 14px">
+<input value="{{ f.value }}" onChange="{{ f.onChange }}" inputMode="decimal" style="width:58px;border:none;background:transparent;font-size:19px;font-weight:700;color:var(--accentInk,#4d2a76);text-align:right;font-variant-numeric:tabular-nums"></input>
+<span style="font-size:12px;font-weight:600;color:var(--accentInk,#4d2a76);opacity:.7">{{ f.unit }}</span>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ ob.isLast }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:16px;background:var(--accentSoft,#EDE4F7);border-radius:24px;padding:18px 20px">
+<span style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accentInk,#4d2a76)">We work these out for you</span>
+<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+<sc-for list="{{ obCalc }}" as="c" hint-placeholder-count="4">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+<span style="font-size:13px;color:var(--accentInk,#4d2a76);opacity:.8">{{ c.label }}</span>
+<span style="font-size:15px;font-weight:700;color:var(--accentInk,#4d2a76);font-variant-numeric:tabular-nums">{{ c.value }}</span>
+</div>
+</sc-for>
+</div>
+<p style="font-size:12px;line-height:1.45;color:var(--accentInk,#4d2a76);opacity:.75;margin:14px 0 0">Your calorie target is a suggestion. Change it any time in Settings — nothing here is locked.</p>
+</div>
+</sc-if>
+<div style="display:flex;gap:10px;margin-top:24px">
+<sc-if value="{{ ob.canBack }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ obBack }}" style="flex:none;min-height:52px;padding:0 22px;border-radius:999px;border:1px solid var(--line,#E4DEEC);background:transparent;color:var(--ink,#1C1420);font-size:15px;font-weight:600;cursor:pointer">Back</button>
+</sc-if>
+<button onClick="{{ obNext }}" style="flex:1;min-height:52px;border-radius:999px;border:none;background:var(--accent,#6B3FA0);color:var(--onAccent,#fff);font-size:16px;font-weight:700;cursor:pointer" style-hover="filter:brightness(1.08)">{{ ob.cta }}</button>
+</div>
+<button onClick="{{ obSkip }}" style="width:100%;margin-top:10px;background:none;border:none;color:var(--muted,#6B6472);font-size:13px;font-weight:500;cursor:pointer;min-height:44px">Skip — I'll set this up later</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ isToday }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Today">
+<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:999px;padding:5px;margin-bottom:14px">
+<button onClick="{{ prevDay }}" style="width:42px;height:42px;border-radius:999px;border:none;background:transparent;color:var(--ink,#1C1420);cursor:pointer;font-size:17px">‹</button>
+<div style="display:flex;flex-direction:column;align-items:center;gap:0">
+<span style="font-size:14px;font-weight:700">{{ dayLabel }}</span>
+<span style="font-size:11px;color:var(--muted,#6B6472)">{{ dayMeta }}</span>
+</div>
+<button onClick="{{ nextDay }}" style="width:42px;height:42px;border-radius:999px;border:none;background:transparent;color:{{ nextDayColor }};cursor:pointer;font-size:17px">›</button>
+</div>
+
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:28px;padding:20px 20px 16px;text-align:center">
+<span style="font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted,#6B6472)">Weight</span>
+<div style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin:6px 0 2px">
+<span style="font-size:64px;font-weight:800;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;color:{{ draftColor }}">{{ draftDisplay }}</span>
+<span style="font-size:18px;font-weight:600;color:var(--muted,#6B6472)">kg</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:24px">
+<span style="font-size:14px;font-weight:600;color:{{ deltaColor }}">{{ deltaLabel }}</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px">
+<sc-for list="{{ keys }}" as="k" hint-placeholder-count="12">
+<button onClick="{{ k.press }}" style="min-height:52px;border-radius:18px;border:none;background:var(--keypad,#F2EDF8);color:var(--ink,#1C1420);font-size:22px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums" style-active="background:var(--accentSoft,#EDE4F7)">{{ k.label }}</button>
+</sc-for>
+</div>
+<button onClick="{{ save }}" style="width:100%;min-height:54px;margin-top:10px;border-radius:999px;border:none;background:var(--accent,#6B3FA0);color:var(--onAccent,#fff);font-size:16px;font-weight:700;cursor:pointer" style-hover="filter:brightness(1.08)">{{ saveLabel }}</button>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin:22px 2px 10px">
+<span style="font-size:13px;font-weight:700;letter-spacing:.02em">Today's habits</span>
+<span style="font-size:13px;font-weight:700;color:var(--accent,#6B3FA0);font-variant-numeric:tabular-nums">{{ todayScore }}</span>
+</div>
+<div style="display:flex;gap:7px">
+<sc-for list="{{ todayTicks }}" as="t" hint-placeholder-count="6">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+<div style="width:100%;aspect-ratio:1;border-radius:16px;background:{{ t.bg }};border:1px solid {{ t.border }};display:flex;align-items:center;justify-content:center;color:{{ t.fg }}">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="{{ t.icon }}" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+</div>
+<span style="font-size:9.5px;font-weight:600;color:var(--muted,#6B6472);text-align:center;line-height:1.1">{{ t.label }}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="margin:22px 0 0;display:flex;flex-direction:column;gap:10px">
+<sc-for list="{{ fields }}" as="f" hint-placeholder-count="6">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<span style="font-size:14px;font-weight:600">{{ f.label }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">{{ f.hint }}</span>
+</div>
+<div style="flex:none;display:flex;align-items:baseline;gap:4px;background:var(--keypad,#F2EDF8);border-radius:999px;padding:8px 14px">
+<input value="{{ f.value }}" onChange="{{ f.onChange }}" placeholder="—" inputMode="decimal" style="width:52px;border:none;background:transparent;font-size:17px;font-weight:700;color:var(--ink,#1C1420);text-align:right;font-variant-numeric:tabular-nums"></input>
+<span style="font-size:11px;font-weight:600;color:var(--muted,#6B6472)">{{ f.unit }}</span>
+</div>
+</div>
+</sc-for>
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+<div style="flex:1;display:flex;flex-direction:column;gap:1px">
+<span style="font-size:14px;font-weight:600">Strength session</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">Counts towards the workout habit</span>
+</div>
+<button onClick="{{ toggleStrength }}" style="flex:none;width:58px;height:34px;border-radius:999px;border:none;background:{{ strengthTrack }};cursor:pointer;padding:3px;display:flex;justify-content:{{ strengthJustify }}">
+<div style="width:28px;height:28px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+</button>
+</div>
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:14px 16px">
+<span style="font-size:14px;font-weight:600">Notes</span>
+<textarea value="{{ noteVal }}" onChange="{{ onNote }}" placeholder="How did the day feel?" rows="2" style="width:100%;margin-top:8px;border:none;background:transparent;color:var(--ink,#1C1420);font-size:14px;line-height:1.45;resize:none"></textarea>
+</div>
+<button onClick="{{ goLog }}" style="min-height:54px;border-radius:999px;border:1px dashed var(--accent,#6B3FA0);background:transparent;color:var(--accent,#6B3FA0);font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px" style-hover="background:var(--accentSoft,#EDE4F7)">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"></path></svg>
+Add meals &amp; workouts
+</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isProgress }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Progress">
+<div style="background:var(--accent,#6B3FA0);color:var(--onAccent,#fff);border-radius:28px;padding:22px;position:relative;overflow:hidden">
+<span style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.75">Current weight</span>
+<div style="display:flex;align-items:baseline;gap:7px;margin:4px 0 2px">
+<span style="font-size:52px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums">{{ curWeight }}</span>
+<span style="font-size:17px;font-weight:600;opacity:.8">kg</span>
+</div>
+<span style="font-size:14px;font-weight:500;opacity:.85">{{ lostLine }}</span>
+<div style="margin-top:18px">
+<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;opacity:.8;margin-bottom:7px">
+<span>{{ startLabel }}</span><span>{{ pctLabel }}</span><span>{{ goalLabel }}</span>
+</div>
+<div style="height:10px;border-radius:99px;background:rgba(255,255,255,.25);overflow:hidden">
+<div style="height:100%;border-radius:99px;background:#fff;width:{{ pctWidth }}"></div>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+<sc-for list="{{ stats }}" as="s" hint-placeholder-count="6">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:3px">
+<span style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted,#6B6472);line-height:1.3">{{ s.label }}</span>
+<span style="font-size:24px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:{{ s.color }}">{{ s.value }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472);line-height:1.3">{{ s.sub }}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:26px;padding:18px 16px 14px;margin-top:10px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+<span style="font-size:14px;font-weight:700">Weight trend</span>
+<span style="font-size:11.5px;font-weight:600;color:var(--muted,#6B6472)">{{ chartRange }}</span>
+</div>
+<sc-if value="{{ hasChart }}" hint-placeholder-val="{{ true }}">
+<svg viewBox="0 0 340 168" preserveAspectRatio="none" style="width:100%;height:168px;margin-top:12px;display:block">
+<path d="{{ areaPath }}" fill="var(--chartFill,rgba(107,63,160,.12))"></path>
+<path d="{{ goalPath }}" stroke="var(--muted,#6B6472)" strokeWidth="1.2" strokeDasharray="5 5" fill="none"></path>
+<path d="{{ avgPath }}" stroke="var(--accent,#6B3FA0)" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"></path>
+<sc-for list="{{ dots }}" as="d" hint-placeholder-count="0"><circle cx="{{ d.x }}" cy="{{ d.y }}" r="1.9" fill="var(--muted,#6B6472)" opacity="0.5"></circle></sc-for>
+</svg>
+<div style="display:flex;justify-content:space-between;padding:0 4px;margin-top:4px">
+<span style="font-size:11px;color:var(--muted,#6B6472)">{{ chartFrom }}</span>
+<span style="font-size:11px;color:var(--muted,#6B6472)">Goal line {{ goalLabel }}</span>
+<span style="font-size:11px;color:var(--muted,#6B6472)">{{ chartTo }}</span>
+</div>
+</sc-if>
+<sc-if value="{{ noChart }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:12px;border:1px dashed var(--line,#E4DEEC);border-radius:20px;padding:26px 20px;text-align:center">
+<span style="font-size:14px;font-weight:600;color:var(--muted,#6B6472);line-height:1.5">{{ chartLocked }}</span>
+</div>
+</sc-if>
+</div>
+
+<div style="margin:22px 2px 10px;display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:13px;font-weight:700">Insights</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">Updated just now</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ insights }}" as="i" hint-placeholder-count="5">
+<div style="background:{{ i.bg }};border:1px solid {{ i.border }};border-radius:20px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start">
+<div style="width:30px;height:30px;flex:none;border-radius:999px;background:{{ i.dotBg }};color:{{ i.dotFg }};display:flex;align-items:center;justify-content:center">
+<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="{{ i.icon }}" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+<span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted,#6B6472)">{{ i.title }}</span>
+<span style="font-size:14px;line-height:1.45;font-weight:500;color:{{ i.fg }};text-wrap:pretty">{{ i.body }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+<button onClick="{{ goMilestones }}" style="width:100%;min-height:54px;margin-top:14px;border-radius:999px;border:1px solid var(--line,#E4DEEC);background:var(--surface,#fff);color:var(--ink,#1C1420);font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 20px" style-hover="border-color:var(--accent,#6B3FA0)">
+<span>Next milestone · {{ nextMilestone }}</span><span style="color:var(--accent,#6B3FA0)">›</span>
+</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ isTrends }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Trends">
+<div style="display:flex;background:var(--keypad,#F2EDF8);border-radius:999px;padding:4px;margin-bottom:14px">
+<button onClick="{{ setWeek }}" style="flex:1;min-height:44px;border-radius:999px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:{{ weekTabBg }};color:{{ weekTabFg }}">Week</button>
+<button onClick="{{ setMonth }}" style="flex:1;min-height:44px;border-radius:999px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:{{ monthTabBg }};color:{{ monthTabFg }}">Month</button>
+</div>
+<sc-if value="{{ hasTrends }}" hint-placeholder-val="{{ true }}">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:26px;padding:18px 18px 14px">
+<span style="font-size:14px;font-weight:700">{{ barsTitle }}</span>
+<div style="display:flex;align-items:flex-end;gap:8px;height:132px;margin-top:16px">
+<sc-for list="{{ bars }}" as="b" hint-placeholder-count="8">
+<div style="flex:1;max-width:52px;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+<span style="font-size:10px;font-weight:700;color:var(--muted,#6B6472);font-variant-numeric:tabular-nums">{{ b.val }}</span>
+<div style="width:100%;border-radius:8px 8px 4px 4px;background:{{ b.bg }};height:{{ b.h }}"></div>
+<span style="font-size:10px;font-weight:600;color:var(--muted,#6B6472)">{{ b.label }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
+<sc-for list="{{ rollups }}" as="r" hint-placeholder-count="4">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:22px;padding:15px 17px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+<div style="display:flex;flex-direction:column;gap:1px">
+<span style="font-size:15px;font-weight:700">{{ r.title }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472);white-space:nowrap">{{ r.range }}</span>
+</div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+<span style="font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ r.color }}">{{ r.lost }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472);font-variant-numeric:tabular-nums">{{ r.pct }}</span>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+<sc-for list="{{ r.chips }}" as="c" hint-placeholder-count="5">
+<div style="background:var(--keypad,#F2EDF8);border-radius:999px;padding:6px 11px;display:flex;align-items:baseline;gap:5px">
+<span style="font-size:10.5px;font-weight:600;color:var(--muted,#6B6472);text-transform:uppercase;letter-spacing:.06em">{{ c.k }}</span>
+<span style="font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums">{{ c.v }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ noTrends }}" hint-placeholder-val="{{ false }}">
+<div style="border:1px dashed var(--line,#E4DEEC);border-radius:26px;padding:44px 26px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px">
+<div style="width:48px;height:48px;border-radius:999px;background:var(--keypad,#F2EDF8);color:var(--muted,#6B6472);display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 16 16" fill="none"><path d="M2 13V9m4 4V4m4 9V7m4 6V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"></path></svg>
+</div>
+<span style="font-size:15px;font-weight:600;line-height:1.5;color:var(--muted,#6B6472);text-wrap:pretty">Weeks are 7-day buckets counted from your start date. Your first one closes on {{ firstWeekEnd }}.</span>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isHabits }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Habits">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<sc-for list="{{ habitStats }}" as="s" hint-placeholder-count="4">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:3px">
+<span style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted,#6B6472)">{{ s.label }}</span>
+<span style="font-size:26px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums">{{ s.value }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">{{ s.sub }}</span>
+</div>
+</sc-for>
+</div>
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:26px;padding:18px;margin-top:10px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:14px;font-weight:700">Daily habit score</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">Last 5 weeks</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:14px">
+<sc-for list="{{ dow }}" as="d" hint-placeholder-count="7"><span style="font-size:10px;font-weight:600;color:var(--muted,#6B6472);text-align:center">{{ d }}</span></sc-for>
+<sc-for list="{{ heat }}" as="c" hint-placeholder-count="35">
+<div title="{{ c.title }}" style="aspect-ratio:1;border-radius:9px;background:{{ c.bg }};border:1px solid {{ c.border }};display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:{{ c.fg }}">{{ c.day }}</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:7px;margin-top:14px;justify-content:flex-end">
+<span style="font-size:10.5px;color:var(--muted,#6B6472)">0%</span>
+<sc-for list="{{ legend }}" as="l" hint-placeholder-count="5"><div style="width:16px;height:10px;border-radius:3px;background:{{ l }}"></div></sc-for>
+<span style="font-size:10.5px;color:var(--muted,#6B6472)">100%</span>
+</div>
+</div>
+<div style="margin:22px 2px 10px"><span style="font-size:13px;font-weight:700">The six daily habits</span></div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ habitRows }}" as="h" hint-placeholder-count="6">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:13px 16px;display:flex;align-items:center;gap:13px">
+<div style="width:32px;height:32px;flex:none;border-radius:999px;background:{{ h.bg }};color:{{ h.fg }};display:flex;align-items:center;justify-content:center">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="{{ h.icon }}" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<span style="font-size:14px;font-weight:600">{{ h.label }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">{{ h.rule }}</span>
+</div>
+<span style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted,#6B6472)">{{ h.rate }}</span>
+</div>
+</sc-for>
+</div>
+<p style="font-size:11.5px;line-height:1.5;color:var(--muted,#6B6472);margin:14px 4px 0;text-wrap:pretty">Ticks are read from what you log — they can't be edited by hand, so the score always matches the data.</p>
+</div>
+</sc-if>
+
+<sc-if value="{{ isMilestones }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Milestones">
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ milestones }}" as="m" hint-placeholder-count="12">
+<div style="background:var(--surface,#fff);border:1px solid {{ m.border }};border-radius:22px;padding:15px 17px">
+<div style="display:flex;align-items:center;gap:13px">
+<div style="width:40px;height:40px;flex:none;border-radius:999px;background:{{ m.dotBg }};color:{{ m.dotFg }};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums">{{ m.target }}</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:15px;font-weight:700">{{ m.title }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">{{ m.meta }}</span>
+</div>
+<span style="flex:none;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 11px;border-radius:999px;background:{{ m.badgeBg }};color:{{ m.badgeFg }}">{{ m.status }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-top:12px;background:var(--keypad,#F2EDF8);border-radius:14px;padding:10px 13px">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex:none;color:var(--muted,#6B6472)"><path d="M8 2l1.8 3.9 4.2.5-3.1 2.9.8 4.2L8 11.4 4.3 13.5l.8-4.2L2 6.4l4.2-.5L8 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"></path></svg>
+<input value="{{ m.reward }}" onChange="{{ m.onReward }}" placeholder="Reward yourself with…" style="flex:1;min-width:0;border:none;background:transparent;color:var(--ink,#1C1420);font-size:13px;font-weight:500"></input>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isBody }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Body">
+<sc-if value="{{ hasMeas }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ measRows }}" as="m" hint-placeholder-count="5">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:22px;padding:15px 17px;display:flex;align-items:center;gap:14px">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:14.5px;font-weight:600">{{ m.label }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">Since first measurement · {{ m.first }} cm</span>
+</div>
+<div style="flex:none;text-align:right;display:flex;flex-direction:column;gap:1px">
+<span style="font-size:21px;font-weight:700;font-variant-numeric:tabular-nums">{{ m.value }}</span>
+<span style="font-size:12px;font-weight:700;color:{{ m.color }};font-variant-numeric:tabular-nums">{{ m.delta }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:26px;padding:18px;margin-top:10px">
+<span style="font-size:14px;font-weight:700">Progress photos</span>
+<div style="display:flex;gap:8px;margin-top:12px">
+<sc-for list="{{ photos }}" as="p" hint-placeholder-count="4">
+<div style="flex:1;aspect-ratio:3/4;border-radius:16px;background:var(--keypad,#F2EDF8);border:1px dashed var(--line,#E4DEEC);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted,#6B6472)">
+<svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M2 12l3.5-4 2.5 3 2-2.5L14 12M2 4h12v8H2V4z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"></path></svg>
+<span style="font-size:10px;font-weight:600">{{ p }}</span>
+</div>
+</sc-for>
+</div>
+<p style="font-size:11.5px;color:var(--muted,#6B6472);margin:12px 0 0;line-height:1.45">Photo placeholders — attach one per measurement entry. Stored on device only.</p>
+</div>
+</sc-if>
+<sc-if value="{{ noMeas }}" hint-placeholder-val="{{ false }}">
+<div style="border:1px dashed var(--line,#E4DEEC);border-radius:26px;padding:44px 26px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px">
+<div style="width:48px;height:48px;border-radius:999px;background:var(--keypad,#F2EDF8);color:var(--muted,#6B6472);display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 16 16" fill="none"><path d="M1 6h14v4H1V6zM4 6v2M7 6v3M10 6v2M13 6v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"></path></svg>
+</div>
+<span style="font-size:15px;font-weight:600;line-height:1.5;color:var(--muted,#6B6472);text-wrap:pretty">Take waist, chest, arms, thighs and neck today — that first set becomes the baseline every later change is measured against.</span>
+</div>
+</sc-if>
+<button onClick="{{ addMeas }}" style="width:100%;min-height:54px;margin-top:12px;border-radius:999px;border:none;background:var(--accent,#6B3FA0);color:var(--onAccent,#fff);font-size:15px;font-weight:700;cursor:pointer">{{ measCta }}</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLog }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Food and training log">
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 10px">
+<span style="font-size:13px;font-weight:700">Meals</span>
+<span style="font-size:12px;font-weight:600;color:var(--muted,#6B6472);font-variant-numeric:tabular-nums">{{ mealTotals }}</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ meals }}" as="m" hint-placeholder-count="3">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:13px 16px;display:flex;align-items:center;gap:13px">
+<span style="flex:none;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:999px;background:var(--accentSoft,#EDE4F7);color:var(--accentInk,#4d2a76)">{{ m.type }}</span>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<span style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.desc }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">{{ m.macro }}</span>
+</div>
+</div>
+</sc-for>
+<sc-if value="{{ noMeals }}" hint-placeholder-val="{{ false }}">
+<div style="border:1px dashed var(--line,#E4DEEC);border-radius:20px;padding:24px;text-align:center;font-size:13.5px;font-weight:500;color:var(--muted,#6B6472)">Nothing logged for {{ dayLabel }} yet.</div>
+</sc-if>
+<button onClick="{{ addMeal }}" style="min-height:50px;border-radius:999px;border:1px dashed var(--accent,#6B3FA0);background:transparent;color:var(--accent,#6B3FA0);font-size:14.5px;font-weight:700;cursor:pointer">Add a meal</button>
+</div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin:22px 4px 10px">
+<span style="font-size:13px;font-weight:700">Workouts</span>
+<span style="font-size:12px;font-weight:600;color:var(--muted,#6B6472);font-variant-numeric:tabular-nums">{{ workoutTotals }}</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ workouts }}" as="w" hint-placeholder-count="2">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:13px 16px;display:flex;align-items:center;gap:13px">
+<span style="flex:none;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:999px;background:{{ w.bg }};color:{{ w.fg }}">{{ w.type }}</span>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<span style="font-size:14px;font-weight:600">{{ w.session }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472)">{{ w.meta }}</span>
+</div>
+</div>
+</sc-for>
+<sc-if value="{{ noWorkouts }}" hint-placeholder-val="{{ false }}">
+<div style="border:1px dashed var(--line,#E4DEEC);border-radius:20px;padding:24px;text-align:center;font-size:13.5px;font-weight:500;color:var(--muted,#6B6472)">No training logged for {{ dayLabel }}.</div>
+</sc-if>
+<button onClick="{{ addWorkout }}" style="min-height:50px;border-radius:999px;border:1px dashed var(--accent,#6B3FA0);background:transparent;color:var(--accent,#6B3FA0);font-size:14.5px;font-weight:700;cursor:pointer">Add a workout</button>
+</div>
+<p style="font-size:11.5px;line-height:1.5;color:var(--muted,#6B6472);margin:16px 4px 0;text-wrap:pretty">Daily totals roll into the weigh-in for this date unless you typed calories in by hand.</p>
+</div>
+</sc-if>
+
+<sc-if value="{{ isMore }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="More">
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ moreItems }}" as="m" hint-placeholder-count="5">
+<button onClick="{{ m.go }}" style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:22px;padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;min-height:64px;color:var(--ink,#1C1420)" style-hover="border-color:var(--accent,#6B3FA0)">
+<div style="width:38px;height:38px;flex:none;border-radius:999px;background:var(--accentSoft,#EDE4F7);color:var(--accentInk,#4d2a76);display:flex;align-items:center;justify-content:center">
+<svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="{{ m.icon }}" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:15px;font-weight:700">{{ m.label }}</span>
+<span style="font-size:12px;color:var(--muted,#6B6472);line-height:1.35">{{ m.sub }}</span>
+</div>
+<span style="color:var(--accent,#6B3FA0);font-size:18px">›</span>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Settings">
+<div style="margin:0 4px 10px"><span style="font-size:13px;font-weight:700">Your plan</span></div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ settingRows }}" as="s" hint-placeholder-count="8">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:13px 17px;display:flex;align-items:center;gap:12px;min-height:58px">
+<span style="flex:1;font-size:14px;font-weight:600">{{ s.label }}</span>
+<span style="flex:none;font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent,#6B3FA0)">{{ s.value }}</span>
+</div>
+</sc-for>
+</div>
+<div style="margin:22px 4px 10px"><span style="font-size:13px;font-weight:700">Calculated for you</span></div>
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:26px;padding:6px 18px">
+<sc-for list="{{ calcRows }}" as="c" hint-placeholder-count="8">
+<div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line,#E4DEEC)">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<span style="font-size:14px;font-weight:600">{{ c.label }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472);line-height:1.35">{{ c.note }}</span>
+</div>
+<span style="flex:none;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">{{ c.value }}</span>
+</div>
+</sc-for>
+</div>
+<div style="margin:22px 4px 10px"><span style="font-size:13px;font-weight:700">Reminders</span></div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ notifRows }}" as="n" hint-placeholder-count="4">
+<div style="background:var(--surface,#fff);border:1px solid var(--line,#E4DEEC);border-radius:20px;padding:13px 17px;display:flex;align-items:center;gap:12px">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+<span style="font-size:14px;font-weight:600">{{ n.label }}</span>
+<span style="font-size:11.5px;color:var(--muted,#6B6472);line-height:1.35">{{ n.sub }}</span>
+</div>
+<button onClick="{{ n.toggle }}" style="flex:none;width:54px;height:32px;border-radius:999px;border:none;background:{{ n.track }};cursor:pointer;padding:3px;display:flex;justify-content:{{ n.justify }}">
+<div style="width:26px;height:26px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+</button>
+</div>
+</sc-for>
+</div>
+<button onClick="{{ restart }}" style="width:100%;min-height:52px;margin-top:20px;border-radius:999px;border:1px solid var(--line,#E4DEEC);background:transparent;color:var(--muted,#6B6472);font-size:14px;font-weight:600;cursor:pointer">Replay onboarding</button>
+</div>
+</sc-if>
+
+</div>
+
+<sc-if value="{{ showChrome }}" hint-placeholder-val="{{ true }}">
+<div style="flex:none;display:flex;background:var(--surface,#fff);border-top:1px solid var(--line,#E4DEEC);padding:6px 4px 4px">
+<button onClick="{{ nav.today }}" style="flex:1;min-height:56px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:{{ navC.today }}">
+<svg width="21" height="21" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.7"></circle><path d="M10 6.5v7M6.5 10h7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"></path></svg>
+<span style="font-size:10.5px;font-weight:700">Today</span>
+</button>
+<button onClick="{{ nav.progress }}" style="flex:1;min-height:56px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:{{ navC.progress }}">
+<svg width="21" height="21" viewBox="0 0 20 20" fill="none"><path d="M2.5 13.5l4-4.5 3 2.5 4-6 4 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+<span style="font-size:10.5px;font-weight:700">Progress</span>
+</button>
+<button onClick="{{ nav.trends }}" style="flex:1;min-height:56px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:{{ navC.trends }}">
+<svg width="21" height="21" viewBox="0 0 20 20" fill="none"><path d="M3.5 16.5V11m4.3 5.5V5m4.4 11.5v-7.5m4.3 7.5v-13" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"></path></svg>
+<span style="font-size:10.5px;font-weight:700">Trends</span>
+</button>
+<button onClick="{{ nav.habits }}" style="flex:1;min-height:56px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:{{ navC.habits }}">
+<svg width="21" height="21" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="2.5" width="6" height="6" rx="1.8" stroke="currentColor" strokeWidth="1.6"></rect><rect x="11.5" y="2.5" width="6" height="6" rx="1.8" stroke="currentColor" strokeWidth="1.6"></rect><rect x="2.5" y="11.5" width="6" height="6" rx="1.8" stroke="currentColor" strokeWidth="1.6"></rect><rect x="11.5" y="11.5" width="6" height="6" rx="1.8" stroke="currentColor" strokeWidth="1.6"></rect></svg>
+<span style="font-size:10.5px;font-weight:700">Habits</span>
+</button>
+<button onClick="{{ nav.more }}" style="flex:1;min-height:56px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:{{ navC.more }}">
+<svg width="21" height="21" viewBox="0 0 20 20" fill="none"><circle cx="4" cy="10" r="1.6" fill="currentColor"></circle><circle cx="10" cy="10" r="1.6" fill="currentColor"></circle><circle cx="16" cy="10" r="1.6" fill="currentColor"></circle></svg>
+<span style="font-size:10.5px;font-weight:700">More</span>
+</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:18px;right:18px;bottom:84px;background:var(--ink,#1C1420);color:var(--bg,#F7F5FA);border-radius:16px;padding:14px 18px;font-size:13.5px;font-weight:600;text-align:center;animation:toastIn 2.4s ease both">{{ toast }}</div>
+</sc-if>
+
+<sc-if value="{{ celebration }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:rgba(28,20,32,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:28px">
+<div style="background:var(--surface,#fff);border-radius:32px;padding:32px 26px;text-align:center;animation:pop .34s cubic-bezier(.2,1.3,.4,1) both;width:100%">
+<div style="width:76px;height:76px;margin:0 auto;border-radius:999px;background:var(--accent,#6B3FA0);color:var(--onAccent,#fff);display:flex;align-items:center;justify-content:center">
+<svg width="36" height="36" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l2 4.3 4.6.6-3.4 3.2.9 4.6L8 11.9 3.9 14.2l.9-4.6L1.4 6.4 6 5.8 8 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"></path></svg>
+</div>
+<h2 style="font-size:26px;font-weight:800;letter-spacing:-.03em;margin:18px 0 8px">{{ celebration.title }}</h2>
+<p style="font-size:15px;line-height:1.5;color:var(--muted,#6B6472);margin:0 0 6px;text-wrap:pretty">{{ celebration.body }}</p>
+<p style="font-size:13.5px;font-weight:700;color:var(--accent,#6B3FA0);margin:0 0 22px">{{ celebration.reward }}</p>
+<button onClick="{{ closeCelebration }}" style="width:100%;min-height:52px;border-radius:999px;border:none;background:var(--accent,#6B3FA0);color:var(--onAccent,#fff);font-size:15.5px;font-weight:700;cursor:pointer">Nice</button>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:1010},&quot;dataset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Day 1&quot;,&quot;Week 9&quot;],&quot;default&quot;:&quot;Day 1&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype state&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Light&quot;,&quot;Dark&quot;],&quot;default&quot;:&quot;Light&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype state&quot;},&quot;startWeight&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:157,&quot;min&quot;:60,&quot;max&quot;:250,&quot;step&quot;:0.5,&quot;unit&quot;:&quot;kg&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Plan&quot;},&quot;goalWeight&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:100,&quot;min&quot;:40,&quot;max&quot;:200,&quot;step&quot;:0.5,&quot;unit&quot;:&quot;kg&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Plan&quot;}}">
+const DAY = 86400000;
+const ICON = {
+  weight: 'M3 6h10l1.5 7.5H1.5L3 6zM6 6V4.5a2 2 0 014 0V6',
+  food: 'M4 2v5a2 2 0 004 0V2M6 7v7M12 2v12M10.5 2v3.5a1.5 1.5 0 003 0V2',
+  water: 'M8 1.5S3.5 6.5 3.5 9.5a4.5 4.5 0 009 0C12.5 6.5 8 1.5 8 1.5z',
+  steps: 'M4.5 13.5c-1 0-1.5-.7-1.5-2 0-1.8 1-2.3 1-4.5C4 5.3 4.8 4 6 4s1.8 1 1.8 3-1.3 3.3-1.3 5c0 1-.8 1.5-2 1.5zM11 9.5c-1 0-1.5-.7-1.5-2 0-1.8 1-2.3 1-4.5',
+  workout: 'M2 6v4M14 6v4M4 5v6M12 5v6M4 8h8',
+  sleep: 'M13.5 9.5A5.5 5.5 0 016.5 2.5a5.5 5.5 0 107 7z',
+  spark: 'M2.5 12l4-4.5 3 2.5 4-6',
+  lock: 'M4.5 7V5.5a3.5 3.5 0 017 0V7M3.5 7h9v6.5h-9V7z',
+  star: 'M8 2l1.8 3.9 4.2.5-3.1 2.9.8 4.2L8 11.4 4.3 13.5l.8-4.2L2 6.4l4.2-.5L8 2z',
+  up: 'M8 13V3M4 7l4-4 4 4',
+  down: 'M8 3v10M4 9l4 4 4-4',
+  ruler: 'M1 6h14v4H1V6zM4 6v2M7 6v3M10 6v2M13 6v3',
+  plate: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5a3 3 0 100 6 3 3 0 000-6z',
+  gear: 'M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4',
+  book: 'M3 2.5h10v11H3v-11zM6 5.5h4M6 8h4M6 10.5h2'
+};
+
+class Component extends DCLogic {
+  state = this.build(this.props);
+
+  build(p) {
+    const start = Number(p.startWeight ?? 157);
+    const goal = Number(p.goalWeight ?? 100);
+    const week9 = (p.dataset ?? 'Day 1') === 'Week 9';
+    const today = new Date(2026, 8, 13);
+    const startDate = week9 ? new Date(2026, 6, 13) : new Date(2026, 8, 13);
+    const profile = { startDate, start, goal, height: 178, age: 34, sex: 'Male', activity: 'Lightly Active', targetCal: 2650, targetPro: 120, targetWater: 3, targetSteps: 8000, targetSleep: 7 };
+    const entries = week9 ? this.seed(startDate, today, start) : [];
+    const meas = week9 ? [
+      { date: '2026-07-13', waist: 132, chest: 126, arms: 40, thighs: 70, neck: 45 },
+      { date: '2026-07-27', waist: 130, chest: 125, arms: 39.5, thighs: 69, neck: 44.6 },
+      { date: '2026-08-10', waist: 128.5, chest: 124, arms: 39.4, thighs: 68.2, neck: 44.2 },
+      { date: '2026-08-24', waist: 126, chest: 122.5, arms: 39, thighs: 67.5, neck: 43.8 },
+      { date: '2026-09-07', waist: 124.5, chest: 121, arms: 39, thighs: 66.8, neck: 43.5 }
+    ] : [];
+    const k = this.key(today);
+    const meals = week9 ? [
+      { date: k, type: 'Breakfast', desc: 'Greek yoghurt, berries, walnuts', cal: 420, pro: 32 },
+      { date: k, type: 'Lunch', desc: 'Chicken, rice, roasted peppers', cal: 710, pro: 48 },
+      { date: k, type: 'Snack', desc: 'Apple and a protein shake', cal: 260, pro: 26 }
+    ] : [];
+    const workouts = week9 ? [
+      { date: k, type: 'Cardio', session: 'Treadmill intervals', min: 35, intensity: 'Medium', burn: 380 },
+      { date: k, type: 'Walk', session: 'Evening loop', min: 25, intensity: 'Low', burn: 110 }
+    ] : [];
+    return {
+      profile, entries, meas, meals, workouts,
+      today, cursor: today,
+      screen: week9 ? 'progress' : 'onboarding',
+      tab: week9 ? 'progress' : 'today',
+      obStep: 0, obDraft: { start, goal, height: 178, age: 34, sex: 'Male', activity: 'Lightly Active', cal: 2650 },
+      draft: '', rewards: {}, trendMode: 'week',
+      dark: (p.theme ?? 'Light') === 'Dark',
+      toast: '', celebration: null, celebrated: week9 ? [155] : [],
+      notifs: { morning: true, evening: true, weekly: true, milestone: true }
+    };
+  }
+
+  seed(startDate, today, start) {
+    const out = [];
+    const days = Math.round((today - startDate) / DAY);
+    const skip = [9, 10, 23, 37, 38, 45, 51];
+    for (let i = 0; i <= days; i++) {
+      if (skip.indexOf(i) >= 0) continue;
+      const d = new Date(startDate.getTime() + i * DAY);
+      const w = start - i * 0.0785 + Math.sin(i * 1.7) * 0.32 + Math.sin(i * 0.4) * 0.18;
+      out.push({
+        date: this.key(d),
+        weight: Math.round(w * 10) / 10,
+        calories: 2380 + Math.round(Math.sin(i * 1.1) * 340),
+        protein: 96 + (i % 13) * 4,
+        water: [2.1, 3.2, 3.6, 2.6, 3.1, 4.0, 2.9][i % 7],
+        steps: 5600 + ((i * 1373) % 7200),
+        cardio: i % 3 === 0 ? 40 : (i % 5 === 0 ? 25 : 0),
+        strength: i % 4 === 1,
+        sleep: [6.4, 7.2, 7.9, 6.9, 7.5, 8.1, 6.1][i % 7],
+        notes: ''
+      });
+    }
+    return out;
+  }
+
+  componentDidUpdate(prev) {
+    if (prev.dataset !== this.props.dataset || prev.startWeight !== this.props.startWeight || prev.goalWeight !== this.props.goalWeight) {
+      this.setState(this.build(this.props));
+    } else if (prev.theme !== this.props.theme) {
+      this.setState({ dark: (this.props.theme ?? 'Light') === 'Dark' });
+    }
+  }
+
+  key(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  parse(s) { const a = s.split('-'); return new Date(+a[0], +a[1] - 1, +a[2]); }
+  short(s) { const d = typeof s === 'string' ? this.parse(s) : s; return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+  longD(d) { return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }); }
+  f1(n) { return n == null || isNaN(n) ? '—' : n.toFixed(1); }
+
+  sorted() { return this.state.entries.slice().sort((a, b) => a.date < b.date ? -1 : 1); }
+  weighed() { return this.sorted().filter(e => e.weight != null && e.weight !== ''); }
+  current() { const w = this.weighed(); return w.length ? w[w.length - 1].weight : this.state.profile.start; }
+  entryFor(k) { return this.state.entries.filter(e => e.date === k)[0] || null; }
+
+  ticks(e) {
+    const p = this.state.profile;
+    if (!e) return [false, false, false, false, false, false];
+    return [
+      e.weight != null && e.weight !== '',
+      e.calories > 0,
+      (e.water || 0) >= p.targetWater,
+      (e.steps || 0) >= p.targetSteps,
+      (e.cardio || 0) > 0 || !!e.strength,
+      (e.sleep || 0) >= p.targetSleep
+    ];
+  }
+  score(e) { const t = this.ticks(e); return t.filter(Boolean).length / 6; }
+
+  mean(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }
+  avgLast(n) {
+    const end = this.state.cursor.getTime();
+    const vals = this.weighed().filter(e => { const t = this.parse(e.date).getTime(); return t <= end && t > end - n * DAY; }).map(e => e.weight);
+    return this.mean(vals);
+  }
+  trendPerDay() {
+    const w = this.weighed();
+    if (w.length < 6 || (this.parse(w[w.length - 1].date) - this.parse(w[0].date)) / DAY < 13) return null;
+    const end = this.state.cursor.getTime();
+    const a = this.mean(this.weighed().filter(e => { const t = this.parse(e.date).getTime(); return t <= end && t > end - 7 * DAY; }).map(e => e.weight));
+    const b = this.mean(this.weighed().filter(e => { const t = this.parse(e.date).getTime(); return t <= end - 7 * DAY && t > end - 14 * DAY; }).map(e => e.weight));
+    if (a == null || b == null) return null;
+    return (b - a) / 7;
+  }
+  bmr(w) { const p = this.state.profile; return 10 * w + 6.25 * p.height - 5 * p.age + (p.sex === 'Male' ? 5 : -161); }
+  tdee(w) { const f = { 'Sedentary': 1.2, 'Lightly Active': 1.375, 'Moderately Active': 1.55, 'Very Active': 1.725, 'Extremely Active': 1.9 }[this.state.profile.activity] || 1.375; return this.bmr(w) * f; }
+  bmiBand(b) { return b < 18.5 ? 'Underweight' : b < 25 ? 'Healthy range' : b < 30 ? 'Overweight' : b < 35 ? 'Obesity class I' : b < 40 ? 'Obesity class II' : 'Obesity class III'; }
+
+  weeks() {
+    const p = this.state.profile, out = [];
+    const total = Math.floor((this.state.cursor - p.startDate) / DAY) + 1;
+    const n = Math.ceil(total / 7);
+    let prevAvg = null;
+    for (let i = 0; i < n; i++) {
+      const s = new Date(p.startDate.getTime() + i * 7 * DAY), e = new Date(s.getTime() + 6 * DAY);
+      const es = this.state.entries.filter(x => { const t = this.parse(x.date).getTime(); return t >= s.getTime() && t <= e.getTime(); });
+      if (!es.length) continue;
+      const ws = es.filter(x => x.weight).map(x => x.weight);
+      const avg = this.mean(ws);
+      out.push({
+        i: i + 1, s, e, avg, logged: es.length,
+        lost: prevAvg != null && avg != null ? prevAvg - avg : (avg != null ? p.start - avg : null),
+        pct: prevAvg != null && avg != null ? ((avg - prevAvg) / prevAvg) * 100 : null,
+        cal: this.mean(es.filter(x => x.calories).map(x => x.calories)),
+        pro: this.mean(es.filter(x => x.protein).map(x => x.protein)),
+        steps: this.mean(es.filter(x => x.steps).map(x => x.steps)),
+        sleep: this.mean(es.filter(x => x.sleep).map(x => x.sleep)),
+        water: this.mean(es.filter(x => x.water).map(x => x.water)),
+        cardio: es.reduce((a, x) => a + (x.cardio || 0), 0),
+        strength: es.filter(x => x.strength).length
+      });
+      if (avg != null) prevAvg = avg;
+    }
+    return out;
+  }
+  months() {
+    const map = {};
+    this.sorted().forEach(e => { const m = e.date.slice(0, 7); (map[m] = map[m] || []).push(e); });
+    return Object.keys(map).sort().map(m => {
+      const es = map[m], ws = es.filter(x => x.weight);
+      const sw = ws.length ? ws[0].weight : null, ew = ws.length ? ws[ws.length - 1].weight : null;
+      const lost = sw != null ? sw - ew : null;
+      return { m, label: this.parse(m + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }), sw, ew, lost, pct: sw ? (lost / sw) * 100 : null, logged: es.length, daily: lost != null ? lost / es.length : null };
+    });
+  }
+  milestoneList() {
+    const p = this.state.profile, out = [];
+    const top = Math.floor(p.start / 5) * 5;
+    const rate = this.trendPerDay();
+    const planRate = (this.tdee(this.current()) - p.targetCal) / 7700;
+    for (let t = top; t >= p.goal; t -= 5) {
+      const hit = this.weighed().filter(e => e.weight <= t)[0] || null;
+      const est = new Date(p.startDate.getTime() + ((p.start - t) / (planRate || 0.0785)) * DAY);
+      out.push({
+        target: t, kgFrom: p.start - t, pct: ((p.start - t) / (p.start - p.goal)) * 100,
+        est, hit, rate
+      });
+    }
+    return out;
+  }
+
+  setField(k, field) {
+    return (ev) => {
+      const v = ev.target.value;
+      const num = v === '' ? null : parseFloat(v.replace(',', '.'));
+      this.setState(s => {
+        const es = s.entries.slice();
+        let i = es.findIndex(e => e.date === k);
+        if (i < 0) { es.push({ date: k }); i = es.length - 1; }
+        es[i] = Object.assign({}, es[i]);
+        es[i][field] = field === 'notes' ? v : (isNaN(num) ? null : num);
+        return { entries: es };
+      });
+    };
+  }
+
+  renderVals() {
+    const s = this.state, p = s.profile, d = s.dark;
+    const A = d ? '#C4A2F0' : '#6B3FA0';
+    const th = {
+      bg: d ? '#141019' : '#F7F5FA', surface: d ? '#1E1826' : '#FFFFFF',
+      ink: d ? '#F3EFF8' : '#1C1420', muted: d ? '#9E93AD' : '#6B6472',
+      line: d ? '#2E2539' : '#E8E2F0', accent: A, accentSoft: d ? '#2D2239' : '#EDE4F7',
+      accentInk: d ? '#DCC6F7' : '#4D2A76', onAccent: d ? '#1C1420' : '#FFFFFF',
+      keypad: d ? '#251E2F' : '#F2EDF8', good: d ? '#7FD3A3' : '#2E7D55', warn: d ? '#F0A58C' : '#B4472E',
+      chartFill: d ? 'rgba(196,162,240,.14)' : 'rgba(107,63,160,.12)'
+    };
+    const themeVars = Object.keys(th).map(k => '--' + k + ':' + th[k]).join(';');
+
+    const ck = this.key(s.cursor);
+    const cur = this.current();
+    const lost = p.start - cur;
+    const pct = Math.max(0, Math.min(100, ((p.start - cur) / (p.start - p.goal)) * 100));
+    const bmi = cur / Math.pow(p.height / 100, 2);
+    const rate = this.trendPerDay();
+    const avg7 = this.avgLast(7);
+    const wk = this.weighed();
+    const entry = this.entryFor(ck);
+    const tickMeta = [
+      { label: 'Weigh-in', icon: ICON.weight, rule: 'A weight is logged' },
+      { label: 'Calories', icon: ICON.food, rule: 'Calories logged for the day' },
+      { label: 'Water', icon: ICON.water, rule: '≥ ' + p.targetWater + ' L' },
+      { label: 'Steps', icon: ICON.steps, rule: '≥ ' + p.targetSteps.toLocaleString('en-GB') + ' steps' },
+      { label: 'Workout', icon: ICON.workout, rule: 'Cardio minutes or a strength session' },
+      { label: 'Sleep', icon: ICON.sleep, rule: '≥ ' + p.targetSleep + ' h' }
+    ];
+    const tk = this.ticks(entry);
+
+    // Today
+    const prevW = (() => { const before = wk.filter(e => e.date < ck); return before.length ? before[before.length - 1].weight : p.start; })();
+    const draftNum = s.draft !== '' ? parseFloat(s.draft) : (entry && entry.weight != null ? entry.weight : null);
+    const delta = draftNum != null ? draftNum - prevW : null;
+    const keys = ['1','2','3','4','5','6','7','8','9','.','0','⌫'].map(l => ({
+      label: l,
+      press: () => this.setState(st => {
+        let v = st.draft !== '' ? st.draft : (entry && entry.weight != null ? String(entry.weight) : '');
+        if (l === '⌫') v = v.slice(0, -1);
+        else if (l === '.') v = v.indexOf('.') < 0 && v !== '' ? v + '.' : v;
+        else v = (v + l).replace(/^0+(\d)/, '$1').slice(0, 5);
+        return { draft: v };
+      })
+    }));
+
+    const fieldDefs = [
+      { label: 'Calories', field: 'calories', unit: 'kcal', hint: 'Target ' + p.targetCal.toLocaleString('en-GB') },
+      { label: 'Protein', field: 'protein', unit: 'g', hint: 'Target ' + p.targetPro + ' g' },
+      { label: 'Water', field: 'water', unit: 'L', hint: 'Habit at ' + p.targetWater + ' L' },
+      { label: 'Steps', field: 'steps', unit: '', hint: 'Habit at ' + p.targetSteps.toLocaleString('en-GB') },
+      { label: 'Cardio', field: 'cardio', unit: 'min', hint: 'Any minutes tick the workout habit' },
+      { label: 'Sleep', field: 'sleep', unit: 'h', hint: 'Habit at ' + p.targetSleep + ' h' }
+    ];
+
+    // chart
+    const recent = wk.filter(e => this.parse(e.date) <= s.cursor).slice(-30);
+    let avgPath = '', areaPath = '', goalPath = '', dots = [];
+    const hasChart = recent.length >= 2;
+    if (hasChart) {
+      const ws = recent.map(e => e.weight);
+      const lo = Math.min.apply(null, ws) - 1.2, hi = Math.max.apply(null, ws) + 1.2;
+      const X = i => 6 + (i / (recent.length - 1)) * 328;
+      const Y = w => 12 + (1 - (w - lo) / (hi - lo)) * 140;
+      dots = recent.map((e, i) => ({ x: X(i), y: Y(e.weight) }));
+      const roll = recent.map((e, i) => {
+        const sl = recent.slice(Math.max(0, i - 6), i + 1).map(x => x.weight);
+        return this.mean(sl);
+      });
+      avgPath = roll.map((v, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1)).join(' ');
+      areaPath = avgPath + ' L' + X(recent.length - 1).toFixed(1) + ' 164 L6 164 Z';
+      const gy = p.goal < lo ? 164 : Y(p.goal);
+      goalPath = 'M6 ' + gy.toFixed(1) + ' L334 ' + gy.toFixed(1);
+    }
+
+    // insights
+    const weeksArr = this.weeks();
+    const lastWeek = weeksArr.length ? weeksArr[weeksArr.length - 1] : null;
+    const daysSpan = wk.length ? (this.parse(wk[wk.length - 1].date) - this.parse(wk[0].date)) / DAY : 0;
+    const mk = (title, body, tone, icon) => ({
+      title, body, icon,
+      bg: tone === 'locked' ? 'transparent' : tone === 'good' ? th.accentSoft : th.surface,
+      border: tone === 'locked' ? th.line : tone === 'good' ? 'transparent' : th.line,
+      fg: tone === 'locked' ? th.muted : th.ink,
+      dotBg: tone === 'locked' ? th.keypad : tone === 'good' ? th.accent : th.keypad,
+      dotFg: tone === 'locked' ? th.muted : tone === 'good' ? th.onAccent : th.accent
+    });
+    const insights = [];
+    if (daysSpan < 14) insights.push(mk('This week', 'Log at least two weeks of weigh-ins to unlock weekly insights.', 'locked', ICON.lock));
+    else {
+      const wl = lastWeek && lastWeek.lost != null ? lastWeek.lost : 0;
+      insights.push(wl >= 0
+        ? mk('This week', 'You lost ' + this.f1(Math.abs(wl)) + ' kg this week — keep it up!', 'good', ICON.down)
+        : mk('This week', 'You gained ' + this.f1(Math.abs(wl)) + ' kg this week. One week never defines a journey.', 'plain', ICON.up));
+    }
+    if (wk.length < 3) insights.push(mk('Loss rate', 'Three weigh-ins unlock your average rate of loss.', 'locked', ICON.lock));
+    else if (rate == null || rate <= 0) insights.push(mk('Loss rate', 'The trend is not downward yet. Worth a look at calories and activity this week.', 'plain', ICON.spark));
+    else insights.push(mk('Loss rate', 'Averaging ' + this.f1(rate * 7) + ' kg per week (' + (rate).toFixed(2) + ' kg per day).', 'plain', ICON.spark));
+    if (rate == null || rate <= 0) insights.push(mk('Goal projection', 'A goal date appears once the trend points downward — no guesses here.', 'locked', ICON.lock));
+    else {
+      const wks = (cur - p.goal) / (rate * 7);
+      const gd = new Date(s.cursor.getTime() + ((cur - p.goal) / rate) * DAY);
+      insights.push(mk('Goal projection', 'You are projected to reach ' + this.f1(p.goal) + ' kg in about ' + Math.round(wks) + ' weeks (' + gd.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) + ').', 'plain', ICON.star));
+    }
+    const mo = this.months();
+    if (mo.length < 2) insights.push(mk('Momentum', 'Two months of data unlock the momentum comparison.', 'locked', ICON.lock));
+    else {
+      const a = mo[mo.length - 1].daily || 0, b = mo[mo.length - 2].daily || 0;
+      insights.push(mk('Momentum', Math.abs(a - b) < 0.005 ? 'Steady — this month matches last month almost exactly.' : a > b ? 'Accelerating — this month is running faster than last.' : 'Slowing slightly against last month. Still moving.', 'plain', ICON.spark));
+    }
+    const last7 = [];
+    for (let i = 0; i < 7; i++) { const dd = new Date(s.cursor.getTime() - i * DAY); if (dd < p.startDate) break; last7.push(this.score(this.entryFor(this.key(dd)))); }
+    const cons7 = Math.round((this.mean(last7) || 0) * 100);
+    const last30 = [];
+    for (let i = 0; i < 30; i++) { const dd = new Date(s.cursor.getTime() - i * DAY); if (dd < p.startDate) break; last30.push(this.score(this.entryFor(this.key(dd)))); }
+    insights.push(mk('Habit consistency', 'Habit consistency over the last 7 days: ' + cons7 + '%.', 'plain', ICON.plate));
+
+    // streaks
+    let curStreak = 0, best = 0, run = 0;
+    for (let i = 0; i < 400; i++) {
+      const dd = this.key(new Date(s.cursor.getTime() - i * DAY));
+      const e = this.entryFor(dd);
+      if (e && e.weight) { run++; if (i === run - 1) curStreak = run; best = Math.max(best, run); } else run = 0;
+    }
+
+    // heat map
+    const heat = [];
+    const endDow = (s.cursor.getDay() + 6) % 7;
+    const first = new Date(s.cursor.getTime() - (34 - (6 - endDow)) * DAY);
+    for (let i = 0; i < 35; i++) {
+      const dd = new Date(first.getTime() + i * DAY);
+      const outside = dd > s.cursor || dd < p.startDate;
+      const e = outside ? null : this.entryFor(this.key(dd));
+      const sc = e ? this.score(e) : (outside ? -1 : 0);
+      const shade = d
+        ? ['#241D2E', '#3B2C4E', '#553C70', '#7A55A0', '#A97BD9', '#C4A2F0']
+        : ['#F2EDF8', '#DFCEF0', '#C6ABE3', '#A886D2', '#8759BB', '#6B3FA0'];
+      const idx = sc < 0 ? -1 : Math.round(sc * 5);
+      heat.push({
+        day: dd.getDate(),
+        bg: sc < 0 ? 'transparent' : shade[idx],
+        border: sc < 0 ? th.line : 'transparent',
+        fg: sc < 0 ? th.muted : (idx >= 3 ? th.surface : th.muted),
+        title: this.short(dd) + ' · ' + (sc < 0 ? 'outside your plan' : Math.round(sc * 100) + '%')
+      });
+    }
+
+    // trends
+    const bars = [];
+    if (s.trendMode === 'week') {
+      const src = weeksArr.slice(-8);
+      const max = Math.max.apply(null, src.map(w => Math.abs(w.lost || 0)).concat([0.6]));
+      src.forEach(w => bars.push({ label: 'W' + w.i, val: this.f1(w.lost), h: Math.max(4, (Math.abs(w.lost || 0) / max) * 92) + 'px', bg: (w.lost || 0) >= 0 ? th.accent : th.warn }));
+    } else {
+      const src = mo.slice(-6);
+      const max = Math.max.apply(null, src.map(m => Math.abs(m.lost || 0)).concat([1]));
+      src.forEach(m => bars.push({ label: m.label.slice(0, 3), val: this.f1(m.lost), h: Math.max(4, (Math.abs(m.lost || 0) / max) * 92) + 'px', bg: (m.lost || 0) >= 0 ? th.accent : th.warn }));
+    }
+    const rollups = s.trendMode === 'week'
+      ? weeksArr.slice().reverse().map(w => ({
+        title: 'Week ' + w.i, range: this.short(w.s) + ' – ' + this.short(w.e),
+        lost: (Math.abs(w.lost || 0) < 0.05 ? '' : w.lost >= 0 ? '−' : '+') + this.f1(Math.abs(w.lost || 0)) + ' kg',
+        pct: w.pct != null ? this.f1(w.pct) + '%' : '—',
+        color: (w.lost || 0) >= 0 ? th.good : th.warn,
+        chips: [
+          { k: 'Avg wt', v: this.f1(w.avg) },
+          { k: 'Kcal', v: w.cal ? Math.round(w.cal).toLocaleString('en-GB') : '—' },
+          { k: 'Protein', v: w.pro ? Math.round(w.pro) + 'g' : '—' },
+          { k: 'Steps', v: w.steps ? Math.round(w.steps).toLocaleString('en-GB') : '—' },
+          { k: 'Sleep', v: w.sleep ? this.f1(w.sleep) + 'h' : '—' },
+          { k: 'Water', v: w.water ? this.f1(w.water) + 'L' : '—' },
+          { k: 'Cardio', v: w.cardio + 'min' },
+          { k: 'Strength', v: w.strength + 'd' },
+          { k: 'Logged', v: w.logged + '/7' }
+        ]
+      }))
+      : mo.slice().reverse().map(m => ({
+        title: m.label, range: 'Calendar month',
+        lost: (Math.abs(m.lost || 0) < 0.05 ? '' : m.lost >= 0 ? '−' : '+') + this.f1(Math.abs(m.lost || 0)) + ' kg',
+        pct: m.pct != null ? this.f1(m.pct) + '%' : '—',
+        color: (m.lost || 0) >= 0 ? th.good : th.warn,
+        chips: [
+          { k: 'Start', v: this.f1(m.sw) },
+          { k: 'End', v: this.f1(m.ew) },
+          { k: 'Per day', v: m.daily ? m.daily.toFixed(2) : '—' },
+          { k: 'Per week', v: m.daily ? this.f1(m.daily * 7) : '—' },
+          { k: 'Logged', v: m.logged + 'd' }
+        ]
+      }));
+
+    // milestones
+    const ms = this.milestoneList().map(m => {
+      const status = m.hit ? 'Achieved' : (m.est < s.cursor ? 'Overdue' : 'Pending');
+      return {
+        target: m.target, title: this.f1(m.kgFrom) + ' kg lost · ' + this.f1(m.target) + ' kg',
+        meta: (m.hit ? 'Reached ' + this.short(m.hit.date) + ' · ' + Math.round((this.parse(m.hit.date) - p.startDate) / DAY) + ' days' : 'Estimated ' + this.short(m.est)) + ' · ' + Math.round(m.pct) + '% of goal',
+        status,
+        border: m.hit ? th.accent : th.line,
+        dotBg: m.hit ? th.accent : th.keypad, dotFg: m.hit ? th.onAccent : th.muted,
+        badgeBg: m.hit ? th.accentSoft : status === 'Overdue' ? th.keypad : th.keypad,
+        badgeFg: m.hit ? th.accentInk : status === 'Overdue' ? th.warn : th.muted,
+        reward: s.rewards[m.target] || '',
+        onReward: (ev) => { const v = ev.target.value; this.setState(st => ({ rewards: Object.assign({}, st.rewards, { [m.target]: v }) })); }
+      };
+    });
+    const nextMs = ms.filter(m => m.status !== 'Achieved')[0];
+
+    // measurements
+    const mLatest = s.meas.length ? s.meas[s.meas.length - 1] : null;
+    const mFirst = s.meas.length ? s.meas[0] : null;
+    const measRows = mLatest ? [['Waist', 'waist'], ['Chest', 'chest'], ['Arms', 'arms'], ['Thighs', 'thighs'], ['Neck', 'neck']].map(([label, k]) => {
+      const dl = mLatest[k] - mFirst[k];
+      return { label, value: this.f1(mLatest[k]), first: this.f1(mFirst[k]), delta: (dl <= 0 ? '↓ ' : '↑ ') + this.f1(Math.abs(dl)) + ' cm', color: dl <= 0 ? th.good : th.warn };
+    }) : [];
+
+    // settings
+    const tdee = this.tdee(cur), bmr = this.bmr(cur);
+    const deficit = tdee - p.targetCal;
+    const lowHealthy = 18.5 * Math.pow(p.height / 100, 2), hiHealthy = 24.9 * Math.pow(p.height / 100, 2);
+
+    // onboarding
+    const obSteps = [
+      { title: 'Where you are starting', body: 'Two numbers anchor everything: today\'s weight and the date you begin. Both stay fixed so your progress is measured from a real baseline.', fields: [
+        { label: 'Starting weight', hint: 'Your weight today', isNum: true, unit: 'kg', value: String(s.obDraft.start), onChange: e => this.obSet('start', e.target.value) },
+        { label: 'Start date', hint: 'Anchors every week and projection', isEnum: true, value: '13 Sept 2026', cycle: () => {} }
+      ] },
+      { title: 'Where you are going', body: 'A 10% drop is the clinical first target. You can set it further out — the plan simply gets longer.', fields: [
+        { label: 'Goal weight', hint: 'Must be below your starting weight', isNum: true, unit: 'kg', value: String(s.obDraft.goal), onChange: e => this.obSet('goal', e.target.value) }
+      ] },
+      { title: 'About your body', body: 'Height, age and sex feed BMI and your resting burn. Nothing here leaves your phone.', fields: [
+        { label: 'Height', hint: '100–250 cm', isNum: true, unit: 'cm', value: String(s.obDraft.height), onChange: e => this.obSet('height', e.target.value) },
+        { label: 'Age', hint: '14–100 years', isNum: true, unit: 'yrs', value: String(s.obDraft.age), onChange: e => this.obSet('age', e.target.value) },
+        { label: 'Sex', hint: 'Used only for the resting-burn constant', isEnum: true, value: s.obDraft.sex, cycle: () => this.obSet('sex', s.obDraft.sex === 'Male' ? 'Female' : 'Male') }
+      ] },
+      { title: 'How your days move', body: 'Activity level turns your resting burn into a maintenance figure. Pick the honest one, not the aspirational one.', fields: [
+        { label: 'Activity level', hint: 'Tap to cycle', isEnum: true, value: s.obDraft.activity, cycle: () => { const o = ['Sedentary', 'Lightly Active', 'Moderately Active', 'Very Active', 'Extremely Active']; this.obSet('activity', o[(o.indexOf(s.obDraft.activity) + 1) % o.length]); } }
+      ] },
+      { title: 'Your daily targets', body: 'We suggest a 750 kcal deficit, never below 1 500 kcal. Change it if your coach or doctor says otherwise.', fields: [
+        { label: 'Daily calories', hint: 'Suggested from your maintenance figure', isNum: true, unit: 'kcal', value: String(s.obDraft.cal), onChange: e => this.obSet('cal', e.target.value) }
+      ] }
+    ];
+    const obBmr = 10 * s.obDraft.start + 6.25 * s.obDraft.height - 5 * s.obDraft.age + (s.obDraft.sex === 'Male' ? 5 : -161);
+    const obTdee = obBmr * ({ 'Sedentary': 1.2, 'Lightly Active': 1.375, 'Moderately Active': 1.55, 'Very Active': 1.725, 'Extremely Active': 1.9 }[s.obDraft.activity] || 1.375);
+    const obCur = obSteps[s.obStep];
+
+    const nc = k => s.tab === k ? th.accent : th.muted;
+    const go = (screen, tab) => () => this.setState({ screen, tab: tab || screen });
+
+    return {
+      themeVars, dark: d,
+      toggleDark: () => this.setState(st => ({ dark: !st.dark })),
+      showChrome: s.screen !== 'onboarding',
+      isOnboarding: s.screen === 'onboarding', isToday: s.screen === 'today', isProgress: s.screen === 'progress',
+      isTrends: s.screen === 'trends', isHabits: s.screen === 'habits', isMilestones: s.screen === 'milestones',
+      isBody: s.screen === 'body', isLog: s.screen === 'log', isMore: s.screen === 'more', isSettings: s.screen === 'settings',
+      screenTitle: { today: ck === this.key(s.today) ? 'Today' : this.short(s.cursor), progress: 'Progress', trends: 'Trends', habits: 'Habits', milestones: 'Milestones', body: 'Body', log: 'Food & training', more: 'More', settings: 'Settings' }[s.screen] || '',
+      screenKicker: { today: 'Log', progress: 'Day ' + (Math.floor((s.cursor - p.startDate) / DAY) + 1) + ' of 730', trends: 'Roll-ups', habits: 'Consistency', milestones: 'Every 5 kg', body: 'Measurements', log: this.short(s.cursor), more: 'Everything else', settings: 'Profile' }[s.screen] || '',
+      nav: { today: go('today'), progress: go('progress'), trends: go('trends'), habits: go('habits'), more: go('more') },
+      navC: { today: nc('today'), progress: nc('progress'), trends: nc('trends'), habits: nc('habits'), more: nc('more') },
+
+      obStep: s.obStep + 1, ob: {
+        title: obCur.title, body: obCur.body, fields: obCur.fields, isLast: s.obStep === 4,
+        canBack: s.obStep > 0, cta: s.obStep === 4 ? 'Start tracking' : 'Continue'
+      },
+      obDots: obSteps.map((x, i) => ({ bg: i <= s.obStep ? A : th.line })),
+      obCalc: [
+        { label: 'Resting burn (BMR)', value: Math.round(obBmr).toLocaleString('en-GB') + ' kcal' },
+        { label: 'Maintenance (TDEE)', value: Math.round(obTdee).toLocaleString('en-GB') + ' kcal' },
+        { label: 'Suggested target', value: Math.max(1500, Math.round((obTdee - 750) / 50) * 50).toLocaleString('en-GB') + ' kcal' },
+        { label: 'Expected pace', value: this.f1(((obTdee - s.obDraft.cal) * 7) / 7700) + ' kg/week' },
+        { label: 'Protein target', value: Math.round(s.obDraft.goal * 1.2) + ' g' }
+      ],
+      obNext: () => s.obStep === 4 ? this.setState({ screen: 'today', tab: 'today', profile: Object.assign({}, p, { start: +s.obDraft.start, goal: +s.obDraft.goal, height: +s.obDraft.height, age: +s.obDraft.age, sex: s.obDraft.sex, activity: s.obDraft.activity, targetCal: +s.obDraft.cal }) }) : this.setState({ obStep: s.obStep + 1 }),
+      obBack: () => this.setState({ obStep: Math.max(0, s.obStep - 1) }),
+      obSkip: () => this.setState({ screen: 'today', tab: 'today' }),
+
+      dayLabel: ck === this.key(s.today) ? 'Today' : this.short(s.cursor),
+      dayMeta: this.longD(s.cursor),
+      prevDay: () => this.setState({ cursor: new Date(s.cursor.getTime() - DAY), draft: '' }),
+      nextDay: () => { if (s.cursor < s.today) this.setState({ cursor: new Date(s.cursor.getTime() + DAY), draft: '' }); },
+      nextDayColor: s.cursor < s.today ? th.ink : th.line,
+      draftDisplay: draftNum != null ? (s.draft !== '' ? s.draft : this.f1(draftNum)) : '—',
+      draftColor: draftNum != null ? th.ink : th.line,
+      deltaLabel: delta == null ? 'No weight yet for this day' : (delta <= 0 ? '↓ ' : '↑ ') + this.f1(Math.abs(delta)) + ' kg vs last weigh-in',
+      deltaColor: delta == null ? th.muted : delta <= 0 ? th.good : th.warn,
+      keys,
+      saveLabel: entry && entry.weight != null ? 'Update this day' : 'Save weigh-in',
+      save: () => {
+        const v = s.draft !== '' ? parseFloat(s.draft) : (entry ? entry.weight : null);
+        if (v == null || isNaN(v) || v < 30 || v > 400) { this.setState({ toast: 'Enter a weight between 30 and 400 kg' }); return; }
+        const es = s.entries.slice();
+        let i = es.findIndex(e => e.date === ck);
+        if (i < 0) { es.push({ date: ck, weight: v }); } else { es[i] = Object.assign({}, es[i], { weight: v }); }
+        const crossed = this.milestoneList().filter(m => v <= m.target && s.celebrated.indexOf(m.target) < 0).sort((a, b) => a.target - b.target)[0];
+        const upd = { entries: es, draft: '', toast: 'Weigh-in saved for ' + (ck === this.key(s.today) ? 'today' : this.short(s.cursor)) };
+        if (crossed) {
+          upd.celebrated = s.celebrated.concat([crossed.target]);
+          upd.celebration = {
+            title: this.f1(crossed.kgFrom) + ' kg down',
+            body: 'You crossed the ' + this.f1(crossed.target) + ' kg milestone — ' + Math.round(crossed.pct) + '% of the way to your goal.',
+            reward: s.rewards[crossed.target] ? 'Your reward: ' + s.rewards[crossed.target] : 'Set a reward for this one on the Milestones screen.'
+          };
+          upd.toast = '';
+        }
+        this.setState(upd);
+        if (!crossed) setTimeout(() => this.setState({ toast: '' }), 2400);
+      },
+      toast: s.toast,
+      celebration: s.celebration,
+      closeCelebration: () => this.setState({ celebration: null }),
+      todayScore: Math.round(this.score(entry) * 100) + '%',
+      todayTicks: tickMeta.map((m, i) => ({
+        label: m.label, icon: m.icon,
+        bg: tk[i] ? th.accent : 'transparent', border: tk[i] ? 'transparent' : th.line,
+        fg: tk[i] ? th.onAccent : th.line
+      })),
+      fields: fieldDefs.map(f => ({
+        label: f.label, unit: f.unit, hint: f.hint,
+        value: entry && entry[f.field] != null ? String(entry[f.field]) : '',
+        onChange: this.setField(ck, f.field)
+      })),
+      toggleStrength: () => {
+        const es = s.entries.slice();
+        let i = es.findIndex(e => e.date === ck);
+        if (i < 0) { es.push({ date: ck, strength: true }); } else { es[i] = Object.assign({}, es[i], { strength: !es[i].strength }); }
+        this.setState({ entries: es });
+      },
+      strengthTrack: entry && entry.strength ? th.accent : th.line,
+      strengthJustify: entry && entry.strength ? 'flex-end' : 'flex-start',
+      noteVal: entry && entry.notes ? entry.notes : '',
+      onNote: this.setField(ck, 'notes'),
+      goLog: go('log', 'today'),
+      goMilestones: go('milestones', 'progress'),
+
+      curWeight: this.f1(cur),
+      lostLine: lost > 0.05 ? this.f1(lost) + ' kg lost · ' + this.f1(cur - p.goal) + ' kg to go' : 'Baseline set · ' + this.f1(cur - p.goal) + ' kg to go',
+      startLabel: this.f1(p.start) + ' kg',
+      goalLabel: this.f1(p.goal) + ' kg',
+      pctLabel: Math.round(pct) + '% of goal',
+      pctWidth: Math.max(1.5, pct) + '%',
+      stats: [
+        { label: 'Total lost', value: this.f1(lost) + ' kg', sub: lost > 0.05 ? 'Since ' + this.short(p.startDate) : wk.length ? 'Baseline logged ' + this.short(wk[0].date) : 'Nothing logged yet', color: lost > 0.05 ? th.good : th.ink },
+        { label: 'To goal', value: this.f1(cur - p.goal) + ' kg', sub: 'Target ' + this.f1(p.goal) + ' kg', color: th.ink },
+        { label: 'Avg weekly loss', value: rate != null ? this.f1(rate * 7) + ' kg' : '—', sub: rate != null ? 'From the 7-day trend' : 'Needs 14 days of data', color: th.ink },
+        { label: '7-day average', value: avg7 != null ? this.f1(avg7) + ' kg' : '—', sub: 'Judge progress by this', color: th.ink },
+        { label: 'BMI', value: bmi.toFixed(1), sub: this.bmiBand(bmi), color: th.ink },
+        { label: '7-day consistency', value: cons7 + '%', sub: 'Six habits per day', color: th.ink }
+      ],
+      hasChart, noChart: !hasChart,
+      chartLocked: 'Two weigh-ins draw the first line. Log one today and the trend starts tomorrow.',
+      chartRange: hasChart ? 'Last ' + recent.length + ' weigh-ins' : 'Waiting on data',
+      chartFrom: hasChart ? this.short(recent[0].date) : '',
+      chartTo: hasChart ? this.short(recent[recent.length - 1].date) : '',
+      avgPath, areaPath, goalPath, dots,
+      insights,
+      nextMilestone: nextMs ? this.f1(nextMs.target) + ' kg' : 'Goal reached',
+
+      setWeek: () => this.setState({ trendMode: 'week' }),
+      setMonth: () => this.setState({ trendMode: 'month' }),
+      weekTabBg: s.trendMode === 'week' ? th.surface : 'transparent',
+      weekTabFg: s.trendMode === 'week' ? th.accent : th.muted,
+      monthTabBg: s.trendMode === 'month' ? th.surface : 'transparent',
+      monthTabFg: s.trendMode === 'month' ? th.accent : th.muted,
+      hasTrends: bars.length >= 2, noTrends: bars.length < 2,
+      barsTitle: s.trendMode === 'week' ? 'Kilos lost per week' : 'Kilos lost per month',
+      bars, rollups,
+      firstWeekEnd: this.short(new Date(p.startDate.getTime() + 6 * DAY)),
+
+      habitStats: [
+        { label: 'Current streak', value: curStreak + 'd', sub: 'Days with a weight logged' },
+        { label: 'Longest streak', value: best + 'd', sub: best ? 'Personal best' : 'Nothing yet' },
+        { label: '7-day score', value: cons7 + '%', sub: 'Rolling average' },
+        { label: '30-day score', value: Math.round(this.mean(last30) * 100) + '%', sub: 'Rolling average' }
+      ],
+      dow: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      heat,
+      legend: d ? ['#241D2E', '#553C70', '#7A55A0', '#A97BD9', '#C4A2F0'] : ['#F2EDF8', '#C6ABE3', '#A886D2', '#8759BB', '#6B3FA0'],
+      habitRows: tickMeta.map((m, i) => {
+        let n = 0, tot = 0;
+        for (let j = 0; j < 30; j++) {
+          const dd = new Date(s.cursor.getTime() - j * DAY);
+          if (dd < p.startDate) break;
+          tot++;
+          if (this.ticks(this.entryFor(this.key(dd)))[i]) n++;
+        }
+        return { label: m.label, rule: m.rule, icon: m.icon, rate: tot ? Math.round((n / tot) * 100) + '%' : '—', bg: n ? th.accentSoft : th.keypad, fg: n ? th.accentInk : th.muted };
+      }),
+
+      milestones: ms,
+
+      hasMeas: !!mLatest, noMeas: !mLatest,
+      measRows, photos: s.meas.length ? s.meas.slice(-4).map(m => this.short(m.date)) : [],
+      measCta: mLatest ? 'Add a new measurement' : 'Record my baseline',
+      addMeas: () => this.setState({ toast: 'Measurement sheet would open here' , }) || setTimeout(() => this.setState({ toast: '' }), 2400),
+
+      meals: s.meals.filter(m => m.date === ck).map(m => ({ type: m.type, desc: m.desc, macro: m.cal + ' kcal · ' + m.pro + ' g protein' })),
+      noMeals: s.meals.filter(m => m.date === ck).length === 0,
+      mealTotals: (() => { const ms2 = s.meals.filter(m => m.date === ck); return ms2.length ? ms2.reduce((a, m) => a + m.cal, 0).toLocaleString('en-GB') + ' kcal · ' + ms2.reduce((a, m) => a + m.pro, 0) + ' g' : '—'; })(),
+      workouts: s.workouts.filter(w => w.date === ck).map(w => ({ type: w.type, session: w.session, meta: w.min + ' min · ' + w.intensity + ' · ' + w.burn + ' kcal', bg: th.accentSoft, fg: th.accentInk })),
+      noWorkouts: s.workouts.filter(w => w.date === ck).length === 0,
+      workoutTotals: (() => { const ws2 = s.workouts.filter(w => w.date === ck); return ws2.length ? ws2.reduce((a, w) => a + w.min, 0) + ' min · ' + ws2.reduce((a, w) => a + w.burn, 0).toLocaleString('en-GB') + ' kcal' : '—'; })(),
+      addMeal: () => { this.setState({ toast: 'Meal entry sheet would open here' }); setTimeout(() => this.setState({ toast: '' }), 2400); },
+      addWorkout: () => { this.setState({ toast: 'Workout entry sheet would open here' }); setTimeout(() => this.setState({ toast: '' }), 2400); },
+
+      moreItems: [
+        { label: 'Milestones', sub: 'Every 5 kg, with rewards', icon: ICON.star, go: go('milestones', 'more') },
+        { label: 'Body measurements', sub: 'Waist, chest, arms, thighs, neck', icon: ICON.ruler, go: go('body', 'more') },
+        { label: 'Food & training log', sub: 'Meals and workouts by day', icon: ICON.book, go: go('log', 'more') },
+        { label: 'Settings & profile', sub: 'Targets and calculated metrics', icon: ICON.gear, go: go('settings', 'more') }
+      ],
+
+      settingRows: [
+        { label: 'Start date', value: this.short(p.startDate) },
+        { label: 'Starting weight', value: this.f1(p.start) + ' kg' },
+        { label: 'Goal weight', value: this.f1(p.goal) + ' kg' },
+        { label: 'Height', value: p.height + ' cm' },
+        { label: 'Age', value: p.age + ' yrs' },
+        { label: 'Sex', value: p.sex },
+        { label: 'Activity level', value: p.activity },
+        { label: 'Daily calories', value: p.targetCal.toLocaleString('en-GB') + ' kcal' },
+        { label: 'Daily protein', value: p.targetPro + ' g' },
+        { label: 'Water / steps / sleep', value: p.targetWater + 'L · ' + (p.targetSteps / 1000) + 'k · ' + p.targetSleep + 'h' },
+        { label: 'Units', value: 'Metric' }
+      ],
+      calcRows: [
+        { label: 'BMI', note: 'weight ÷ height²', value: bmi.toFixed(1) },
+        { label: 'Classification', note: 'WHO bands', value: this.bmiBand(bmi) },
+        { label: 'Healthy weight range', note: 'BMI 18.5–24.9 at your height', value: this.f1(lowHealthy) + '–' + this.f1(hiHealthy) + ' kg' },
+        { label: 'Resting burn (BMR)', note: 'Mifflin-St Jeor, recalculated as you lose', value: Math.round(bmr).toLocaleString('en-GB') + ' kcal' },
+        { label: 'Maintenance (TDEE)', note: 'BMR × activity factor', value: Math.round(tdee).toLocaleString('en-GB') + ' kcal' },
+        { label: 'Planned daily deficit', note: 'TDEE − calorie target', value: Math.round(deficit).toLocaleString('en-GB') + ' kcal' },
+        { label: 'Expected loss at target', note: '7 700 kcal ≈ 1 kg', value: this.f1((deficit * 7) / 7700) + ' kg/week' },
+        { label: 'Required pace', note: 'To reach goal inside 730 days', value: this.f1(((p.start - p.goal) / 730) * 7) + ' kg/week' }
+      ],
+      notifRows: [
+        { label: 'Morning weigh-in', sub: '07:00 · skipped if already logged', track: s.notifs.morning ? th.accent : th.line, justify: s.notifs.morning ? 'flex-end' : 'flex-start', toggle: () => this.setState({ notifs: Object.assign({}, s.notifs, { morning: !s.notifs.morning }) }) },
+        { label: 'Evening log nudge', sub: '21:00 · only if under 3 habits ticked', track: s.notifs.evening ? th.accent : th.line, justify: s.notifs.evening ? 'flex-end' : 'flex-start', toggle: () => this.setState({ notifs: Object.assign({}, s.notifs, { evening: !s.notifs.evening }) }) },
+        { label: 'Weekly summary', sub: 'Every 7 days from your start date', track: s.notifs.weekly ? th.accent : th.line, justify: s.notifs.weekly ? 'flex-end' : 'flex-start', toggle: () => this.setState({ notifs: Object.assign({}, s.notifs, { weekly: !s.notifs.weekly }) }) },
+        { label: 'Milestone reached', sub: 'Fires once, the first time you cross one', track: s.notifs.milestone ? th.accent : th.line, justify: s.notifs.milestone ? 'flex-end' : 'flex-start', toggle: () => this.setState({ notifs: Object.assign({}, s.notifs, { milestone: !s.notifs.milestone }) }) }
+      ],
+      restart: () => this.setState({ screen: 'onboarding', obStep: 0 })
+    };
+  }
+
+  obSet(k, v) { this.setState(s => ({ obDraft: Object.assign({}, s.obDraft, { [k]: k === 'sex' || k === 'activity' ? v : v }) })); }
+}
+</script>
+</body>
+</html>

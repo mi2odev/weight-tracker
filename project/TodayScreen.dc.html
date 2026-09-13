@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"></helmet>
+<div style="height:844px;max-height:844px;display:flex;flex-direction:column;position:relative;font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--page,#FAFAF8);color:var(--text,#1C1C1A);font-feature-settings:'tnum' 1;{{ vars }}">
+<div style="position:absolute;top:0;left:0;right:0;height:62px;background:var(--page,#FAFAF8);z-index:5"></div>
+
+<div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;padding-top:62px;margin-top:var(--off,0px)">
+<div style="padding:4px 20px 0;display:flex;align-items:flex-end;justify-content:space-between">
+<span style="font-size:28px;font-weight:600;letter-spacing:-.02em">Today</span>
+<span style="font-size:13px;font-weight:500;color:var(--muted,#6B6B66)">Day 57 of 730</span>
+</div>
+
+<div style="margin:12px 16px 0;display:flex;align-items:center;justify-content:space-between;background:var(--card,#fff);border:1px solid var(--line,#E6E5E0);border-radius:14px;height:48px;padding:0 4px">
+<button style="width:44px;height:44px;border:none;background:transparent;color:var(--muted,#6B6B66);font-size:17px;cursor:pointer">‹</button>
+<span style="font-size:15px;font-weight:600">Sunday 8 November</span>
+<button style="width:44px;height:44px;border:none;background:transparent;color:var(--disabled,#A3A29C);font-size:17px;cursor:pointer">›</button>
+</div>
+
+<div style="margin:10px 16px 0;background:var(--card,#fff);border:1px solid var(--line,#E6E5E0);border-radius:18px;padding:16px 18px 18px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<span style="font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted,#6B6B66)">Weight</span>
+<sc-if value="{{ isLogged }}" hint-placeholder-val="{{ false }}">
+<button style="min-height:32px;padding:0 14px;border-radius:99px;border:1px solid var(--line,#E6E5E0);background:transparent;color:var(--accent,#2F6C7A);font-size:13px;font-weight:600;cursor:pointer">Edit</button>
+</sc-if>
+</div>
+<div style="display:flex;align-items:baseline;gap:8px;margin-top:2px;min-height:70px">
+<sc-if value="{{ isLogged }}" hint-placeholder-val="{{ false }}">
+<span style="font-size:68px;font-weight:600;line-height:1.02;letter-spacing:-.045em;color:var(--text,#1C1C1A)">152.2</span>
+</sc-if>
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;height:70px;padding-left:2px"><div style="width:3px;height:52px;border-radius:2px;background:var(--accent,#2F6C7A)"></div></div>
+</sc-if>
+<span style="font-size:20px;font-weight:500;color:var(--muted,#6B6B66)">kg</span>
+</div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+<span style="font-size:14px;font-weight:500;color:{{ deltaColor }}">{{ deltaText }}</span>
+</div>
+</div>
+
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ true }}">
+<div style="margin:12px 16px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+<sc-for list="{{ keypad }}" as="k" hint-placeholder-count="12">
+<div style="min-height:52px;border-radius:14px;background:var(--card,#fff);border:1px solid var(--line,#E6E5E0);display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:500;color:var(--text,#1C1C1A)">{{ k }}</div>
+</sc-for>
+</div>
+</sc-if>
+
+<div style="margin:16px 16px 0;background:var(--card,#fff);border:1px solid var(--line,#E6E5E0);border-radius:18px;padding:14px 16px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:13px;font-weight:600">Habits</span>
+<span style="font-size:13px;font-weight:600;color:var(--muted,#6B6B66)">{{ tickCount }}</span>
+</div>
+<div style="display:flex;gap:6px;margin-top:12px">
+<sc-for list="{{ ticks }}" as="t" hint-placeholder-count="6">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+<div style="width:100%;height:34px;border-radius:10px;background:{{ t.bg }};border:1px solid {{ t.border }};display:flex;align-items:center;justify-content:center;color:{{ t.fg }}">
+<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="{{ t.icon }}" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+</div>
+<span style="font-size:9px;font-weight:500;color:var(--muted,#6B6B66);letter-spacing:.01em">{{ t.label }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="margin:12px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<sc-for list="{{ fields }}" as="f" hint-placeholder-count="6">
+<div style="background:var(--card,#fff);border:1px solid var(--line,#E6E5E0);border-radius:14px;padding:11px 13px;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted,#6B6B66)">{{ f.label }}</span>
+<div style="display:flex;align-items:baseline;gap:4px">
+<span style="font-size:20px;font-weight:600;letter-spacing:-.02em;color:{{ f.color }}">{{ f.value }}</span>
+<span style="font-size:11px;font-weight:500;color:var(--muted,#6B6B66)">{{ f.unit }}</span>
+</div>
+<span style="font-size:10.5px;font-weight:500;color:var(--muted,#6B6B66)">{{ f.target }}</span>
+</div>
+</sc-for>
+<div style="background:var(--card,#fff);border:1px solid var(--line,#E6E5E0);border-radius:14px;padding:11px 13px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted,#6B6B66)">Strength</span>
+<span style="font-size:13px;font-weight:600;color:{{ strengthFg }}">{{ strengthLabel }}</span>
+</div>
+<div style="width:48px;height:29px;border-radius:99px;background:{{ strengthTrack }};padding:3px;display:flex;justify-content:{{ strengthJustify }};flex:none">
+<div style="width:23px;height:23px;border-radius:99px;background:#fff"></div>
+</div>
+</div>
+<div style="background:var(--card,#fff);border:1px solid var(--line,#E6E5E0);border-radius:14px;padding:11px 13px;display:flex;flex-direction:column;gap:3px">
+<span style="font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted,#6B6B66)">Notes</span>
+<span style="font-size:12px;font-weight:400;line-height:1.35;color:{{ noteColor }}">{{ noteText }}</span>
+</div>
+</div>
+
+<div style="margin:12px 16px 0;display:flex;align-items:center;justify-content:space-between;background:transparent;border:1px solid var(--line,#E6E5E0);border-radius:14px;min-height:48px;padding:0 16px">
+<span style="font-size:14px;font-weight:600;color:var(--accent,#2F6C7A)">Meals &amp; training</span>
+<span style="font-size:13px;font-weight:500;color:var(--muted,#6B6B66)">{{ mealSummary }} ›</span>
+</div>
+<div style="height:20px;flex:none"></div>
+</div>
+
+<div style="flex:none;padding:10px 16px;background:var(--page,#FAFAF8);border-top:1px solid var(--line,#E6E5E0)">
+<div style="min-height:50px;border-radius:14px;background:{{ saveBg }};color:{{ saveFg }};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">{{ saveLabel }}</div>
+</div>
+
+<div style="flex:none;display:flex;padding:6px 4px 26px;background:var(--card,#fff);border-top:1px solid var(--line,#E6E5E0)">
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+<div style="flex:1;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:{{ t.color }}">
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="{{ t.icon }}" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+<span style="font-size:10px;font-weight:{{ t.weight }}">{{ t.label }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:790},&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;state&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;empty&quot;,&quot;logged&quot;],&quot;default&quot;:&quot;empty&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;offset&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:0,&quot;min&quot;:0,&quot;max&quot;:500,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;}}">
+const I = {
+  weight: 'M3 6h10l1.5 7.5H1.5L3 6zM6 6V4.5a2 2 0 014 0V6',
+  food: 'M4 2v5a2 2 0 004 0V2M6 7v7M12 2v12M10.5 2v3.5a1.5 1.5 0 003 0V2',
+  water: 'M8 1.5S3.5 6.5 3.5 9.5a4.5 4.5 0 009 0C12.5 6.5 8 1.5 8 1.5z',
+  steps: 'M4.5 13.5c-1 0-1.5-.7-1.5-2 0-1.8 1-2.3 1-4.5C4 5.3 4.8 4 6 4s1.8 1 1.8 3-1.3 3.3-1.3 5c0 1-.8 1.5-2 1.5zM11 9.5c-1 0-1.5-.7-1.5-2 0-1.8 1-2.3 1-4.5',
+  workout: 'M2 6v4M14 6v4M4 5v6M12 5v6M4 8h8',
+  sleep: 'M13.5 9.5A5.5 5.5 0 016.5 2.5a5.5 5.5 0 107 7z'
+};
+const TABS = [
+  { label: 'Today', icon: 'M10 3.5v13M3.5 10h13' },
+  { label: 'Progress', icon: 'M3 13.5l4-4.5 3 2.5 4-6 3 3.5' },
+  { label: 'Trends', icon: 'M3.5 16.5V11m4.3 5.5V5m4.4 11.5V9m4.3 7.5v-13' },
+  { label: 'Habits', icon: 'M3 3.5h5.5V9H3V3.5zM11.5 3.5H17V9h-5.5V3.5zM3 11.5h5.5V17H3v-5.5zM11.5 11.5H17V17h-5.5v-5.5z' },
+  { label: 'More', icon: 'M4 10h.01M10 10h.01M16 10h.01' }
+];
+
+class Component extends DCLogic {
+  renderVals() {
+    const d = !!this.props.dark;
+    const logged = (this.props.state || 'empty') === 'logged';
+    const th = d
+      ? { page: '#17181A', card: '#1F2124', line: '#2E3134', text: '#F0EFEC', muted: '#A0A09B', disabled: '#6E6E69', accent: '#5FA3B3', tint: '#22343A', green: '#4F8A6B', greenText: '#7FB995', greenTint: '#1E2A24', missed: '#A8544A', missedTint: '#2C1F1E', neutral: '#4A4B48', onAccent: '#0F1112' }
+      : { page: '#FAFAF8', card: '#FFFFFF', line: '#E6E5E0', text: '#1C1C1A', muted: '#6B6B66', disabled: '#A3A29C', accent: '#2F6C7A', tint: '#E3EFF2', green: '#4F8A6B', greenText: '#3E7057', greenTint: '#E4EFE8', missed: '#A8544A', missedTint: '#F5E9E7', neutral: '#C9C8C2', onAccent: '#FFFFFF' };
+    const vars = Object.keys(th).map(k => '--' + k + ':' + th[k]).join(';') + ';--off:' + (-(this.props.offset || 0)) + 'px';
+
+    const met = [true, true, false, true, true, true];
+    const labels = ['Weight', 'Kcal', 'Water', 'Steps', 'Move', 'Sleep'];
+    const icons = [I.weight, I.food, I.water, I.steps, I.workout, I.sleep];
+
+    return {
+      vars,
+      isEmpty: !logged, isLogged: logged,
+      heroValue: logged ? '152.2' : '—',
+      heroColor: logged ? th.text : th.disabled,
+      deltaText: logged ? '↓ 0.3 kg since yesterday' : 'Nothing logged yet — tap a number',
+      deltaColor: logged ? th.greenText : th.muted,
+      keypad: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'],
+      tickCount: logged ? '5 of 6 met' : '0 of 6 met',
+      ticks: labels.map((label, i) => {
+        const on = logged && met[i];
+        const missed = logged && !met[i];
+        return {
+          label, icon: icons[i],
+          bg: on ? th.accent : missed ? th.missedTint : 'transparent',
+          border: on ? th.accent : missed ? th.missed : th.line,
+          fg: on ? th.onAccent : missed ? th.missed : th.disabled
+        };
+      }),
+      fields: [
+        { label: 'Calories', value: logged ? '2,640' : '—', unit: 'kcal', target: 'Target 2,800', color: logged ? th.text : th.disabled },
+        { label: 'Protein', value: logged ? '118' : '—', unit: 'g', target: 'Target 120 g', color: logged ? th.text : th.disabled },
+        { label: 'Water', value: logged ? '2.8' : '—', unit: 'L', target: logged ? '− 0.2 L under 3 L' : 'Target 3 L', color: logged ? th.missed : th.disabled },
+        { label: 'Steps', value: logged ? '9,240' : '—', unit: '', target: logged ? '+ 1,240 over 8,000' : 'Target 8,000', color: logged ? th.text : th.disabled },
+        { label: 'Cardio', value: logged ? '35' : '—', unit: 'min', target: 'Any minutes count', color: logged ? th.text : th.disabled },
+        { label: 'Sleep', value: logged ? '7.2' : '—', unit: 'h', target: logged ? '+ 0.2 h over 7 h' : 'Target 7 h', color: logged ? th.text : th.disabled }
+      ],
+      strengthLabel: logged ? 'Yes' : 'No',
+      strengthFg: logged ? th.text : th.disabled,
+      strengthTrack: logged ? th.accent : th.line,
+      strengthJustify: logged ? 'flex-end' : 'flex-start',
+      noteText: logged ? 'Legs felt heavy but finished the session.' : 'How did the day feel?',
+      noteColor: logged ? th.text : th.disabled,
+      mealSummary: logged ? '3 meals · 2 sessions' : 'Nothing yet',
+      saveLabel: logged ? 'Update today' : 'Save weigh-in',
+      saveBg: logged ? th.card : th.accent,
+      saveFg: logged ? th.disabled : th.onAccent,
+      tabs: TABS.map(t => ({ label: t.label, icon: t.icon, color: t.label === 'Today' ? th.accent : th.disabled, weight: t.label === 'Today' ? 600 : 500 }))
+    };
+  }
+}
+</script>
+</body>
+</html>

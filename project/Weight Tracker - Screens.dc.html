@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#F0EFEA;font-family:'IBM Plex Sans',system-ui,sans-serif}*{box-sizing:border-box}a{color:#2F6C7A}a:hover{color:#1F4F5C}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1C1C1A;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 'IBM Plex Sans',sans-serif;color:#1C1C1A}.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.07);color:#1C1C1A;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.55)}.dv-opt:target .dv-oid{background:#2F6C7A;color:#fff}.dv-next{margin:22px 0 0;font:12px/1.5 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)}.sw{display:flex;flex-direction:column;gap:5px}.swc{width:64px;height:44px;border-radius:8px;border:1px solid rgba(0,0,0,.08)}.swn{font:600 10px ui-monospace,Menlo,monospace;color:#6B6B66}.swl{font:500 10.5px 'IBM Plex Sans';color:#1C1C1A}.grp{font:600 10.5px 'IBM Plex Sans';letter-spacing:.09em;text-transform:uppercase;color:#6B6B66;margin:0 0 12px}</style></helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Style frame, Today (two states), Progress · iPhone 390 × 844</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Style frame — palette, type ramp, card</div>
+<div style="width:720px;background:#FAFAF8;border:1px solid #E6E5E0;border-radius:8px;padding:32px 34px;color:#1C1C1A">
+<div style="display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid #E6E5E0;padding-bottom:14px">
+<span style="font-size:22px;font-weight:600;letter-spacing:-.02em">Weight Tracker — design system</span>
+<span style="font-size:12px;font-weight:500;color:#6B6B66">IBM Plex Sans · tabular figures · 4 pt grid</span>
+</div>
+
+<p class="grp" style="margin-top:26px">Light surfaces</p>
+<div style="display:flex;gap:12px;flex-wrap:wrap">
+<sc-for list="{{ lightSw }}" as="s" hint-placeholder-count="5">
+<div class="sw"><div class="swc" style="background:{{ s.hex }}"></div><span class="swl">{{ s.name }}</span><span class="swn">{{ s.hex }}</span></div>
+</sc-for>
+</div>
+
+<p class="grp" style="margin-top:24px">Dark surfaces</p>
+<div style="display:flex;gap:12px;flex-wrap:wrap">
+<sc-for list="{{ darkSw }}" as="s" hint-placeholder-count="5">
+<div class="sw"><div class="swc" style="background:{{ s.hex }}"></div><span class="swl">{{ s.name }}</span><span class="swn">{{ s.hex }}</span></div>
+</sc-for>
+</div>
+
+<p class="grp" style="margin-top:24px">Semantic — one accent, used sparingly</p>
+<div style="display:flex;gap:12px;flex-wrap:wrap">
+<sc-for list="{{ semSw }}" as="s" hint-placeholder-count="7">
+<div class="sw"><div class="swc" style="background:{{ s.hex }}"></div><span class="swl">{{ s.name }}</span><span class="swn">{{ s.hex }}</span></div>
+</sc-for>
+</div>
+
+<p class="grp" style="margin-top:24px">Heat map ramp — 0 to 6 habits met</p>
+<div style="display:flex;gap:6px;align-items:center">
+<sc-for list="{{ ramp }}" as="r" hint-placeholder-count="7">
+<div style="width:38px;height:38px;border-radius:8px;background:{{ r.hex }};border:1px solid rgba(0,0,0,.06);display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px"><span style="font:600 9px ui-monospace;color:{{ r.fg }}">{{ r.n }}</span></div>
+</sc-for>
+<span style="font-size:11px;color:#6B6B66;margin-left:8px">Read-only — derived from the log</span>
+</div>
+
+<div style="display:flex;gap:34px;margin-top:30px;border-top:1px solid #E6E5E0;padding-top:24px">
+<div style="flex:1;min-width:0">
+<p class="grp">Type ramp</p>
+<div style="display:flex;flex-direction:column;gap:14px">
+<sc-for list="{{ typeRamp }}" as="t" hint-placeholder-count="5">
+<div style="display:flex;align-items:baseline;gap:16px">
+<span style="width:106px;flex:none;font:500 10px ui-monospace;color:#6B6B66">{{ t.spec }}</span>
+<span style="font-size:{{ t.size }};font-weight:{{ t.weight }};letter-spacing:{{ t.ls }};text-transform:{{ t.tt }};color:#1C1C1A;font-feature-settings:'tnum' 1">{{ t.sample }}</span>
+</div>
+</sc-for>
+</div>
+<p class="grp" style="margin-top:26px">Rules</p>
+<ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.65;color:#1C1C1A">
+<li>Colour is never the only signal — every green or red value carries an arrow or a sign.</li>
+<li>Amber-red marks a missed habit only, never a weight gain.</li>
+<li>Cards: hairline border <em>or</em> light shadow, never both. 14 pt radius small, 18 pt hero.</li>
+<li>Tap targets 44 pt minimum. Spacing on a 4 pt base: 4 / 8 / 12 / 16 / 24 / 32.</li>
+<li>Figures are tabular everywhere so columns of numbers align.</li>
+</ul>
+</div>
+<div style="width:268px;flex:none">
+<p class="grp">Example card</p>
+<div style="background:#fff;border:1px solid #E6E5E0;border-radius:18px;padding:16px 18px;font-feature-settings:'tnum' 1">
+<span style="font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#6B6B66">Current weight</span>
+<div style="display:flex;align-items:baseline;gap:7px;margin-top:2px">
+<span style="font-size:54px;font-weight:600;line-height:1;letter-spacing:-.04em">152.2</span>
+<span style="font-size:18px;font-weight:500;color:#6B6B66">kg</span>
+</div>
+<span style="font-size:14px;font-weight:500;color:#3E7057">↓ 0.3 kg since yesterday</span>
+<div style="height:1px;background:#E6E5E0;margin:14px 0"></div>
+<div style="display:flex;justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#6B6B66">Total lost</span>
+<span style="font-size:21px;font-weight:600;letter-spacing:-.02em;color:#3E7057">4.8 <span style="font-size:11px;font-weight:500;color:#6B6B66">kg</span></span>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#6B6B66">Water</span>
+<span style="font-size:21px;font-weight:600;letter-spacing:-.02em;color:#A8544A">− 0.2 <span style="font-size:11px;font-weight:500;color:#6B6B66">L</span></span>
+</div>
+</div>
+</div>
+<p style="font-size:11.5px;line-height:1.5;color:#6B6B66;margin:12px 0 0">Same card, dark:</p>
+<div style="background:#1F2124;border:1px solid #2E3134;border-radius:18px;padding:16px 18px;margin-top:8px;font-feature-settings:'tnum' 1">
+<span style="font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#A0A09B">Current weight</span>
+<div style="display:flex;align-items:baseline;gap:7px;margin-top:2px">
+<span style="font-size:54px;font-weight:600;line-height:1;letter-spacing:-.04em;color:#F0EFEC">152.2</span>
+<span style="font-size:18px;font-weight:500;color:#A0A09B">kg</span>
+</div>
+<span style="font-size:14px;font-weight:500;color:#7FB995">↓ 0.3 kg since yesterday</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Today — empty day, keypad up</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" hint-size="390px,844px">
+<dc-import name="TodayScreen" state="empty" hint-size="100%,100%"></dc-import>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Today — fully logged day</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" hint-size="390px,844px">
+<dc-import name="TodayScreen" state="logged" hint-size="100%,100%"></dc-import>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Today — logged, scrolled to fields</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" hint-size="390px,844px">
+<dc-import name="TodayScreen" state="logged" offset="{{ 240 }}" hint-size="100%,100%"></dc-import>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1e">
+<div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Progress — 8 weeks in</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" hint-size="390px,844px">
+<dc-import name="ProgressScreen" hint-size="100%,100%"></dc-import>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1f">
+<div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Progress — scrolled to chart and insights</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" hint-size="390px,844px">
+<dc-import name="ProgressScreen" offset="{{ 345 }}" hint-size="100%,100%"></dc-import>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1g">
+<div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Today — dark</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" dark="{{ true }}" hint-size="390px,844px">
+<dc-import name="TodayScreen" state="logged" dark="{{ true }}" hint-size="100%,100%"></dc-import>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1h">
+<div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Progress — dark</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 390 }}" height="{{ 844 }}" dark="{{ true }}" hint-size="390px,844px">
+<dc-import name="ProgressScreen" dark="{{ true }}" hint-size="100%,100%"></dc-import>
+</x-import>
+</div>
+
+</div>
+<p class="dv-next">Frames are live-scrollable — drag inside a phone to see the rest. Try next: "keep <a class="dv-oid" href="#1c">1c</a> but move the habit row above the fields" · "the chart in <a class="dv-oid" href="#1e">1e</a> needs a y-axis break so the goal line fits" · "carry on with Trends, Habits and Milestones"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      lightSw: [
+        { name: 'Page', hex: '#FAFAF8' }, { name: 'Card', hex: '#FFFFFF' }, { name: 'Hairline', hex: '#E6E5E0' },
+        { name: 'Text', hex: '#1C1C1A' }, { name: 'Muted', hex: '#6B6B66' }, { name: 'Disabled', hex: '#A3A29C' }
+      ],
+      darkSw: [
+        { name: 'Page', hex: '#17181A' }, { name: 'Card', hex: '#1F2124' }, { name: 'Hairline', hex: '#2E3134' },
+        { name: 'Text', hex: '#F0EFEC' }, { name: 'Muted', hex: '#A0A09B' }
+      ],
+      semSw: [
+        { name: 'Accent', hex: '#2F6C7A' }, { name: 'Pressed', hex: '#1F4F5C' }, { name: 'Tint', hex: '#E3EFF2' },
+        { name: 'Accent dark', hex: '#5FA3B3' }, { name: 'Progress', hex: '#4F8A6B' }, { name: 'Caution', hex: '#B5763C' },
+        { name: 'Missed habit', hex: '#A8544A' }, { name: 'Neutral data', hex: '#C9C8C2' }
+      ],
+      ramp: ['#F0EFEA', '#DCE7EA', '#BCD2D8', '#98B8C1', '#7099A6', '#4E7F8D', '#2F6C7A'].map((hex, i) => ({ hex, n: i, fg: i >= 4 ? 'rgba(255,255,255,.85)' : '#6B6B66' })),
+      typeRamp: [
+        { spec: 'Display 68 / 600', size: '68px', weight: 600, ls: '-.045em', tt: 'none', sample: '152.2' },
+        { spec: 'Hero 54 / 600', size: '54px', weight: 600, ls: '-.04em', tt: 'none', sample: '152.2' },
+        { spec: 'Title 28 / 600', size: '28px', weight: 600, ls: '-.02em', tt: 'none', sample: 'Progress' },
+        { spec: 'Stat 21 / 600', size: '21px', weight: 600, ls: '-.02em', tt: 'none', sample: '4.8 kg' },
+        { spec: 'Body 13.5 / 450', size: '13.5px', weight: 450, ls: '0', tt: 'none', sample: 'Averaging 0.6 kg per week over the last 8 weeks.' },
+        { spec: 'Label 10.5 / 600', size: '10.5px', weight: 600, ls: '.07em', tt: 'uppercase', sample: 'Total lost' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
