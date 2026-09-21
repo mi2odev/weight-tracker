@@ -22,7 +22,7 @@ import { AuthOutcome, classifyAuthResult } from './lockRules';
  * `expo-screen-capture` is process-wide, so a key keeps our prevent/allow
  * pair from fighting anything else that might call it.
  */
-const CAPTURE_KEY = 'weight-tracker-lock';
+const CAPTURE_KEY = 'weighpoint-lock';
 
 /**
  * Asks the OS to refuse screenshots and screen recordings while the lock is

@@ -18,7 +18,14 @@ import { isDateKey } from '../data/schema';
 const MIN_RESTORABLE_VERSION = 1;
 
 export interface BackupFile {
-  /** Marks the file as ours — a restore checks it before trusting anything. */
+  /**
+   * Marks the file as ours — a restore checks it before trusting anything.
+   *
+   * Deliberately still says `weight-tracker` after the rename to Weighpoint.
+   * This string is a stored format identifier, not a label: changing it would
+   * make every backup taken before the rename unrestorable, which is the one
+   * thing a backup must never be.
+   */
   format: 'weight-tracker-backup';
   schemaVersion: number;
   exportedAt: string;
@@ -27,6 +34,7 @@ export interface BackupFile {
   data: AppData;
 }
 
+/** Unchanged across the rename. See `BackupFile.format`. */
 export const BACKUP_FORMAT = 'weight-tracker-backup';
 
 export function buildBackup(data: AppData, photos?: Record<string, string>): BackupFile {
@@ -41,7 +49,7 @@ export function buildBackup(data: AppData, photos?: Record<string, string>): Bac
 
 export function backupFileName(now: Date = new Date()): string {
   const stamp = now.toISOString().slice(0, 10);
-  return `weight-tracker-backup-${stamp}.json`;
+  return `weighpoint-backup-${stamp}.json`;
 }
 
 export type RestoreResult =
@@ -90,7 +98,7 @@ export function parseBackup(text: string): RestoreResult {
   if (envelope.format !== BACKUP_FORMAT) {
     return {
       ok: false,
-      reason: 'That file was not made by this app. Pick a Weight Tracker backup.',
+      reason: 'That file was not made by this app. Pick a Weighpoint backup.',
     };
   }
 

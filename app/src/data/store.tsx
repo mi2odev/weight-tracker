@@ -57,6 +57,10 @@ import {
   snapshotsToPrune,
 } from '../lib/snapshots';
 
+/**
+ * Unchanged across the rename to Weighpoint: this key is where every existing
+ * user's log lives, and renaming it would read as a wiped app.
+ */
 export const STORAGE_KEY = 'wt.data.v1';
 /** A rescued copy of a payload that would not parse. Never deleted by the app. */
 export const CORRUPT_KEY_PREFIX = 'wt.data.corrupt.';

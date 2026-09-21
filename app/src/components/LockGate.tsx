@@ -200,7 +200,7 @@ export function LockGate({ children }: { children: React.ReactNode }) {
           }}
         >
           <Body style={{ fontFamily: font.semibold, fontSize: 15 }} color={colors.muted}>
-            Weight Tracker
+            Weighpoint
           </Body>
         </View>
       )}

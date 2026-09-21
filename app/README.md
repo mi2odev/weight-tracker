@@ -1,8 +1,9 @@
-# Weight Tracker
+# Weighpoint
 
 A React Native (Expo) implementation of the Claude Design handoff in
 `../project/`, built from the App Spec sheet in
-`../project/uploads/Weight_Loss_Tracker.xlsx`.
+`../project/uploads/Weight_Loss_Tracker.xlsx`. Shipped as **Weighpoint**; the
+design files still carry the working title "Weight Tracker".
 
 Nine screens, real state throughout: the weigh-in keypad actually enters a
 weight, Save writes one row per day, habit ticks are derived from the log, and
@@ -314,13 +315,31 @@ delivery mechanism that did not exist. `developmentClient: true` needs
 expo-dev-client, a native dependency. Both are one-line reinstatements once
 those are decisions rather than defaults.
 
-> The identifier is currently `com.mi2odev.weighttracker`, chosen as a
+> The identifier is currently `com.mi2odev.weighpoint`, chosen as a
 > placeholder. Change it before the first submission — it cannot be changed
 > afterwards.
 
-The icons are drawn by `tools/generate-icons.mjs` rather than kept as opaque
-binaries, so the mark, its colour and the Android safe-zone scale can be
-adjusted without a design tool.
+Every asset in `assets/` is cut from one artboard,
+`assets/source/weighpoint-logo.webp`, by `tools/generate-icons.mjs` — so a
+change to the logo is one re-run rather than six exports. Three things that
+artboard cannot be used for as-is, and what the tool does instead:
+
+- **iOS masks its own corners**, so shipping a pre-rounded tile gives a double
+  rounding with pale corners showing through. The icon is drawn on a full-bleed
+  gradient sampled from the tile at an 8% inset — far enough in to miss the
+  artboard's white margin, close enough to the corners to miss the artwork.
+- **Android composites a foreground over a background** and crops the outer
+  third. The mark is keyed off the tile by luminance and scaled into the safe
+  zone; the gradient is supplied separately as the background layer.
+- **The wordmark does not survive being shrunk** to a 48px favicon or a
+  launcher icon, so everything small uses the mark alone. The tool finds where
+  the wordmark starts by looking for the first quiet run of rows below the
+  scale — not the longest, which is the padding underneath it.
+
+Two identifiers deliberately did **not** change with the name:
+`STORAGE_KEY` (`wt.data.v1`), which is where every existing log lives, and
+`BACKUP_FORMAT` (`weight-tracker-backup`), which is a stored format marker —
+renaming it would make every backup taken before the rename unrestorable.
 
 ## Not built
 

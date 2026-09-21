@@ -160,13 +160,13 @@ export interface ExportFile {
 export function buildExport(data: AppData): ExportFile[] {
   const stamp = todayKey();
   const files: ExportFile[] = [
-    { name: `weight-tracker-${stamp}-profile.csv`, contents: profileCsv(data) },
-    { name: `weight-tracker-${stamp}-weigh-ins.csv`, contents: weighInsCsv(data) },
+    { name: `weighpoint-${stamp}-profile.csv`, contents: profileCsv(data) },
+    { name: `weighpoint-${stamp}-weigh-ins.csv`, contents: weighInsCsv(data) },
   ];
-  if (data.meals.length) files.push({ name: `weight-tracker-${stamp}-meals.csv`, contents: mealsCsv(data) });
+  if (data.meals.length) files.push({ name: `weighpoint-${stamp}-meals.csv`, contents: mealsCsv(data) });
   if (data.workouts.length)
-    files.push({ name: `weight-tracker-${stamp}-workouts.csv`, contents: workoutsCsv(data) });
+    files.push({ name: `weighpoint-${stamp}-workouts.csv`, contents: workoutsCsv(data) });
   if (data.measurements.length)
-    files.push({ name: `weight-tracker-${stamp}-measurements.csv`, contents: measurementsCsv(data) });
+    files.push({ name: `weighpoint-${stamp}-measurements.csv`, contents: measurementsCsv(data) });
   return files;
 }

@@ -43,7 +43,7 @@ describe('building a backup', () => {
   });
 
   it('names the file by date', () => {
-    assert.equal(backupFileName(new Date('2026-09-21T10:00:00Z')), 'weight-tracker-backup-2026-09-21.json');
+    assert.equal(backupFileName(new Date('2026-09-21T10:00:00Z')), 'weighpoint-backup-2026-09-21.json');
   });
 });
 

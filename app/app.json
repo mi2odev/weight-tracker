@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "Weight Tracker",
-    "slug": "weight-tracker",
+    "name": "Weighpoint",
+    "slug": "weighpoint",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "weighttracker",
+    "scheme": "weighpoint",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mi2odev.weighttracker",
+      "bundleIdentifier": "com.mi2odev.weighpoint",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.mi2odev.weighttracker",
+      "package": "com.mi2odev.weighpoint",
       "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
@@ -47,15 +47,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Weight Tracker uses your photo library so you can attach progress photos to a measurement. They stay on this device.",
-          "cameraPermission": "Weight Tracker uses the camera so you can take a progress photo. It stays on this device.",
+          "photosPermission": "Weighpoint uses your photo library so you can attach progress photos to a measurement. They stay on this device.",
+          "cameraPermission": "Weighpoint uses the camera so you can take a progress photo. It stays on this device.",
           "microphonePermission": false
         }
       ],
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Weight Tracker uses Face ID to keep your weight log private."
+          "faceIDPermission": "Weighpoint uses Face ID to keep your weight log private."
         }
       ]
     ]

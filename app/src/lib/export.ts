@@ -94,7 +94,7 @@ export async function shareBackup(data: AppData, photos?: Record<string, string>
  * whatever is on disk is what leaves.
  */
 export async function shareRawStorage(payload: string): Promise<string> {
-  const name = `weight-tracker-rescue-${new Date().toISOString().slice(0, 10)}.json`;
+  const name = `weighpoint-rescue-${new Date().toISOString().slice(0, 10)}.json`;
   const uri = writeFile(name, payload);
 
   if (!(await Sharing.isAvailableAsync())) {
@@ -114,7 +114,7 @@ export async function shareRawStorage(payload: string): Promise<string> {
  * fuller version kept back for this.
  */
 export async function shareCrashReport(text: string): Promise<string> {
-  const name = `weight-tracker-crash-${new Date().toISOString().slice(0, 10)}.txt`;
+  const name = `weighpoint-crash-${new Date().toISOString().slice(0, 10)}.txt`;
   const uri = writeFile(name, text);
 
   if (!(await Sharing.isAvailableAsync())) {
