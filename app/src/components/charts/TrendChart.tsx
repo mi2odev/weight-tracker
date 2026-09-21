@@ -171,7 +171,9 @@ export function TrendChart({
       <Pressable
         onLayout={onLayout}
         onPress={(e) => onTap(e.nativeEvent.locationX)}
-        accessibilityLabel="Weight trend chart. Tap to read a single day."
+        accessibilityRole="image"
+        accessibilityLabel={describeTrend(series, profile, u)}
+        accessibilityHint="Tap to read a single day"
         style={{ height: CHART_HEIGHT, marginTop: space.xs }}
       >
         {ticks.map((t) => (
@@ -257,6 +259,32 @@ export function TrendChart({
   );
 }
 
+/**
+ * What the chart says, in a sentence — "Weight trend, down 4.8 kg over 8
+ * weeks, from 157.0 kg to 152.2 kg". A screen reader gets the finding, not a
+ * description of the drawing.
+ */
+function describeTrend(
+  series: { logDate: DateKey; weightKg: number }[],
+  profile: Profile,
+  u: ReturnType<typeof useUnits>,
+): string {
+  if (series.length < 2) return 'Weight trend chart, not enough data yet';
+
+  const first = series[0];
+  const last = series[series.length - 1];
+  const change = last.weightKg - first.weightKg;
+  const days = daysBetween(first.logDate, last.logDate) + 1;
+  const weeks = Math.max(1, Math.round(days / 7));
+
+  const direction =
+    Math.abs(change) < 0.05 ? 'level' : change < 0 ? `down ${u.weight(-change)}` : `up ${u.weight(change)}`;
+
+  return `Weight trend, ${direction} over ${weeks} ${weeks === 1 ? 'week' : 'weeks'}, from ${u.weight(
+    first.weightKg,
+  )} to ${u.weight(last.weightKg)}. Goal ${u.weight(profile.goalWeightKg)}.`;
+}
+
 function ChartHeader({
   range,
   onRange,
@@ -294,6 +322,9 @@ function ChartHeader({
               key={r.label}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
+              accessibilityLabel={
+                r.days === Infinity ? 'Show the whole log' : `Show the last ${r.days} days`
+              }
               onPress={() => onRange(r.label)}
               hitSlop={6}
               style={{

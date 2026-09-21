@@ -1,10 +1,18 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleProp, View, ViewStyle } from 'react-native';
+import { Pressable, ScrollView, StyleProp, useWindowDimensions, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { space } from '../theme/tokens';
 import { Icon } from './Icon';
 import { Meta, Title } from './Type';
+
+/**
+ * The design is drawn for a 390 pt phone. On a tablet the choice is to stretch
+ * it — which leaves a 40-character line length and a chart the width of a
+ * dinner table — or to cap it and centre. Capping keeps every proportion the
+ * design specified, so that is what this does; `supportsTablet` stays true.
+ */
+export const MAX_CONTENT_WIDTH = 480;
 
 /**
  * Page scaffold.
@@ -34,12 +42,18 @@ export function Screen({
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const wide = width > MAX_CONTENT_WIDTH;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.page }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: footerHeight }}
+        contentContainerStyle={{
+          paddingTop: insets.top,
+          paddingBottom: footerHeight,
+          ...(wide ? { width: MAX_CONTENT_WIDTH, alignSelf: 'center' } : null),
+        }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -88,7 +102,9 @@ export function Screen({
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.page }}
       />
 
-      {footer}
+      {footer ? (
+        <View style={wide ? { width: MAX_CONTENT_WIDTH, alignSelf: 'center' } : undefined}>{footer}</View>
+      ) : null}
     </View>
   );
 }

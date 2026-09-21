@@ -1,9 +1,10 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { font, space } from '../theme/tokens';
 import { Icon, IconName } from './Icon';
+import { MAX_CONTENT_WIDTH } from './Screen';
 import { Body } from './Type';
 
 export type TabKey = 'today' | 'progress' | 'trends' | 'habits' | 'more';
@@ -19,11 +20,13 @@ const TABS: { key: TabKey; label: string; icon: IconName }[] = [
 export function TabBar({ active, onChange }: { active: TabKey; onChange: (t: TabKey) => void }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   return (
     <View
       style={{
         flexDirection: 'row',
+        ...(width > MAX_CONTENT_WIDTH ? { width: MAX_CONTENT_WIDTH, alignSelf: 'center' } : null),
         backgroundColor: colors.card,
         borderTopWidth: 1,
         borderTopColor: colors.line,

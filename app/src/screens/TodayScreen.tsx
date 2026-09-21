@@ -3,7 +3,7 @@ import { Pressable, TextInput, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
 import { font, MIN_TAP, radius, space, tnum, type } from '../theme/tokens';
-import { useStore } from '../data/store';
+import { SaveWeighInError, useStore } from '../data/store';
 import { useUnits } from '../data/derived';
 import { UnitFormatter } from '../lib/units';
 import { WeighIn } from '../data/types';
@@ -83,11 +83,9 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
   const draftError =
     draft === '' || draftKg == null
       ? null
-      : draftKg < 30
-        ? `That is under ${u.weight(30)} — check the number`
-        : draftKg > 400
-          ? `That is over ${u.weight(400)} — check the number`
-          : null;
+      : draftKg < 30 || draftKg > 400
+        ? `Enter a weight between ${u.weightValue(30)} and ${u.weight(400)}`
+        : null;
 
   const onSave = () => {
     if (draftKg == null) {
@@ -95,7 +93,7 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
       return;
     }
     const error = saveWeighIn(cursor, draftKg);
-    if (error) showToast(error);
+    if (error) showToast(saveErrorText(error, u));
     else {
       setDraft('');
       setEditing(false);
@@ -195,6 +193,7 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
           {savedWeight != null && !editing && (
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Edit this weigh-in"
               onPress={() => {
                 setEditing(true);
                 setDraft('');
@@ -396,6 +395,21 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * The store returns a reason code rather than prose, because only the screen
+ * knows whether this user reads kilograms or pounds.
+ */
+function saveErrorText(error: SaveWeighInError, u: UnitFormatter): string {
+  switch (error) {
+    case 'not-a-number':
+      return 'Enter a weight first';
+    case 'out-of-range':
+      return `Enter a weight between ${u.weightValue(30)} and ${u.weight(400)}`;
+    case 'future':
+      return 'You cannot log a weigh-in in the future';
+  }
+}
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 

@@ -21,6 +21,8 @@ import {
   expectedLossPerWeek,
   goalCompletionPct,
   habitTicks,
+  isCountdown,
+  maintainStatus,
   healthyWeightRange,
   milestones,
   monthlyRollups,
@@ -50,6 +52,7 @@ const profile: Profile = {
   ageYears: 34,
   sex: 'Male',
   activityLevel: 'Lightly Active',
+  goalType: 'lose',
   targetCalories: 2650,
   targetProteinG: 120,
   targetWaterL: 3,
@@ -345,5 +348,51 @@ describe('workout roll-up', () => {
     assert.equal(totals.cardioMin, 60); // mobility and strength minutes excluded
     assert.equal(totals.strengthDone, true);
     assert.equal(totals.durationMin, 115);
+  });
+});
+
+describe('maintaining', () => {
+  const maintain: Profile = { ...profile, goalType: 'maintain', goalWeightKg: 75, startWeightKg: 75 };
+  const on = (kg: number): WeighIn[] => [{ logDate: START, weightKg: kg }];
+
+  it('treats the goal as a band, not a line', () => {
+    assert.equal(maintainStatus(on(75), maintain, START).state, 'in-range');
+    assert.equal(maintainStatus(on(76.4), maintain, START).state, 'in-range');
+    assert.equal(maintainStatus(on(73.6), maintain, START).state, 'in-range');
+  });
+
+  it('reports above and below the band', () => {
+    assert.equal(maintainStatus(on(77), maintain, START).state, 'above');
+    assert.equal(maintainStatus(on(73), maintain, START).state, 'below');
+  });
+
+  it('exposes the band edges so a screen never recomputes them', () => {
+    const status = maintainStatus(on(75), maintain, START);
+    assert.equal(status.lowKg, 73.5);
+    assert.equal(status.highKg, 76.5);
+  });
+
+  it('signs the delta from the goal', () => {
+    assert.equal(maintainStatus(on(77), maintain, START).deltaKg.toFixed(1), '2.0');
+    assert.equal(maintainStatus(on(73), maintain, START).deltaKg.toFixed(1), '-2.0');
+  });
+
+  it('scores the share of the last 30 days spent in range', () => {
+    const entries: WeighIn[] = [
+      { logDate: START, weightKg: 75 },
+      { logDate: addDays(START, 1), weightKg: 78 }, // out
+      { logDate: addDays(START, 2), weightKg: 76 },
+      { logDate: addDays(START, 3), weightKg: 75.5 },
+    ];
+    assert.equal(maintainStatus(entries, maintain, addDays(START, 3)).daysInRangePct, 75);
+  });
+
+  it('has no score before anything is weighed', () => {
+    assert.equal(maintainStatus([], maintain, START).daysInRangePct, null);
+  });
+
+  it('turns off the countdown, which has nowhere to arrive', () => {
+    assert.equal(isCountdown(profile), true);
+    assert.equal(isCountdown(maintain), false);
   });
 });

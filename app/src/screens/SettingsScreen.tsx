@@ -6,7 +6,15 @@ import { font, space } from '../theme/tokens';
 import { CsvImportPreview, RestorePreview, useStore } from '../data/store';
 import { useDerived } from '../data/derived';
 import { describeData, hasAnyData } from '../data/schema';
-import { ACTIVITY_LEVELS, ActivityLevel, NotificationSettings, Sex, Units } from '../data/types';
+import {
+  ACTIVITY_LEVELS,
+  ActivityLevel,
+  GOAL_TYPES,
+  GoalType,
+  NotificationSettings,
+  Sex,
+  Units,
+} from '../data/types';
 import { Card, Grid } from '../components/Card';
 import { GhostButton, NumberField, PrimaryButton, SectionHeading, Segmented, Toggle, ValueRow } from '../components/Controls';
 import { ConfirmDialog, Sheet } from '../components/Overlays';
@@ -316,6 +324,7 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
   const [age, setAge] = useState(String(profile.ageYears));
   const [sex, setSex] = useState<Sex>(profile.sex);
   const [activity, setActivity] = useState<ActivityLevel>(profile.activityLevel);
+  const [goalType, setGoalType] = useState<GoalType>(profile.goalType);
   /** The goal weight the user has already been warned about and kept. */
   const [acknowledged, setAcknowledged] = useState<number | null>(null);
 
@@ -329,7 +338,10 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
       return showToast(`Starting weight must be ${u.weightValue(30)}–${u.weight(400)}`);
     if (gw == null || gw < 30 || gw > 400)
       return showToast(`Goal weight must be ${u.weightValue(30)}–${u.weight(400)}`);
-    if (gw >= sw) return showToast('Goal weight must be below your starting weight');
+    // Maintaining means holding at a weight, so the goal is allowed to equal
+    // or exceed where you started — only a countdown needs it to be below.
+    if (goalType === 'lose' && gw >= sw)
+      return showToast('To lose weight, your goal has to be below your starting weight');
 
     if (h == null || h < 100 || h > 250)
       return showToast(`Height must be ${u.height(100)}–${u.height(250)}`);
@@ -352,6 +364,7 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
       ageYears: a,
       sex,
       activityLevel: activity,
+      goalType,
     });
     onClose();
     showToast('Plan updated');
@@ -365,6 +378,17 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
         <NumberField label="Height" unit={u.labels.length} value={height} onChangeText={setHeight} />
         <NumberField label="Age" unit="yrs" value={age} onChangeText={setAge} />
       </Grid>
+      <View style={{ gap: space.sm }}>
+        <Caption style={{ fontSize: 11.5 }}>What is the plan?</Caption>
+        <Segmented options={GOAL_TYPES} value={goalType} onChange={setGoalType} />
+        {goalType === 'maintain' && (
+          <Caption style={{ fontSize: 11.5, lineHeight: 17 }}>
+            Maintaining swaps the countdown for a target band of ±1.5 kg. Milestones and the projected goal date
+            switch off — there is nowhere to arrive.
+          </Caption>
+        )}
+      </View>
+
       <Segmented options={['Male', 'Female'] as const} value={sex} onChange={setSex} />
       <Caption style={{ fontSize: 11.5, lineHeight: 17 }}>
         Sex is used only for the resting-burn constant (+5 / −161).

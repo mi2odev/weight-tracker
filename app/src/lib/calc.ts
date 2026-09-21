@@ -8,6 +8,7 @@
 
 import {
   ACTIVITY_FACTORS,
+  MAINTAIN_BAND_KG,
   DateKey,
   HabitKey,
   HABIT_KEYS,
@@ -306,6 +307,56 @@ export function totalLostKg(entries: WeighIn[], profile: Profile, asOf?: DateKey
 
 export function remainingKg(entries: WeighIn[], profile: Profile, asOf?: DateKey): number {
   return currentWeight(entries, profile, asOf) - profile.goalWeightKg;
+}
+
+// ── maintaining ──────────────────────────────────────────────────────────────
+
+export type MaintainState = 'in-range' | 'above' | 'below';
+
+export interface MaintainStatus {
+  state: MaintainState;
+  /** Signed distance from the goal. Negative is below it. */
+  deltaKg: number;
+  lowKg: number;
+  highKg: number;
+  /** Share of the last 30 logged days spent inside the band, 0–100. */
+  daysInRangePct: number | null;
+}
+
+/**
+ * Where the user sits against a maintenance band rather than a countdown.
+ *
+ * Maintaining has no "percent complete" — there is nowhere to arrive. What
+ * matters is whether today is inside the band and how much of the last month
+ * has been, so that is what this returns.
+ */
+export function maintainStatus(
+  entries: WeighIn[],
+  profile: Profile,
+  asOf: DateKey = todayKey(),
+): MaintainStatus {
+  const lowKg = profile.goalWeightKg - MAINTAIN_BAND_KG;
+  const highKg = profile.goalWeightKg + MAINTAIN_BAND_KG;
+  const current = currentWeight(entries, profile, asOf);
+  const deltaKg = current - profile.goalWeightKg;
+
+  const recent = weighedEntries(entries).filter(
+    (e) => e.logDate <= asOf && daysBetween(e.logDate, asOf) < 30,
+  );
+  const inRange = recent.filter((e) => e.weightKg >= lowKg && e.weightKg <= highKg);
+
+  return {
+    state: current > highKg ? 'above' : current < lowKg ? 'below' : 'in-range',
+    deltaKg,
+    lowKg,
+    highKg,
+    daysInRangePct: recent.length ? Math.round((inRange.length / recent.length) * 100) : null,
+  };
+}
+
+/** Milestones and projections only make sense while heading somewhere. */
+export function isCountdown(profile: Profile): boolean {
+  return profile.goalType === 'lose';
 }
 
 // ── habits ───────────────────────────────────────────────────────────────────

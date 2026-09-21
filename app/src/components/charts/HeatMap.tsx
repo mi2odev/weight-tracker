@@ -39,8 +39,22 @@ export function HeatMap({
     rows.push(Array.from({ length: 7 }, (_, d) => addDays(firstCell, w * 7 + d)));
   }
 
+  const scored = rows.flat().map((date) => habitTicks(entryFor(entries, date), profile, date, asOf));
+  const inPlan = scored.filter((t) => t !== null);
+  const average = inPlan.length
+    ? Math.round((inPlan.reduce((a, t) => a + habitsMetCount(t), 0) / inPlan.length / 6) * 100)
+    : 0;
+
   return (
-    <View>
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={
+        inPlan.length
+          ? `Habit heat map for the last five weeks. ${average}% of habits met on average across ${inPlan.length} days.`
+          : 'Habit heat map, nothing logged yet'
+      }
+    >
       <View style={{ flexDirection: 'row', gap: 5 }}>
         {WEEKDAY_INITIALS.map((initial, i) => (
           <Caption key={i} style={{ flex: 1, fontSize: 10, textAlign: 'center', fontFamily: font.semibold }}>

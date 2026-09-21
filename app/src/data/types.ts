@@ -34,6 +34,24 @@ export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
 
 export type Units = 'metric' | 'imperial';
 
+/**
+ * What the plan is for.
+ *
+ * `lose` is the original behaviour and the default. `maintain` swaps the
+ * countdown for a target band and turns off everything that only makes sense
+ * while heading somewhere: milestones, projections, goal completion.
+ *
+ * `gain` is deliberately absent — see README. Inverting the milestone ladder,
+ * the "total lost" framing and the whole insight vocabulary is a much larger
+ * change than adding a band.
+ */
+export type GoalType = 'lose' | 'maintain';
+
+export const GOAL_TYPES: GoalType[] = ['lose', 'maintain'];
+
+/** How far either side of the goal still counts as holding steady. */
+export const MAINTAIN_BAND_KG = 1.5;
+
 export interface Profile {
   startDate: DateKey;
   startWeightKg: number;
@@ -42,6 +60,8 @@ export interface Profile {
   ageYears: number;
   sex: Sex;
   activityLevel: ActivityLevel;
+  /** Absent on payloads written before goal types existed; migrates to 'lose'. */
+  goalType: GoalType;
   targetCalories: number;
   targetProteinG: number;
   targetWaterL: number;

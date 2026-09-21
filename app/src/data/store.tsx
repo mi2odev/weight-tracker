@@ -54,6 +54,8 @@ export interface Celebration {
   reward: string;
 }
 
+export type SaveWeighInError = 'not-a-number' | 'out-of-range' | 'future';
+
 export interface UndoAction {
   label: string;
   run: () => void;
@@ -76,15 +78,23 @@ interface StoreValue {
   celebration: Celebration | null;
   dismissCelebration: () => void;
 
-  /** Returns an error string, or null on success. */
-  saveWeighIn: (date: DateKey, weightKg: number) => string | null;
+  /**
+   * Returns a reason code, or null on success. The *wording* is the screen's
+   * job: only the screen knows whether to say kilograms or pounds.
+   */
+  saveWeighIn: (date: DateKey, weightKg: number) => SaveWeighInError | null;
   updateEntry: (date: DateKey, patch: Partial<WeighIn>) => void;
 
   addMeal: (meal: Omit<MealEntry, 'id'>) => void;
+  updateMeal: (id: string, patch: Partial<Omit<MealEntry, 'id'>>) => void;
   removeMeal: (id: string) => void;
   addWorkout: (workout: Omit<WorkoutEntry, 'id'>) => void;
+  updateWorkout: (id: string, patch: Partial<Omit<WorkoutEntry, 'id'>>) => void;
   removeWorkout: (id: string) => void;
   addMeasurement: (m: Omit<Measurement, 'id'>) => void;
+  updateMeasurement: (id: string, patch: Partial<Omit<Measurement, 'id'>>) => void;
+  /** Clears a day's weight without touching the rest of the row. */
+  removeWeighIn: (date: DateKey) => void;
 
   setReward: (targetKg: number, reward: string) => void;
   updateProfile: (patch: Partial<Profile>) => void;
@@ -331,9 +341,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (date, weightKg) => {
       const prev = dataRef.current;
 
-      if (!Number.isFinite(weightKg)) return 'Enter a weight first';
-      if (weightKg < 30 || weightKg > 400) return 'Enter a weight between 30 and 400 kg';
-      if (date > todayKey()) return 'You cannot log a weigh-in in the future';
+      if (!Number.isFinite(weightKg)) return 'not-a-number';
+      if (weightKg < 30 || weightKg > 400) return 'out-of-range';
+      if (date > todayKey()) return 'future';
 
       const entries = prev.entries.slice();
       const i = entries.findIndex((e) => e.logDate === date);
@@ -376,12 +386,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (prev.notifications.milestoneReached) {
           fireMilestoneReached(target, kgFromStart, reward).catch(() => {});
         }
+      } else if (date < prev.profile.startDate) {
+        // Logging never fails — the entry is saved. But stats and habit ticks
+        // are anchored to the start date, so a day before it would sit outside
+        // every roll-up. Offer to move the anchor rather than refusing.
+        showToast('Saved — that day is before your plan started', {
+          label: 'Move start',
+          run: () =>
+            update((current) => ({
+              ...current,
+              profile: { ...current.profile, startDate: date },
+            })),
+        });
       } else {
         showToast(date === todayKey() ? 'Weigh-in saved for today' : 'Weigh-in saved');
       }
       return null;
     },
-    [commit, showToast],
+    [commit, update, showToast],
   );
 
   const updateEntry = useCallback<StoreValue['updateEntry']>(
@@ -436,6 +458,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [commit, update, showToast],
   );
 
+  const updateMeal = useCallback<StoreValue['updateMeal']>(
+    (id, patch) => {
+      update((prev) => {
+        const i = prev.meals.findIndex((m) => m.id === id);
+        if (i < 0) return prev;
+        const meals = prev.meals.slice();
+        meals[i] = { ...meals[i], ...patch };
+        const next: AppData = { ...prev, meals };
+        // The date can move, so both days' roll-ups are recomputed.
+        const withOld = { ...next, entries: applyLogRollup(next, prev.meals[i].logDate) };
+        return { ...withOld, entries: applyLogRollup(withOld, meals[i].logDate) };
+      });
+    },
+    [update],
+  );
+
   const addWorkout = useCallback<StoreValue['addWorkout']>(
     (workout) => {
       update((prev) => {
@@ -471,17 +509,99 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [commit, update, showToast],
   );
 
+  const updateWorkout = useCallback<StoreValue['updateWorkout']>(
+    (id, patch) => {
+      update((prev) => {
+        const i = prev.workouts.findIndex((w) => w.id === id);
+        if (i < 0) return prev;
+        const workouts = prev.workouts.slice();
+        workouts[i] = { ...workouts[i], ...patch };
+        const next: AppData = { ...prev, workouts };
+        const withOld = { ...next, entries: applyLogRollup(next, prev.workouts[i].logDate) };
+        return { ...withOld, entries: applyLogRollup(withOld, workouts[i].logDate) };
+      });
+    },
+    [update],
+  );
+
+  const updateMeasurement = useCallback<StoreValue['updateMeasurement']>(
+    (id, patch) => {
+      update((prev) => ({
+        ...prev,
+        measurements: prev.measurements
+          .map((m) => (m.id === id ? { ...m, ...patch } : m))
+          .sort((a, b) => (a.logDate < b.logDate ? -1 : 1)),
+      }));
+    },
+    [update],
+  );
+
+  /**
+   * Clearing a weigh-in leaves the day's other fields alone — the user is
+   * removing a bad number, not the day. Undoable like every other delete.
+   */
+  const removeWeighIn = useCallback<StoreValue['removeWeighIn']>(
+    (date) => {
+      const prev = dataRef.current;
+      const entry = prev.entries.find((e) => e.logDate === date);
+      if (!entry || entry.weightKg == null) return;
+      const previousWeight = entry.weightKg;
+
+      commit({
+        ...prev,
+        entries: prev.entries.map((e) => (e.logDate === date ? { ...e, weightKg: null } : e)),
+      });
+
+      showToast('Weigh-in cleared', {
+        label: 'Undo',
+        run: () =>
+          update((current) => ({
+            ...current,
+            entries: current.entries.map((e) =>
+              e.logDate === date ? { ...e, weightKg: previousWeight } : e,
+            ),
+          })),
+      });
+    },
+    [commit, update, showToast],
+  );
+
+  /**
+   * One measurement set per day. Saving a second for a day that already has
+   * one replaces it — and because that silently discards real numbers, the
+   * replaced set goes into the undo closure.
+   */
   const addMeasurement = useCallback<StoreValue['addMeasurement']>(
     (m) => {
-      update((prev) => ({
+      const prev = dataRef.current;
+      const replaced = prev.measurements.find((x) => x.logDate === m.logDate);
+
+      commit({
         ...prev,
         measurements: prev.measurements
           .filter((x) => x.logDate !== m.logDate)
           .concat({ ...m, id: `meas-${Date.now()}` })
           .sort((a, b) => (a.logDate < b.logDate ? -1 : 1)),
-      }));
+      });
+
+      if (!replaced) {
+        showToast(prev.measurements.length ? 'Measurement saved' : 'Baseline recorded');
+        return;
+      }
+
+      showToast('Measurement replaced', {
+        label: 'Undo',
+        run: () =>
+          update((current) => ({
+            ...current,
+            measurements: current.measurements
+              .filter((x) => x.logDate !== replaced.logDate)
+              .concat(replaced)
+              .sort((a, b) => (a.logDate < b.logDate ? -1 : 1)),
+          })),
+      });
     },
-    [update],
+    [commit, update, showToast],
   );
 
   const setReward = useCallback<StoreValue['setReward']>(
@@ -656,10 +776,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       saveWeighIn,
       updateEntry,
       addMeal,
+      updateMeal,
       removeMeal,
       addWorkout,
+      updateWorkout,
       removeWorkout,
       addMeasurement,
+      updateMeasurement,
+      removeWeighIn,
       setReward,
       updateProfile,
       completeOnboarding,
@@ -685,10 +809,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       saveWeighIn,
       updateEntry,
       addMeal,
+      updateMeal,
       removeMeal,
       addWorkout,
+      updateWorkout,
       removeWorkout,
       addMeasurement,
+      updateMeasurement,
+      removeWeighIn,
       setReward,
       updateProfile,
       completeOnboarding,

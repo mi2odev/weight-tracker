@@ -31,7 +31,9 @@ export function Sparkline({
     .join(' ');
 
   return (
-    <Svg width={width} height={height}>
+    // Decorative: the same numbers are already announced by the hero card it
+    // sits beside, so repeating them would just be noise.
+    <Svg width={width} height={height} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Path
         d={d}
         fill="none"

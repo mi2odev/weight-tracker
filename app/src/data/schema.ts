@@ -13,6 +13,8 @@
 import {
   ACTIVITY_FACTORS,
   CURRENT_SCHEMA_VERSION,
+  GOAL_TYPES,
+  GoalType,
   ActivityLevel,
   AppData,
   DateKey,
@@ -114,6 +116,9 @@ function migrateProfile(raw: unknown, defaults: Profile, notes: string[]): Profi
     ageYears: take('ageYears', numberIn(raw.ageYears, 14, 100), defaults.ageYears),
     sex: take('sex', oneOf(raw.sex, SEXES), defaults.sex),
     activityLevel: take('activityLevel', oneOf(raw.activityLevel, ACTIVITY_NAMES), defaults.activityLevel),
+    // Absent before goal types existed, so an older payload lands on 'lose',
+    // which is exactly what it was doing.
+    goalType: oneOf<GoalType>(raw.goalType, GOAL_TYPES) ?? defaults.goalType,
     targetCalories: take('targetCalories', numberIn(raw.targetCalories, 800, 10000), defaults.targetCalories),
     targetProteinG: take('targetProteinG', numberIn(raw.targetProteinG, 0, 500), defaults.targetProteinG),
     targetWaterL: take('targetWaterL', numberIn(raw.targetWaterL, 0, 15), defaults.targetWaterL),
