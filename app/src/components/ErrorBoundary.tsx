@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { palettes } from '../theme/tokens';
 import { STORAGE_KEY } from '../data/store';
-import { shareRawStorage } from '../lib/export';
+import { shareCrashReport, shareRawStorage } from '../lib/export';
 import { buildCrashReport, CrashReport, formatCrashReport } from '../lib/diagnostics';
 
 /** Where an opted-in crash report is kept until something is built to read it. */
@@ -90,6 +90,27 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     }
   };
 
+  /**
+   * Shares the report the user is already looking at.
+   *
+   * Deliberately theirs to start: reports are kept on the device and nothing
+   * uploads by itself, so without a button nobody would ever see one. What
+   * goes out is the same scrubbed text shown above it — there is no fuller
+   * version held back for this.
+   */
+  private sendReport = async () => {
+    const { report } = this.state;
+    if (!report || this.state.busy) return;
+    this.setState({ busy: true, message: '' });
+    try {
+      this.setState({ message: await shareCrashReport(formatCrashReport(report)) });
+    } catch {
+      this.setState({ message: 'Could not share the report — try once more.' });
+    } finally {
+      this.setState({ busy: false });
+    }
+  };
+
   private restart = () => {
     this.setState((prev) => ({
       report: null,
@@ -130,6 +151,23 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
           >
             <Text style={{ color: c.onAccent, fontSize: 16, fontWeight: '600' }}>
               {this.state.busy ? 'One moment…' : 'Export my data'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={this.sendReport}
+            style={{
+              minHeight: 50,
+              borderRadius: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: c.line,
+            }}
+          >
+            <Text style={{ color: c.accent, fontSize: 15, fontWeight: '600' }}>
+              Send crash report
             </Text>
           </Pressable>
 

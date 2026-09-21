@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme } from '../theme/ThemeContext';
 import { font, space } from '../theme/tokens';
 import { useStore } from '../data/store';
 import { Card } from '../components/Card';
-import { SectionHeading, Segmented, Toggle } from '../components/Controls';
+import { CRASH_KEY } from '../components/ErrorBoundary';
+import { GhostButton, SectionHeading, Segmented, Toggle } from '../components/Controls';
 import { Screen } from '../components/Screen';
 import { Body, Caption } from '../components/Type';
 import {
@@ -15,6 +17,8 @@ import {
   LockCapability,
   lockCapability,
 } from '../lib/lock';
+import { CrashReport, formatCrashReport } from '../lib/diagnostics';
+import { shareCrashReport } from '../lib/export';
 
 /**
  * What the app knows, where it keeps it, and what can be turned on.
@@ -27,6 +31,8 @@ export function PrivacyScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
   const { data, setLock, setDiagnostics, showToast } = useStore();
   const [capability, setCapability] = useState<LockCapability | null>(null);
+  const [report, setReport] = useState<CrashReport | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -64,6 +70,41 @@ export function PrivacyScreen({ onBack }: { onBack: () => void }) {
       showToast('App lock on');
     } else if (outcome === 'security-removed') {
       showToast('This phone no longer has a passcode set up');
+    }
+  };
+
+  /**
+   * The most recent kept report, if there is one.
+   *
+   * Only ever read while the switch is on — turning it off should stop this
+   * screen offering to send anything, not just stop new ones being kept.
+   */
+  const loadReport = useCallback(async () => {
+    if (!data.diagnostics.crashReports) {
+      setReport(null);
+      return;
+    }
+    try {
+      const raw = await AsyncStorage.getItem(CRASH_KEY);
+      setReport(raw ? (JSON.parse(raw) as CrashReport) : null);
+    } catch {
+      setReport(null);
+    }
+  }, [data.diagnostics.crashReports]);
+
+  useEffect(() => {
+    void loadReport();
+  }, [loadReport]);
+
+  const sendReport = async () => {
+    if (!report || busy) return;
+    setBusy(true);
+    try {
+      showToast(await shareCrashReport(formatCrashReport(report)));
+    } catch {
+      showToast('Could not share the report — try once more');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -175,9 +216,25 @@ export function PrivacyScreen({ onBack }: { onBack: () => void }) {
         crashes you are shown the whole report, exactly as it was recorded, before anything is kept.
       </Caption>
       <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
-        Nothing is uploaded today: no reporting service is wired up, so a kept report stays on this
-        device. This switch is what any future one would have to ask first.
+        Nothing is uploaded on its own. A kept report sits on this device until you send it, and
+        sending is a share sheet — it goes wherever you choose and nowhere else.
       </Caption>
+
+      {data.diagnostics.crashReports && (
+        <>
+          <GhostButton
+            label={busy ? 'One moment…' : 'Send the last crash report'}
+            onPress={() => void sendReport()}
+            tone={report ? 'accent' : 'muted'}
+            style={{ opacity: report ? 1 : 0.5 }}
+          />
+          <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
+            {report
+              ? `Recorded ${report.at.slice(0, 10)} · ${report.errorName}. You will see the whole thing in the share sheet before it goes anywhere.`
+              : 'Nothing to send — the app has not crashed since you turned this on.'}
+          </Caption>
+        </>
+      )}
 
       {/* ── what leaves ──────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
