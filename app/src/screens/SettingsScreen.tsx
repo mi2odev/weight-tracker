@@ -41,6 +41,7 @@ import { ConflictChoice } from '../lib/backup';
 import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
 import { formatBytes, totalPhotoBytes } from '../lib/photos';
 import { remindersSupported } from '../lib/notifications';
+import { parseDecimalInput } from '../lib/numberInput';
 
 /** How many measurements still have a photo file behind them. */
 function photoCount(data: { measurements: { photo?: string | null }[] }): number {
@@ -481,12 +482,14 @@ function TargetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
   const [acknowledged, setAcknowledged] = useState<number | null>(null);
 
   const submit = () => {
+    // `parseInt` stops at a separator, so a step target shown as "8,000"
+    // came back as 8. Everything goes through the same reader now.
     const values = {
-      targetCalories: Number.parseInt(calories, 10),
-      targetProteinG: Number.parseInt(protein, 10),
+      targetCalories: Math.round(parseDecimalInput(calories) ?? NaN),
+      targetProteinG: Math.round(parseDecimalInput(protein) ?? NaN),
       targetWaterL: u.parseVolume(water) ?? NaN,
-      targetSteps: Number.parseInt(steps, 10),
-      targetSleepH: Number.parseFloat(sleep),
+      targetSteps: Math.round(parseDecimalInput(steps) ?? NaN),
+      targetSleepH: parseDecimalInput(sleep) ?? NaN,
     };
     if (Object.values(values).some((v) => !Number.isFinite(v) || v <= 0)) {
       return showToast('Every target needs a positive number');

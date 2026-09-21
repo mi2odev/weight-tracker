@@ -194,15 +194,26 @@ export function NumberField({
   valueColor?: string;
 }) {
   const { colors } = useTheme();
-  const [focused, setFocused] = React.useState(false);
+  const [draft, setDraft] = React.useState<string | null>(null);
 
-  // Grouped thousands at rest, raw digits while editing — a separator that
-  // appears mid-keystroke fights the caret.
+  /**
+   * While focused the field shows what was typed, not what the store made of
+   * it.
+   *
+   * Without this, any field bound to a parsed number could never accept a
+   * decimal point: typing "2." round-trips through `parseFloat` as 2, the
+   * prop comes back "2", and the point is erased on the next render. Worse
+   * than losing a keystroke — "2.5" ended up stored as 25.
+   *
+   * The draft is dropped on blur, so the formatted value takes over again and
+   * the store stays the single source of truth between edits.
+   */
   const parsed = Number(value);
   const display =
-    !focused && value !== '' && Number.isFinite(parsed)
+    draft ??
+    (value !== '' && Number.isFinite(parsed)
       ? parsed.toLocaleString('en-GB', { maximumFractionDigits: 2 })
-      : value;
+      : value);
 
   return (
     <View
@@ -221,9 +232,14 @@ export function NumberField({
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.xs }}>
         <TextInput
           value={display}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onChangeText={onChangeText}
+          // Seeded from the raw value, never from the grouped display — the
+          // caret should not land after a separator the user did not type.
+          onFocus={() => setDraft(value)}
+          onBlur={() => setDraft(null)}
+          onChangeText={(text) => {
+            setDraft(text);
+            onChangeText(text);
+          }}
           placeholder={placeholder}
           placeholderTextColor={colors.disabled}
           keyboardType="decimal-pad"

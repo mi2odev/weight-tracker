@@ -27,6 +27,7 @@ import {
   UNDER_18_NOTICE,
 } from '../lib/health';
 import { ADULT_AGE, birthYearForAge, currentAge } from '../lib/calc';
+import { parseDecimalInput } from '../lib/numberInput';
 import { MAX_AGE, MIN_AGE } from '../data/schema';
 import { defaultProfile } from '../data/seed';
 
@@ -75,10 +76,7 @@ export function OnboardingScreen() {
   // validated in the unit the user actually thinks in.
   const u = useMemo(() => formatterFor(draft.units), [draft.units]);
 
-  const num = (value: string, fallback: number) => {
-    const parsed = Number.parseFloat(value.replace(',', '.'));
-    return Number.isFinite(parsed) ? parsed : fallback;
-  };
+  const num = (value: string, fallback: number) => parseDecimalInput(value) ?? fallback;
   const metric = (value: string, parse: (t: string) => number | null, fallback: number) =>
     parse(value) ?? fallback;
 

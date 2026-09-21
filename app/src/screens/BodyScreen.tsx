@@ -14,6 +14,7 @@ import { Screen } from '../components/Screen';
 import { Body, Caption, Stat, Title } from '../components/Type';
 import { MEASUREMENT_FIELDS, measurementDeltas, photoComparison } from '../lib/calc';
 import { formatShort, todayKey } from '../lib/date';
+import { parseDecimalInput } from '../lib/numberInput';
 import { deletePhoto, pickFromLibrary, takePhoto } from '../lib/photos';
 import { Measurement } from '../data/types';
 
@@ -77,7 +78,7 @@ export function BodyScreen({ onBack }: { onBack: () => void }) {
   const hasBaseline = rows.length > 0;
 
   const submit = () => {
-    const values = MEASUREMENT_FIELDS.map(({ key }) => Number.parseFloat(draft[key] ?? ''));
+    const values = MEASUREMENT_FIELDS.map(({ key }) => parseDecimalInput(draft[key] ?? '') ?? NaN);
     if (values.some((v) => !Number.isFinite(v) || v <= 0)) {
       showToast('Fill in all five measurements');
       return;
