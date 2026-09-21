@@ -118,10 +118,23 @@ export function LockGate({ children }: { children: React.ReactNode }) {
 
   return (
     <View style={{ flex: 1 }}>
-      {children}
+      {/* A cover that only works visually is not a cover. Without this,
+          VoiceOver and TalkBack read out the weights behind the lock screen.
+          Tied to `locked` rather than `covered`: the privacy cover exists for
+          the app-switcher snapshot, and hiding the tree during a brief
+          'inactive' — a pulled-down control centre — would yank a screen
+          reader out of whatever the user was reading. */}
+      <View
+        style={{ flex: 1 }}
+        accessibilityElementsHidden={locked}
+        importantForAccessibility={locked ? 'no-hide-descendants' : 'auto'}
+      >
+        {children}
+      </View>
 
       {locked && (
         <View
+          accessibilityViewIsModal
           style={{
             ...StyleSheet.absoluteFill,
             backgroundColor: colors.page,
