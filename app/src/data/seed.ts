@@ -26,6 +26,9 @@ import { addDays, todayKey } from '../lib/date';
 import { suggestedCalorieTarget, suggestedProteinTarget, tdee } from '../lib/calc';
 import { DEFAULT_LOCK } from '../lib/lockRules';
 
+/** Off until the user says otherwise — that is what opt-in means. */
+const DEFAULT_DIAGNOSTICS = { crashReports: false };
+
 const DEFAULT_NOTIFICATIONS = {
   morningWeighIn: true,
   eveningLog: true,
@@ -69,6 +72,7 @@ export function emptyData(): AppData {
     celebrated: [],
     notifications: { ...DEFAULT_NOTIFICATIONS },
     lock: { ...DEFAULT_LOCK },
+    diagnostics: { ...DEFAULT_DIAGNOSTICS },
     onboarded: false,
   };
 }
@@ -203,6 +207,7 @@ export function demoData(): AppData {
     celebrated: Object.keys(achieved).map(Number),
     notifications: { ...DEFAULT_NOTIFICATIONS },
     lock: { ...DEFAULT_LOCK },
+    diagnostics: { ...DEFAULT_DIAGNOSTICS },
     onboarded: true,
   };
 }

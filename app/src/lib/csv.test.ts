@@ -45,6 +45,7 @@ function makeData(over: Partial<AppData> = {}): AppData {
       milestoneReached: true,
     },
     lock: { enabled: false, graceSeconds: 60 },
+    diagnostics: { crashReports: false },
     onboarded: true,
     ...over,
   };

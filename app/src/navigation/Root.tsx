@@ -17,6 +17,7 @@ import { MilestonesScreen } from '../screens/MilestonesScreen';
 import { BodyScreen } from '../screens/BodyScreen';
 import { LogScreen } from '../screens/LogScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { PrivacyScreen } from '../screens/PrivacyScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 
 /**
@@ -86,7 +87,10 @@ export function Root() {
         {route.kind === 'sub' && route.screen === 'milestones' && <MilestonesScreen onBack={back} />}
         {route.kind === 'sub' && route.screen === 'body' && <BodyScreen onBack={back} />}
         {route.kind === 'sub' && route.screen === 'log' && <LogScreen onBack={back} />}
-        {route.kind === 'sub' && route.screen === 'settings' && <SettingsScreen onBack={back} />}
+        {route.kind === 'sub' && route.screen === 'settings' && (
+          <SettingsScreen onBack={back} onOpenPrivacy={() => goSub('privacy', activeTab)} />
+        )}
+        {route.kind === 'sub' && route.screen === 'privacy' && <PrivacyScreen onBack={back} />}
       </View>
 
       <TabBar active={activeTab} onChange={goTab} />

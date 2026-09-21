@@ -134,6 +134,14 @@ export interface Measurement {
   photo?: string | null;
 }
 
+/**
+ * Crash reporting, off unless the user turns it on. See `lib/diagnostics.ts`
+ * for what a report may contain — never health data.
+ */
+export interface DiagnosticsSettings {
+  crashReports: boolean;
+}
+
 /** See `lib/lockRules.ts`. Stored here so it survives a reinstall-from-backup. */
 export interface LockSettings {
   enabled: boolean;
@@ -179,6 +187,7 @@ export interface AppData {
   celebrated: number[];
   notifications: NotificationSettings;
   lock: LockSettings;
+  diagnostics: DiagnosticsSettings;
   onboarded: boolean;
 }
 

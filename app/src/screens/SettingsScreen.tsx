@@ -9,8 +9,10 @@ import { describeData, hasAnyData } from '../data/schema';
 import {
   ACTIVITY_LEVELS,
   ActivityLevel,
+  DiagnosticsSettings,
   GOAL_TYPES,
   GoalType,
+  LockSettings,
   NotificationSettings,
   Sex,
   Units,
@@ -35,8 +37,16 @@ import {
 import { formatMedium } from '../lib/date';
 import { ConflictChoice } from '../lib/backup';
 import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
-import { authenticate, GRACE_OPTIONS, LockCapability, lockCapability } from '../lib/lock';
 import { formatBytes, totalPhotoBytes } from '../lib/photos';
+
+/** One line that says what is on, so Settings still answers the question. */
+function lockSummary(lock: LockSettings, diagnostics: DiagnosticsSettings): string {
+  const parts = [
+    lock.enabled ? 'App lock is on' : 'App lock is off',
+    diagnostics.crashReports ? 'crash reports are kept' : 'crash reports are off',
+  ];
+  return `${parts.join(', ')}. Everything stays on this device unless you export it.`;
+}
 
 /** " and 3 photos", or nothing at all — the backup only carries them on request. */
 function photosIn(photos: Record<string, string>): string {
@@ -52,7 +62,13 @@ const REMINDERS: { key: keyof NotificationSettings; label: string; sub: string }
   { key: 'milestoneReached', label: 'Milestone reached', sub: 'Fires once, the first time you cross one' },
 ];
 
-export function SettingsScreen({ onBack }: { onBack: () => void }) {
+export function SettingsScreen({
+  onBack,
+  onOpenPrivacy,
+}: {
+  onBack: () => void;
+  onOpenPrivacy: () => void;
+}) {
   const { colors, preference, setPreference } = useTheme();
   const {
     data,
@@ -67,7 +83,6 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     applyRestore,
     previewCsvImport,
     applyCsvImport,
-    setLock,
     showToast,
   } = useStore();
   const { u } = useDerived();
@@ -80,45 +95,10 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const [restore, setRestore] = useState<RestorePreview | null>(null);
   const [csvImport, setCsvImport] = useState<CsvImportPreview | null>(null);
   const [busy, setBusy] = useState(false);
-  const [capability, setCapability] = useState<LockCapability | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    void lockCapability().then((c) => {
-      if (alive) setCapability(c);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   const photoBytes = useMemo(
     () => totalPhotoBytes(data.measurements.map((m) => m.photo).filter((p): p is string => !!p)),
     [data.measurements],
   );
-
-  /**
-   * Turning the lock on asks for the face or finger first. Enabling a gate you
-   * cannot open is the one failure mode that costs someone their whole log.
-   */
-  const toggleLock = async (next: boolean) => {
-    if (!next) {
-      setLock({ enabled: false });
-      return;
-    }
-    if (!capability?.enrolled) {
-      showToast(
-        capability?.available
-          ? `Set up ${capability.label} in your device settings first`
-          : 'This device has no biometrics or passcode to lock with',
-      );
-      return;
-    }
-    if (await authenticate('Confirm it is you before locking the app')) {
-      setLock({ enabled: true });
-      showToast('App lock on');
-    }
-  };
 
   const current = currentWeight(entries, profile);
   const bmiValue = bmi(current, profile.heightCm);
@@ -245,56 +225,9 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       <View style={{ marginTop: space.lg }}>
         <SectionHeading title="Privacy" />
       </View>
-      <Card style={{ padding: 4 }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: space.md,
-            paddingHorizontal: 14,
-            paddingVertical: 13,
-          }}
-        >
-          <View style={{ flex: 1, gap: 2 }}>
-            <Body style={{ fontFamily: font.semibold, fontSize: 14.5 }}>Lock the app</Body>
-            <Caption style={{ fontSize: 11.5, lineHeight: 17 }}>
-              {capability == null
-                ? 'Checking this device…'
-                : capability.enrolled
-                  ? `${capability.label} before your log opens`
-                  : capability.available
-                    ? `Set up ${capability.label} on this device first`
-                    : 'This device has no biometrics or passcode set up'}
-            </Caption>
-          </View>
-          <Toggle
-            value={data.lock.enabled}
-            accessibilityLabel="Lock the app"
-            onChange={(next) => void toggleLock(next)}
-          />
-        </View>
-
-        {data.lock.enabled && (
-          <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: space.sm }}>
-            <Caption style={{ fontSize: 11.5 }}>Lock again when you leave</Caption>
-            <Segmented
-              options={GRACE_OPTIONS.map((o) => o.label)}
-              value={
-                (GRACE_OPTIONS.find((o) => o.seconds === data.lock.graceSeconds) ?? GRACE_OPTIONS[1])
-                  .label
-              }
-              onChange={(label) => {
-                const chosen = GRACE_OPTIONS.find((o) => o.label === label);
-                if (chosen) setLock({ graceSeconds: chosen.seconds });
-              }}
-            />
-          </View>
-        )}
-      </Card>
+      <GhostButton label="App lock, crash reports and what leaves" onPress={onOpenPrivacy} />
       <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
-        Your weigh-ins, meals, measurements and photos never leave this device — there is no account
-        and no server. The lock keeps a passing glance out; it is not encryption, and it cannot
-        protect a phone someone else has already unlocked.
+        {lockSummary(data.lock, data.diagnostics)}
       </Caption>
 
       {/* ── backup ──────────────────────────────────────────────────────── */}
