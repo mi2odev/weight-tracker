@@ -14,7 +14,7 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 212 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 238 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing
 ```
 
@@ -164,6 +164,17 @@ enforced in `lib/health.ts` rather than left to the UI:
   "never below 1 500" to everyone, which was simply not the rule.
 - **A 6 000 kcal ceiling**, to catch a slipped decimal point.
 - **A goal weight below BMI 17 is refused**, and below 18.5 is warned about.
+- **Age is derived, never stored.** `Profile.birthYear` is the fact;
+  `currentAge` works it out. A stored age is wrong from the next birthday
+  onward and never corrects itself — over a 730-day plan that is a one- or two-
+  year error in Mifflin-St Jeor (5 kcal per year) and in the under-18 rule,
+  which a 17-year-old would otherwise never age out of. The forms still *ask*
+  for an age, because that is what people know about themselves; the conversion
+  happens once, on save.
+- **Turning 18 offers, it does not switch on.** `shouldOfferAdulthood` fires
+  once, and only when they are an adult now, still have no target, and have not
+  been told before. The dialog says targets are available and leaves them off
+  until asked. Crossing a birthday is not consent to a calorie deficit.
 - **Under 18, nothing is prescribed at all.** Not just hidden — the numbers are
   not produced. `plannedDailyDeficit` and `expectedLossPerWeek` return null,
   milestones get no target date and are never "Overdue", `daysToGoal` returns
@@ -188,7 +199,12 @@ device's storage. **More → Privacy** says so in full, and holds the two switch
   enabling a gate you cannot open is the one failure that costs someone their
   whole log. `LockGate` puts up two separate covers: the lock screen after the
   grace period, and an opaque cover during `inactive`, which is when the OS
-  takes the app-switcher snapshot. The locked content is hidden from the
+  takes the app-switcher snapshot. While the lock is enabled,
+  `expo-screen-capture` also asks the OS to refuse screenshots and recordings
+  outright — the in-app cover cannot reach the Android recents thumbnail,
+  because that image is the system's to take. Tied to `lock.enabled` rather than to being
+  currently locked: a screenshot taken while someone is looking at their log is
+  exactly as revealing as the thumbnail. The locked content is hidden from the
   accessibility tree too, so VoiceOver and TalkBack cannot read out the weights
   behind it — tied to *locked*, not *covered*, so a glance at the control
   centre does not yank a screen reader out of its place.
@@ -221,8 +237,19 @@ lives — for a single delete, for a reset and for a restore alike. The sweep is
 computed by `orphanedPhotoFiles` from the measurements themselves rather than
 from a remembered list, and its tests lean on the expensive direction: a
 referenced file must never be reported as an orphan, however its URI is spelled.
-A sweep also runs at startup, so a window cut short by the app being killed does
-not strand files forever.
+
+**A sweep only runs when the measurements in memory are the whole story.** The
+startup sweep — which exists so a window cut short by the app being killed does
+not strand files forever — used to claim it was "safe by construction". It was
+not: on the corrupt path the app runs on `emptyData()` while
+`wt.data.corrupt.*` still references every photo, so it deleted the user's
+entire photo set and made the rescue worthless. `maySweepPhotos` now refuses
+that case and three more of the same shape — storage unreadable or nothing
+loaded, a downgrade whose stored measurements are the real ones, and a
+migration that altered measurement rows, since dropped rows may come back from
+the pre-migration snapshot. On top of those, finding files but no owners at
+launch is a reason to stop rather than a mandate to delete everything; only an
+explicit reset or restore, whose undo has expired, may clear the last photo.
 
 ## When something goes wrong
 
@@ -295,9 +322,6 @@ adjusted without a design tool.
 - **A crash reporting service.** The scrubber, the opt-in and the share button
   are done; wiring `beforeSend` to something like Sentry is a native dependency
   and a decision about a third party seeing crash data.
-- **Blocking the Android recent-apps thumbnail** with `expo-screen-capture`.
-  The in-app cover is up during `inactive`; making the OS itself refuse the
-  screenshot is one more native module.
 - **PDF export.** CSV and JSON are done; PDF would need a rendering library.
 - **Gain as a goal type.** Lose and maintain are implemented; inverting the
   milestone ladder, the "total lost" framing and the whole insight vocabulary
