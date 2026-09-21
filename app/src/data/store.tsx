@@ -42,7 +42,7 @@ import { mealTotals, newlyAchievedMilestones, workoutTotals } from '../lib/calc'
 import { fireMilestoneReached, syncReminders } from '../lib/notifications';
 import { pickBackup, pickWeighInCsv, shareBackup, shareExport } from '../lib/export';
 import { applyRestoredPhotos, ConflictChoice, mergeWeighIns, previewMerge } from '../lib/backup';
-import { readAsBase64, restorePhotos } from '../lib/photos';
+import { readAsBase64, restorePhotos, sweepOrphanedPhotos } from '../lib/photos';
 import { todayKey } from '../lib/date';
 import { HydrationResult, mayPersist, readStoredPayload } from '../lib/hydration';
 import {
@@ -69,6 +69,14 @@ export type SaveWeighInError = 'not-a-number' | 'out-of-range' | 'future';
 export interface UndoAction {
   label: string;
   run: () => void;
+  /**
+   * Runs once the undo window has closed without the undo being taken.
+   *
+   * This is where anything irreversible belongs. Deleting a photo file the
+   * moment its row disappears makes "Undo" a lie: the row comes back pointing
+   * at a file that no longer exists.
+   */
+  onExpire?: () => void;
 }
 
 interface StoreValue {
@@ -107,6 +115,8 @@ interface StoreValue {
   removeWorkout: (id: string) => void;
   addMeasurement: (m: Omit<Measurement, 'id'>) => void;
   updateMeasurement: (id: string, patch: Partial<Omit<Measurement, 'id'>>) => void;
+  /** Deletes a measurement set. Its photo file outlives the undo window. */
+  removeMeasurement: (id: string) => void;
   /** Clears a day's weight without touching the rest of the row. */
   removeWeighIn: (date: DateKey) => void;
 
@@ -216,6 +226,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    */
   const downgradeHold = useRef(false);
   const downgradeNotice = useRef(false);
+  /** The undo currently on offer, so its `onExpire` fires exactly once. */
+  const pendingUndo = useRef<UndoAction | null>(null);
 
   // ── commit ─────────────────────────────────────────────────────────────────
 
@@ -242,20 +254,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // ── toasts ─────────────────────────────────────────────────────────────────
 
+  /**
+   * Closes the window on the undo that is currently offered.
+   *
+   * `taken` decides what that means: the user pressed Undo, so the pending
+   * cleanup is abandoned — or the window simply ran out, and whatever was
+   * waiting on it can now happen for good.
+   */
+  const settleUndo = useCallback((taken: boolean) => {
+    const pending = pendingUndo.current;
+    pendingUndo.current = null;
+    if (pending && !taken) pending.onExpire?.();
+  }, []);
+
   const showToast = useCallback((message: string, undoable?: UndoAction) => {
+    // A new toast replaces the old one, so the previous window is over.
+    settleUndo(false);
+    pendingUndo.current = undoable ?? null;
+
     setToast(message);
-    setUndo(undoable ?? null);
+    setUndo(
+      undoable
+        ? {
+            ...undoable,
+            // Taking the undo cancels the cleanup that was waiting on it.
+            run: () => {
+              settleUndo(true);
+              undoable.run();
+            },
+          }
+        : null,
+    );
     if (toastTimer.current) clearTimeout(toastTimer.current);
     // An undoable toast lingers longer — it is asking a question, not just
     // reporting, and 2.4 s is not enough time to decide.
     toastTimer.current = setTimeout(
       () => {
+        settleUndo(false);
         setToast('');
         setUndo(null);
       },
       undoable ? 5000 : 2400,
     );
-  }, []);
+  }, [settleUndo]);
 
   // ── hydration ──────────────────────────────────────────────────────────────
 
@@ -351,6 +392,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setHydration(null);
     void hydrate();
   }, [hydrate]);
+
+  /**
+   * Tidies up anything a cut-short undo window left behind — the app being
+   * killed mid-toast, say. Safe by construction: it only removes files that
+   * no measurement references, and the measurements are loaded by now.
+   */
+  useEffect(() => {
+    if (!hydrated) return;
+    sweepOrphanedPhotos(dataRef.current.measurements);
+  }, [hydrated]);
 
   /** Told once, after hydration, so the message is not lost to a re-render. */
   useEffect(() => {
@@ -626,6 +677,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Deletes a measurement set, offering it back.
+   *
+   * The photo file is *not* deleted here. Removing it now would make the undo
+   * a lie: the row would come back pointing at an image that no longer exists.
+   * It goes once the window closes instead.
+   */
+  const removeMeasurement = useCallback<StoreValue['removeMeasurement']>(
+    (id) => {
+      const prev = dataRef.current;
+      const removed = prev.measurements.find((m) => m.id === id);
+      if (!removed) return;
+
+      commit({ ...prev, measurements: prev.measurements.filter((m) => m.id !== id) });
+
+      showToast('Measurement deleted', {
+        label: 'Undo',
+        run: () =>
+          update((current) => ({
+            ...current,
+            measurements: current.measurements
+              .concat(removed)
+              .sort((a, b) => (a.logDate < b.logDate ? -1 : 1)),
+          })),
+        onExpire: () => sweepOrphanedPhotos(dataRef.current.measurements),
+      });
+    },
+    [commit, update, showToast],
+  );
+
+  /**
    * Clearing a weigh-in leaves the day's other fields alone — the user is
    * removing a bad number, not the day. Undoable like every other delete.
    */
@@ -748,9 +829,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 commit(snapshot);
                 setCursor(todayKey());
               },
+              // A reset or a restore can orphan every photo at once, but the
+              // files have to survive the undo — which would hand back
+              // measurements that still point at them.
+              onExpire: () => sweepOrphanedPhotos(dataRef.current.measurements),
             }
-          : undefined,
+          : // Nothing to offer back, so nothing is waiting: sweep now.
+            undefined,
       );
+
+      if (!hasAnyData(snapshot)) sweepOrphanedPhotos(next.measurements);
     },
     [commit, showToast],
   );
@@ -898,7 +986,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       toast,
       showToast,
       undo,
-      dismissUndo: () => setUndo(null),
+      dismissUndo: () => {
+        settleUndo(false);
+        setUndo(null);
+      },
       celebration,
       dismissCelebration: () => setCelebration(null),
       saveWeighIn,
@@ -911,6 +1002,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       removeWorkout,
       addMeasurement,
       updateMeasurement,
+      removeMeasurement,
       removeWeighIn,
       setReward,
       updateProfile,
@@ -937,6 +1029,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       toast,
       showToast,
       undo,
+      settleUndo,
       celebration,
       saveWeighIn,
       updateEntry,
@@ -948,6 +1041,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       removeWorkout,
       addMeasurement,
       updateMeasurement,
+      removeMeasurement,
       removeWeighIn,
       setReward,
       updateProfile,

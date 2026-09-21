@@ -17,6 +17,9 @@ import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 
 import { DateKey } from '../data/types';
+import { orphanedPhotoFiles, PhotoOwner } from './photoRules';
+
+export * from './photoRules';
 
 const PHOTO_DIR = 'progress-photos';
 
@@ -70,6 +73,31 @@ export async function takePhoto(logDate: DateKey): Promise<PhotoPick> {
   if (result.canceled || !result.assets?.length) return { canceled: true };
 
   return { canceled: false, uri: await adopt(result.assets[0].uri, logDate) };
+}
+
+/** Every file currently sitting in the photo directory. */
+export function listPhotoFiles(): string[] {
+  try {
+    return photoDirectory()
+      .list()
+      .filter((entry): entry is FileSystem.File => entry instanceof FileSystem.File)
+      .map((file) => file.uri);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Deletes the photo files nothing references any more, and reports how many.
+ *
+ * Deliberately driven by `orphanedPhotoFiles` rather than by a list of URIs a
+ * caller remembered: after a reset or a restore the only reliable account of
+ * what is still wanted is the measurements themselves.
+ */
+export function sweepOrphanedPhotos(owners: PhotoOwner[]): number {
+  const orphans = orphanedPhotoFiles(listPhotoFiles(), owners);
+  for (const uri of orphans) deletePhoto(uri);
+  return orphans.length;
 }
 
 /** Removes the file behind a measurement's photo. Missing is not an error. */
