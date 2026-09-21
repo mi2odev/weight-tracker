@@ -228,6 +228,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const downgradeNotice = useRef(false);
   /** The undo currently on offer, so its `onExpire` fires exactly once. */
   const pendingUndo = useRef<UndoAction | null>(null);
+  /**
+   * True between a failed save and the next successful one. Keeps the warning
+   * to once per run of failures rather than once per keystroke, and clears
+   * itself so a second spell of trouble is reported again.
+   */
+  const writeFailed = useRef(false);
 
   // ── commit ─────────────────────────────────────────────────────────────────
 
@@ -423,6 +429,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // ── persistence ────────────────────────────────────────────────────────────
 
+  /**
+   * Writes the pending state, and says something if it cannot.
+   *
+   * A failed save used to be swallowed entirely, so someone whose phone was
+   * out of space could log for weeks against nothing. Now they are told once
+   * — once, because the debounce fires on every keystroke and a toast per
+   * character would be its own kind of broken — and the next change tries
+   * again regardless.
+   */
   const flushWrite = useCallback(() => {
     if (persistTimer.current) {
       clearTimeout(persistTimer.current);
@@ -431,8 +446,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const pending = pendingWrite.current;
     if (!pending) return;
     pendingWrite.current = null;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(pending)).catch(() => {});
-  }, []);
+
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(pending))
+      .then(() => {
+        writeFailed.current = false;
+      })
+      .catch(() => {
+        // Put it back, unless something newer is already queued — otherwise a
+        // failure with no further edits would leave the change only in memory
+        // and never try again.
+        if (!pendingWrite.current) pendingWrite.current = pending;
+
+        if (writeFailed.current) return;
+        writeFailed.current = true;
+        showToast(
+          "Couldn't save — your phone may be low on storage. Export a backup from Settings.",
+        );
+      });
+  }, [showToast]);
 
   useEffect(() => {
     if (!mayPersist(hydration) || downgradeHold.current) return;
