@@ -19,6 +19,7 @@ import {
 } from '../lib/calc';
 import { formatMedium, todayKey } from '../lib/date';
 import { formatterFor } from '../lib/units';
+import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
 import { defaultProfile } from '../data/seed';
 
 const STEP_COUNT = 5;
@@ -46,6 +47,8 @@ export function OnboardingScreen() {
 
   const base = defaultProfile();
   const [step, setStep] = useState(0);
+  /** A value the user has been warned about and chosen to keep anyway. */
+  const [acknowledged, setAcknowledged] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft>({
     units: base.units,
     startWeight: String(base.startWeightKg),
@@ -102,13 +105,27 @@ export function OnboardingScreen() {
         return `Goal weight must be between ${u.weightValue(30)} and ${u.weight(400)}`;
       if (preview.goalWeightKg >= preview.startWeightKg)
         return 'Your goal has to be below your starting weight';
+
+      const goalCheck = checkGoalWeight(preview.goalWeightKg, preview);
+      if (goalCheck.error) return goalCheck.error;
+      if (goalCheck.warning && acknowledged !== preview.goalWeightKg) {
+        setAcknowledged(preview.goalWeightKg);
+        return goalCheck.warning;
+      }
     }
     if (step === 2) {
       if (preview.heightCm < 100 || preview.heightCm > 250)
         return `Height must be between ${u.height(100)} and ${u.height(250)}`;
       if (preview.ageYears < 14 || preview.ageYears > 100) return 'Age must be between 14 and 100';
     }
-    if (step === 4 && preview.targetCalories < 1200) return 'A target under 1 200 kcal is not safe';
+    if (step === 4 && isAdult(preview)) {
+      const check = checkCalorieTarget(preview.targetCalories, preview, preview.startWeightKg);
+      if (check.error) return check.error;
+      if (check.warning && acknowledged !== preview.targetCalories) {
+        setAcknowledged(preview.targetCalories);
+        return check.warning;
+      }
+    }
     return null;
   };
 
@@ -281,7 +298,16 @@ export function OnboardingScreen() {
             </View>
           )}
 
-          {step === 4 && (
+          {step === 4 && !isAdult(preview) && (
+            <Card hero style={{ padding: 20, gap: space.sm }}>
+              <Label color={colors.accent}>One thing before you start</Label>
+              <Body style={{ fontSize: 14, lineHeight: 21 }} color={colors.text}>
+                {UNDER_18_NOTICE}
+              </Body>
+            </Card>
+          )}
+
+          {step === 4 && isAdult(preview) && (
             <>
               <NumberField
                 label="Daily calories"

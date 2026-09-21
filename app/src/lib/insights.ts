@@ -23,12 +23,13 @@ import {
   weighedEntries,
 } from './calc';
 import { daysBetween, formatMonthYear, fromKey, todayKey } from './date';
+import { isAdult, isLosingTooFast, rapidLossMessage, UNDER_18_NOTICE } from './health';
 
-export type InsightTone = 'good' | 'plain' | 'locked';
-export type InsightIcon = 'down' | 'up' | 'rate' | 'goal' | 'steady' | 'habit' | 'lock';
+export type InsightTone = 'good' | 'plain' | 'locked' | 'caution';
+export type InsightIcon = 'down' | 'up' | 'rate' | 'goal' | 'steady' | 'habit' | 'lock' | 'caution';
 
 export interface Insight {
-  id: 'week' | 'rate' | 'projection' | 'momentum' | 'consistency';
+  id: 'week' | 'rate' | 'projection' | 'momentum' | 'consistency' | 'pace';
   title: string;
   text: string;
   tone: InsightTone;
@@ -45,6 +46,39 @@ export function buildInsights(
   const spanDays = weighed.length ? daysBetween(weighed[0].logDate, asOf) : 0;
   const trend = trendPerDay(entries, asOf);
   const current = currentWeight(entries, profile, asOf);
+
+  // 0 · Pace. Placed first because if it applies it matters more than any of
+  // the numbers below it. Calm, not alarmed: this is a suggestion to get a
+  // check-up, not a verdict.
+  if (isLosingTooFast(trend, current)) {
+    out.push({
+      id: 'pace',
+      title: 'Your pace',
+      text: rapidLossMessage(-(trend as number) * 7),
+      tone: 'caution',
+      icon: 'caution',
+    });
+  }
+
+  // Under-18s get no prescribed pace or projected date — the formulas behind
+  // those are built for adult bodies — so the rest is replaced with a note.
+  if (!isAdult(profile)) {
+    out.push({
+      id: 'rate',
+      title: 'About your targets',
+      text: UNDER_18_NOTICE,
+      tone: 'locked',
+      icon: 'lock',
+    });
+    out.push({
+      id: 'consistency',
+      title: 'Habit consistency',
+      text: `Habit consistency over the last 7 days: ${consistencyPct(entries, profile, 7, asOf)}%.`,
+      tone: 'plain',
+      icon: 'habit',
+    });
+    return out;
+  }
 
   // 1 · This week — locked until two weeks of weigh-ins.
   if (spanDays < 14 || weighed.length < 2) {

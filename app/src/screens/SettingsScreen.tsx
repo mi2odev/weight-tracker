@@ -26,6 +26,7 @@ import {
 } from '../lib/calc';
 import { formatMedium } from '../lib/date';
 import { ConflictChoice } from '../lib/backup';
+import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
 
 const REMINDERS: { key: keyof NotificationSettings; label: string; sub: string }[] = [
   { key: 'morningWeighIn', label: 'Morning weigh-in', sub: '07:00 · skipped if already logged' },
@@ -35,7 +36,7 @@ const REMINDERS: { key: keyof NotificationSettings; label: string; sub: string }
 ];
 
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
-  const { preference, setPreference } = useTheme();
+  const { colors, preference, setPreference } = useTheme();
   const {
     data,
     setNotification,
@@ -98,6 +99,14 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       <View style={{ marginTop: space.lg }}>
         <SectionHeading title="Calculated for you" trailing="Read-only" />
       </View>
+      {!isAdult(profile) ? (
+        <Card hero style={{ padding: 18, gap: space.sm }}>
+          <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>Targets are off for now</Body>
+          <Body style={{ fontSize: 13.5, lineHeight: 20 }} color={colors.muted}>
+            {UNDER_18_NOTICE}
+          </Body>
+        </Card>
+      ) : (
       <Card padded={false} hero style={{ paddingHorizontal: 18 }}>
         <ValueRow label="BMI" note="weight ÷ height²" value={bmiValue.toFixed(1)} />
         <ValueRow label="Classification" note="WHO bands" value={bmiBand(bmiValue)} />
@@ -125,6 +134,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
           last
         />
       </Card>
+      )}
 
       {/* ── reminders ───────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
@@ -306,6 +316,8 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
   const [age, setAge] = useState(String(profile.ageYears));
   const [sex, setSex] = useState<Sex>(profile.sex);
   const [activity, setActivity] = useState<ActivityLevel>(profile.activityLevel);
+  /** The goal weight the user has already been warned about and kept. */
+  const [acknowledged, setAcknowledged] = useState<number | null>(null);
 
   const submit = () => {
     const sw = u.parseWeight(startWeight);
@@ -318,9 +330,20 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
     if (gw == null || gw < 30 || gw > 400)
       return showToast(`Goal weight must be ${u.weightValue(30)}–${u.weight(400)}`);
     if (gw >= sw) return showToast('Goal weight must be below your starting weight');
+
     if (h == null || h < 100 || h > 250)
       return showToast(`Height must be ${u.height(100)}–${u.height(250)}`);
     if (!Number.isFinite(a) || a < 14 || a > 100) return showToast('Age must be 14–100');
+
+    // Checked after height, since the BMI bands depend on it. A goal under
+    // BMI 17 is refused outright; between 17 and 18.5 it warns once and saves
+    // on the second tap, so the choice stays the user's.
+    const goalCheck = checkGoalWeight(gw, { ...profile, heightCm: h });
+    if (goalCheck.error) return showToast(goalCheck.error);
+    if (goalCheck.warning && acknowledged !== gw) {
+      setAcknowledged(gw);
+      return showToast(goalCheck.warning);
+    }
 
     updateProfile({
       startWeightKg: sw,
@@ -354,7 +377,7 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
 
 function TargetSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { data, updateProfile, showToast } = useStore();
-  const { u } = useDerived();
+  const { u, currentKg: current } = useDerived();
   const { profile } = data;
 
   const [calories, setCalories] = useState(String(profile.targetCalories));
@@ -362,6 +385,8 @@ function TargetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
   const [water, setWater] = useState(u.volumeField(profile.targetWaterL));
   const [steps, setSteps] = useState(String(profile.targetSteps));
   const [sleep, setSleep] = useState(String(profile.targetSleepH));
+  /** The target the user has already been warned about and kept. */
+  const [acknowledged, setAcknowledged] = useState<number | null>(null);
 
   const submit = () => {
     const values = {
@@ -374,6 +399,14 @@ function TargetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
     if (Object.values(values).some((v) => !Number.isFinite(v) || v <= 0)) {
       return showToast('Every target needs a positive number');
     }
+
+    const check = checkCalorieTarget(values.targetCalories, profile, current);
+    if (check.error) return showToast(check.error);
+    if (check.warning && acknowledged !== values.targetCalories) {
+      setAcknowledged(values.targetCalories);
+      return showToast(check.warning);
+    }
+
     updateProfile(values);
     onClose();
     showToast('Targets updated');

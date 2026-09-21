@@ -24,6 +24,7 @@ const INSIGHT_ICONS: Record<Insight['icon'], IconName> = {
   steady: 'steady',
   habit: 'habit',
   lock: 'lock',
+  caution: 'caution',
 };
 
 export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => void }) {
@@ -164,6 +165,9 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
         {d.insights.map((insight, i) => {
           const locked = insight.tone === 'locked';
           const good = insight.tone === 'good';
+          // Amber, not the missed-habit red: this is a "worth a check-up",
+          // not a failure, and red here would read as alarm.
+          const caution = insight.tone === 'caution';
           return (
             <View
               key={insight.id}
@@ -181,7 +185,13 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
                   width: 22,
                   height: 22,
                   borderRadius: radius.pill,
-                  backgroundColor: locked ? colors.rail : good ? colors.greenTint : colors.tint,
+                  backgroundColor: locked
+                    ? colors.rail
+                    : good
+                      ? colors.greenTint
+                      : caution
+                        ? colors.tint
+                        : colors.tint,
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginTop: 1,
@@ -190,7 +200,9 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
                 <Icon
                   name={INSIGHT_ICONS[insight.icon]}
                   size={13}
-                  color={locked ? colors.disabled : good ? colors.greenText : colors.accent}
+                  color={
+                    locked ? colors.disabled : good ? colors.greenText : caution ? colors.caution : colors.accent
+                  }
                 />
               </View>
               <Body style={{ flex: 1, lineHeight: 19 }} color={locked ? colors.muted : colors.text}>
