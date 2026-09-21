@@ -187,9 +187,25 @@ export function requiredPacePerWeek(profile: Profile): number {
   return ((profile.startWeightKg - profile.goalWeightKg) / PLAN_DAYS) * 7;
 }
 
-/** Suggested target: TDEE − 750 rounded to the nearest 50, floored at 1500 kcal. */
+/** The deficit the suggestion aims for. Named so the copy can quote it. */
+export const SUGGESTED_DEFICIT_KCAL = 750;
+
+/**
+ * The lowest the *suggestion* will go.
+ *
+ * Distinct from `calorieFloor` in health.ts, which is the lowest the app will
+ * *accept* and is lower for women. Suggesting and accepting are different
+ * promises, and the onboarding copy used to state one while the app enforced
+ * the other.
+ */
+export const SUGGESTION_FLOOR_KCAL = 1500;
+
+/** TDEE − 750, rounded to the nearest 50, never below the suggestion floor. */
 export function suggestedCalorieTarget(tdeeValue: number): number {
-  return Math.max(1500, Math.round((tdeeValue - 750) / 50) * 50);
+  return Math.max(
+    SUGGESTION_FLOOR_KCAL,
+    Math.round((tdeeValue - SUGGESTED_DEFICIT_KCAL) / 50) * 50,
+  );
 }
 
 /** Default protein: 1.2 g per kg of goal weight. */
