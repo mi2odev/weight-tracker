@@ -8,7 +8,13 @@ import { Card } from '../components/Card';
 import { SectionHeading, Segmented, Toggle } from '../components/Controls';
 import { Screen } from '../components/Screen';
 import { Body, Caption } from '../components/Type';
-import { authenticate, GRACE_OPTIONS, LockCapability, lockCapability } from '../lib/lock';
+import {
+  authenticate,
+  canEnableLock,
+  GRACE_OPTIONS,
+  LockCapability,
+  lockCapability,
+} from '../lib/lock';
 
 /**
  * What the app knows, where it keeps it, and what can be turned on.
@@ -34,14 +40,16 @@ export function PrivacyScreen({ onBack }: { onBack: () => void }) {
 
   /**
    * Turning the lock on asks for the face or finger first. Enabling a gate you
-   * cannot open is the one failure that costs someone their whole log.
+   * cannot open is the one failure that costs someone their whole log, so the
+   * switch is refused outright unless something is actually enrolled — having
+   * the hardware is not the same as having a key for it.
    */
   const toggleLock = async (next: boolean) => {
     if (!next) {
       setLock({ enabled: false });
       return;
     }
-    if (!capability?.enrolled) {
+    if (!canEnableLock(capability)) {
       showToast(
         capability?.available
           ? `Set up ${capability.label} in your device settings first`
@@ -49,9 +57,13 @@ export function PrivacyScreen({ onBack }: { onBack: () => void }) {
       );
       return;
     }
-    if (await authenticate('Confirm it is you before locking the app')) {
+
+    const outcome = await authenticate('Confirm it is you before locking the app');
+    if (outcome === 'unlocked') {
       setLock({ enabled: true });
       showToast('App lock on');
+    } else if (outcome === 'security-removed') {
+      showToast('This phone no longer has a passcode set up');
     }
   };
 
@@ -99,6 +111,7 @@ export function PrivacyScreen({ onBack }: { onBack: () => void }) {
           </View>
           <Toggle
             value={data.lock.enabled}
+            disabled={!data.lock.enabled && !canEnableLock(capability)}
             accessibilityLabel="Lock the app"
             onChange={(next) => void toggleLock(next)}
           />

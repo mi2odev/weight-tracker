@@ -90,24 +90,28 @@ export function Toggle({
   value,
   onChange,
   accessibilityLabel,
+  disabled = false,
 }: {
   value: boolean;
   onChange: (next: boolean) => void;
   accessibilityLabel?: string;
+  /** For a switch the device cannot satisfy — reads as off and stays put. */
+  disabled?: boolean;
 }) {
   const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="switch"
-      accessibilityState={{ checked: value }}
+      accessibilityState={{ checked: value, disabled }}
       accessibilityLabel={accessibilityLabel}
       hitSlop={10}
-      onPress={() => onChange(!value)}
+      onPress={disabled ? undefined : () => onChange(!value)}
       style={{
         width: 48,
         height: 29,
         borderRadius: radius.pill,
         backgroundColor: value ? colors.accent : colors.line,
+        opacity: disabled ? 0.45 : 1,
         padding: 3,
         flexDirection: 'row',
         justifyContent: value ? 'flex-end' : 'flex-start',

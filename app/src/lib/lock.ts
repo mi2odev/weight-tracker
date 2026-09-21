@@ -13,6 +13,7 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 
 export * from './lockRules';
+import { AuthOutcome, classifyAuthResult } from './lockRules';
 
 export interface LockCapability {
   /** The device has the hardware. */
@@ -49,16 +50,23 @@ export async function lockCapability(): Promise<LockCapability> {
  * `disableDeviceFallback` is deliberately false: someone whose fingerprint
  * fails to read should be able to fall back to their passcode rather than be
  * locked out of their own log.
+ *
+ * Returns *why* it failed, not just that it did. The difference between "you
+ * cancelled" and "this phone no longer has a passcode" is the difference
+ * between a prompt worth retrying and one that can never succeed — and
+ * getting that wrong shuts someone out of their own data for good.
  */
-export async function authenticate(reason = 'Unlock your weight log'): Promise<boolean> {
+export async function authenticate(reason = 'Unlock your weight log'): Promise<AuthOutcome> {
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: reason,
       cancelLabel: 'Cancel',
       disableDeviceFallback: false,
     });
-    return result.success;
+    return classifyAuthResult(result);
   } catch {
-    return false;
+    // A throwing prompt is not evidence the enrolment is gone, so this stays
+    // retryable — `lockCapability` is what settles that question.
+    return 'retry';
   }
 }
