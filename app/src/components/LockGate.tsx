@@ -10,6 +10,7 @@ import {
   isLockedOut,
   lockCapability,
   LockCapability,
+  setScreenCaptureBlocked,
   shouldRelock,
 } from '../lib/lock';
 import { PrimaryButton } from './Controls';
@@ -106,6 +107,20 @@ export function LockGate({ children }: { children: React.ReactNode }) {
   // Turning the lock off should not strand someone behind it.
   useEffect(() => {
     if (!lock.enabled) setUnlocked(true);
+  }, [lock.enabled]);
+
+  /**
+   * Ask the OS to refuse screenshots while the lock is on.
+   *
+   * The in-app cover cannot reach the Android recent-apps thumbnail — that
+   * image is the system's, and only the system can be told not to keep it.
+   * Released on unmount so the block never outlives the gate.
+   */
+  useEffect(() => {
+    void setScreenCaptureBlocked(lock.enabled);
+    return () => {
+      void setScreenCaptureBlocked(false);
+    };
   }, [lock.enabled]);
 
   /** The way back in when the device can no longer satisfy the lock. */
