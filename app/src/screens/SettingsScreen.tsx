@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Modal, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
 import { font, space } from '../theme/tokens';
-import { useStore } from '../data/store';
+import { CsvImportPreview, RestorePreview, useStore } from '../data/store';
 import { useDerived } from '../data/derived';
 import { describeData, hasAnyData } from '../data/schema';
 import { ACTIVITY_LEVELS, ActivityLevel, NotificationSettings, Sex, Units } from '../data/types';
@@ -11,7 +11,7 @@ import { Card, Grid } from '../components/Card';
 import { GhostButton, NumberField, PrimaryButton, SectionHeading, Segmented, Toggle, ValueRow } from '../components/Controls';
 import { ConfirmDialog, Sheet } from '../components/Overlays';
 import { Screen } from '../components/Screen';
-import { Body, Caption } from '../components/Type';
+import { Body, Caption, Title } from '../components/Type';
 import {
   bmi,
   bmiBand,
@@ -25,6 +25,7 @@ import {
   tdee as maintenance,
 } from '../lib/calc';
 import { formatMedium } from '../lib/date';
+import { ConflictChoice } from '../lib/backup';
 
 const REMINDERS: { key: keyof NotificationSettings; label: string; sub: string }[] = [
   { key: 'morningWeighIn', label: 'Morning weigh-in', sub: '07:00 · skipped if already logged' },
@@ -35,7 +36,20 @@ const REMINDERS: { key: keyof NotificationSettings; label: string; sub: string }
 
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const { preference, setPreference } = useTheme();
-  const { data, setNotification, updateProfile, replayOnboarding, loadDemo, resetAll, exportCsv } = useStore();
+  const {
+    data,
+    setNotification,
+    updateProfile,
+    replayOnboarding,
+    loadDemo,
+    resetAll,
+    exportCsv,
+    exportBackup,
+    previewRestore,
+    applyRestore,
+    previewCsvImport,
+    applyCsvImport,
+  } = useStore();
   const { u } = useDerived();
   const { profile, entries } = data;
 
@@ -43,6 +57,9 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const [targetSheet, setTargetSheet] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmDemo, setConfirmDemo] = useState(false);
+  const [restore, setRestore] = useState<RestorePreview | null>(null);
+  const [csvImport, setCsvImport] = useState<CsvImportPreview | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const current = currentWeight(entries, profile);
   const bmiValue = bmi(current, profile.heightCm);
@@ -156,6 +173,44 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         onChange={setPreference}
       />
 
+      {/* ── backup ──────────────────────────────────────────────────────── */}
+      <View style={{ marginTop: space.lg }}>
+        <SectionHeading title="Backup" />
+      </View>
+      <GhostButton label="Back up everything (JSON)" onPress={exportBackup} />
+      <GhostButton
+        label="Restore from backup"
+        tone="muted"
+        onPress={async () => {
+          if (busy) return;
+          setBusy(true);
+          try {
+            const preview = await previewRestore();
+            if (preview) setRestore(preview);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+      <GhostButton
+        label="Import weigh-ins from CSV"
+        tone="muted"
+        onPress={async () => {
+          if (busy) return;
+          setBusy(true);
+          try {
+            const preview = await previewCsvImport();
+            if (preview) setCsvImport(preview);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+      <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
+        A backup is one JSON file holding everything, and it is what a restore reads. CSV is for spreadsheets —
+        importing one merges weigh-ins by date and leaves meals, workouts and measurements alone.
+      </Caption>
+
       {/* ── data ────────────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
         <SectionHeading title="Data" />
@@ -172,6 +227,36 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         Everything lives on this device. The demo journey fills in eight weeks of weigh-ins so the populated screens
         are reachable without waiting — it replaces whatever is logged now, and you can undo it from the toast.
       </Caption>
+
+      <ConfirmDialog
+        visible={restore !== null}
+        title="Restore this backup?"
+        body={
+          restore
+            ? `The backup holds ${restore.summary}${
+                restore.exportedAt ? `, saved ${formatMedium(restore.exportedAt.slice(0, 10))}` : ''
+              }. Restoring replaces your current data (${describeData(data)}). You can undo this from the toast that follows.`
+            : ''
+        }
+        confirmLabel="Restore it"
+        destructive
+        onCancel={() => setRestore(null)}
+        onConfirm={() => {
+          const picked = restore;
+          setRestore(null);
+          if (picked) applyRestore(picked.data);
+        }}
+      />
+
+      <CsvImportDialog
+        preview={csvImport}
+        onCancel={() => setCsvImport(null)}
+        onConfirm={(choice) => {
+          const picked = csvImport;
+          setCsvImport(null);
+          if (picked) applyCsvImport(picked.rows, choice);
+        }}
+      />
 
       <PlanSheet visible={planSheet} onClose={() => setPlanSheet(false)} />
       <TargetSheet visible={targetSheet} onClose={() => setTargetSheet(false)} />
@@ -308,5 +393,73 @@ function TargetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
       </Caption>
       <PrimaryButton label="Save targets" onPress={submit} style={{ marginTop: space.xs }} />
     </Sheet>
+  );
+}
+
+/**
+ * A CSV import is not a yes/no — when a day exists in both files the user has
+ * to say which one wins, so this asks that instead of a plain confirmation.
+ * With no conflicts it collapses to a single "Import" button.
+ */
+function CsvImportDialog({
+  preview,
+  onCancel,
+  onConfirm,
+}: {
+  preview: CsvImportPreview | null;
+  onCancel: () => void;
+  onConfirm: (choice: ConflictChoice) => void;
+}) {
+  const { colors } = useTheme();
+  if (!preview) return null;
+
+  const lines = [
+    `${preview.newCount} new day${preview.newCount === 1 ? '' : 's'}`,
+    preview.conflictCount > 0
+      ? `${preview.conflictCount} day${preview.conflictCount === 1 ? '' : 's'} already logged differently`
+      : null,
+    preview.identicalCount > 0 ? `${preview.identicalCount} unchanged` : null,
+    preview.skipped > 0 ? `${preview.skipped} row${preview.skipped === 1 ? '' : 's'} unreadable` : null,
+  ].filter(Boolean);
+
+  return (
+    <Modal transparent animationType="fade" visible onRequestClose={onCancel}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(28,28,26,0.55)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 28,
+        }}
+      >
+        <View style={{ width: '100%', backgroundColor: colors.card, borderRadius: 24, padding: space.xl, gap: space.sm }}>
+          <Title style={{ fontSize: 20 }}>Import {preview.fileName}?</Title>
+
+          <Body style={{ fontSize: 14, lineHeight: 20 }} color={colors.muted}>
+            {lines.join(' · ')}.
+            {preview.warning ? ` ${preview.warning}` : ''}
+          </Body>
+
+          {preview.conflictCount > 0 && (
+            <Body style={{ fontSize: 14, lineHeight: 20, marginTop: space.xs }} color={colors.muted}>
+              Some of those days are already logged. Which should win?
+            </Body>
+          )}
+
+          <View style={{ gap: space.sm, marginTop: space.md }}>
+            {preview.conflictCount > 0 ? (
+              <>
+                <PrimaryButton label="Keep what I have" onPress={() => onConfirm('keep-mine')} />
+                <GhostButton label="Use the file's values" onPress={() => onConfirm('use-theirs')} />
+              </>
+            ) : (
+              <PrimaryButton label="Import" onPress={() => onConfirm('use-theirs')} />
+            )}
+            <GhostButton label="Cancel" tone="muted" onPress={onCancel} />
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
