@@ -5,25 +5,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space, tnum } from '../theme/tokens';
 import { useStore } from '../data/store';
-import { ACTIVITY_LEVELS, ActivityLevel, Profile, Sex } from '../data/types';
+import { ACTIVITY_LEVELS, ActivityLevel, Profile, Sex, Units } from '../data/types';
 import { Card } from '../components/Card';
 import { NumberField, PrimaryButton, Segmented } from '../components/Controls';
 import { Body, Caption, Label, Title } from '../components/Type';
 import {
   bmr as restingBurn,
   expectedLossPerWeek,
-  f1,
   int,
   suggestedCalorieTarget,
   suggestedProteinTarget,
   tdee as maintenance,
 } from '../lib/calc';
 import { formatMedium, todayKey } from '../lib/date';
+import { formatterFor } from '../lib/units';
 import { defaultProfile } from '../data/seed';
 
 const STEP_COUNT = 5;
 
 interface Draft {
+  units: Units;
   startWeight: string;
   goalWeight: string;
   height: string;
@@ -46,6 +47,7 @@ export function OnboardingScreen() {
   const base = defaultProfile();
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>({
+    units: base.units,
     startWeight: String(base.startWeightKg),
     goalWeight: String(base.goalWeightKg),
     height: String(base.heightCm),
@@ -58,24 +60,31 @@ export function OnboardingScreen() {
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
 
+  // Units are chosen on the first step, so every later field is entered and
+  // validated in the unit the user actually thinks in.
+  const u = useMemo(() => formatterFor(draft.units), [draft.units]);
+
   const num = (value: string, fallback: number) => {
     const parsed = Number.parseFloat(value.replace(',', '.'));
     return Number.isFinite(parsed) ? parsed : fallback;
   };
+  const metric = (value: string, parse: (t: string) => number | null, fallback: number) =>
+    parse(value) ?? fallback;
 
   /** A live profile shape, so the preview recalculates as the user types. */
   const preview = useMemo<Profile>(
     () => ({
       ...base,
       startDate: todayKey(),
-      startWeightKg: num(draft.startWeight, base.startWeightKg),
-      goalWeightKg: num(draft.goalWeight, base.goalWeightKg),
-      heightCm: num(draft.height, base.heightCm),
+      units: draft.units,
+      startWeightKg: metric(draft.startWeight, u.parseWeight, base.startWeightKg),
+      goalWeightKg: metric(draft.goalWeight, u.parseWeight, base.goalWeightKg),
+      heightCm: metric(draft.height, u.parseLength, base.heightCm),
       ageYears: num(draft.age, base.ageYears),
       sex: draft.sex,
       activityLevel: draft.activity,
       targetCalories: num(draft.calories, base.targetCalories),
-      targetProteinG: suggestedProteinTarget(num(draft.goalWeight, base.goalWeightKg)),
+      targetProteinG: suggestedProteinTarget(metric(draft.goalWeight, u.parseWeight, base.goalWeightKg)),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [draft],
@@ -87,15 +96,16 @@ export function OnboardingScreen() {
 
   const validate = (): string | null => {
     if (step === 0 && (preview.startWeightKg < 30 || preview.startWeightKg > 400))
-      return 'Starting weight must be between 30 and 400 kg';
+      return `Starting weight must be between ${u.weightValue(30)} and ${u.weight(400)}`;
     if (step === 1) {
       if (preview.goalWeightKg < 30 || preview.goalWeightKg > 400)
-        return 'Goal weight must be between 30 and 400 kg';
+        return `Goal weight must be between ${u.weightValue(30)} and ${u.weight(400)}`;
       if (preview.goalWeightKg >= preview.startWeightKg)
         return 'Your goal has to be below your starting weight';
     }
     if (step === 2) {
-      if (preview.heightCm < 100 || preview.heightCm > 250) return 'Height must be between 100 and 250 cm';
+      if (preview.heightCm < 100 || preview.heightCm > 250)
+        return `Height must be between ${u.height(100)} and ${u.height(250)}`;
       if (preview.ageYears < 14 || preview.ageYears > 100) return 'Age must be between 14 and 100';
     }
     if (step === 4 && preview.targetCalories < 1200) return 'A target under 1 200 kcal is not safe';
@@ -154,10 +164,29 @@ export function OnboardingScreen() {
               <NumberField
                 label="Starting weight"
                 hint="Your weight today"
-                unit="kg"
+                unit={u.labels.weight}
                 value={draft.startWeight}
                 onChangeText={(t) => set('startWeight', t)}
               />
+              <View style={{ gap: space.sm }}>
+                <Label>Units</Label>
+                <Segmented
+                  options={['metric', 'imperial'] as const}
+                  value={draft.units}
+                  onChange={(units: Units) => {
+                    // Re-express what has already been typed, so switching does
+                    // not silently reinterpret 157 kg as 157 lb.
+                    const next = formatterFor(units);
+                    setDraft((prev) => ({
+                      ...prev,
+                      units,
+                      startWeight: next.weightField(u.parseWeight(prev.startWeight) ?? base.startWeightKg),
+                      goalWeight: next.weightField(u.parseWeight(prev.goalWeight) ?? base.goalWeightKg),
+                      height: next.lengthField(u.parseLength(prev.height) ?? base.heightCm),
+                    }));
+                  }}
+                />
+              </View>
               <Card style={{ gap: 2 }}>
                 <Label>Start date</Label>
                 <Body style={{ fontFamily: font.semibold, fontSize: 15 }}>{formatMedium(todayKey())}</Body>
@@ -171,18 +200,18 @@ export function OnboardingScreen() {
               <NumberField
                 label="Goal weight"
                 hint="Must be below your starting weight"
-                unit="kg"
+                unit={u.labels.weight}
                 value={draft.goalWeight}
                 onChangeText={(t) => set('goalWeight', t)}
               />
               <Pressable
                 accessibilityRole="button"
-                onPress={() => set('goalWeight', (preview.startWeightKg * 0.9).toFixed(1))}
+                onPress={() => set('goalWeight', u.weightField(preview.startWeightKg * 0.9))}
               >
                 <Card style={{ gap: 2 }}>
                   <Label color={colors.accent}>Suggested first target</Label>
                   <Body style={[{ fontFamily: font.semibold, fontSize: 15 }, tnum]}>
-                    {f1(preview.startWeightKg * 0.9)} kg — 10% down
+                    {u.weight(preview.startWeightKg * 0.9)} — 10% down
                   </Body>
                   <Caption style={{ fontSize: 11.5 }}>The clinical standard. Tap to use it.</Caption>
                 </Card>
@@ -194,8 +223,8 @@ export function OnboardingScreen() {
             <>
               <NumberField
                 label="Height"
-                hint="100–250 cm"
-                unit="cm"
+                hint={`${u.height(100)}–${u.height(250)}`}
+                unit={u.labels.length}
                 value={draft.height}
                 onChangeText={(t) => set('height', t)}
               />
@@ -270,7 +299,7 @@ export function OnboardingScreen() {
                   <CalcRow label="Suggested target" value={`${int(suggested)} kcal`} />
                   <CalcRow
                     label="Expected pace"
-                    value={`${f1(expectedLossPerWeek(preview.startWeightKg, preview))} kg/week`}
+                    value={`${u.weight(expectedLossPerWeek(preview.startWeightKg, preview))}/week`}
                   />
                   <CalcRow label="Protein target" value={`${preview.targetProteinG} g`} />
                 </View>

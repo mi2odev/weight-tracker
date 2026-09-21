@@ -4,13 +4,14 @@ import { View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space, tnum } from '../theme/tokens';
 import { useStore } from '../data/store';
+import { useUnits } from '../data/derived';
 import { Card, Grid } from '../components/Card';
 import { EmptyState, NumberField, PrimaryButton } from '../components/Controls';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Overlays';
 import { Screen } from '../components/Screen';
 import { Body, Caption, Stat } from '../components/Type';
-import { MEASUREMENT_FIELDS, f1, measurementDeltas } from '../lib/calc';
+import { MEASUREMENT_FIELDS, measurementDeltas } from '../lib/calc';
 import { formatShort, todayKey } from '../lib/date';
 
 type Draft = Record<string, string>;
@@ -18,6 +19,7 @@ type Draft = Record<string, string>;
 export function BodyScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
   const { data, addMeasurement, showToast } = useStore();
+  const u = useUnits();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>({});
 
@@ -60,18 +62,18 @@ export function BodyScreen({ onBack }: { onBack: () => void }) {
                   <View style={{ flex: 1, gap: 2 }}>
                     <Body style={{ fontFamily: font.semibold, fontSize: 14.5 }}>{row.label}</Body>
                     <Caption style={{ fontSize: 11.5 }}>
-                      Since first measurement · {f1(row.firstCm)} cm
+                      Since first measurement · {u.length(row.firstCm)}
                     </Caption>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 1 }}>
-                    <Stat>{f1(row.latestCm)}</Stat>
+                    <Stat>{u.lengthValue(row.latestCm)}</Stat>
                     <Caption
                       style={[{ fontSize: 12, fontFamily: font.semibold }, tnum]}
                       color={shrunk ? colors.greenText : colors.text}
                     >
                       {Math.abs(row.deltaCm) < 0.05
                         ? 'No change'
-                        : `${shrunk ? '↓' : '↑'} ${Math.abs(row.deltaCm).toFixed(1)} cm`}
+                        : `${shrunk ? '↓' : '↑'} ${u.length(Math.abs(row.deltaCm))}`}
                     </Caption>
                   </View>
                 </Card>
@@ -123,14 +125,14 @@ export function BodyScreen({ onBack }: { onBack: () => void }) {
 
       <Sheet visible={sheetOpen} title="New measurement" onClose={() => setSheetOpen(false)}>
         <Caption style={{ fontSize: 12.5, lineHeight: 18 }}>
-          All five in centimetres, for {formatShort(todayKey())}.
+          All five in {u.units === 'imperial' ? 'inches' : 'centimetres'}, for {formatShort(todayKey())}.
         </Caption>
         <Grid columns={2}>
           {MEASUREMENT_FIELDS.map(({ key, label }) => (
             <NumberField
               key={key}
               label={label}
-              unit="cm"
+              unit={u.labels.length}
               value={draft[key] ?? ''}
               onChangeText={(text) => setDraft((prev) => ({ ...prev, [key]: text }))}
             />

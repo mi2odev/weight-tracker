@@ -11,6 +11,7 @@ import { IBMPlexSans_700Bold } from '@expo-google-fonts/ibm-plex-sans/700Bold';
 
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { StoreProvider } from './src/data/store';
+import { DerivedProvider } from './src/data/derived';
 import { Root } from './src/navigation/Root';
 
 export default function App() {
@@ -24,7 +25,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <StoreProvider>{fontsLoaded ? <Root /> : <Splash />}</StoreProvider>
+        <StoreProvider>
+          <DerivedProvider>{fontsLoaded ? <Root /> : <Splash />}</DerivedProvider>
+        </StoreProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

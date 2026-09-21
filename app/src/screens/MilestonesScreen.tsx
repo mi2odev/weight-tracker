@@ -4,19 +4,21 @@ import { TextInput, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space, tnum } from '../theme/tokens';
 import { useStore } from '../data/store';
+import { useDerived } from '../data/derived';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { Screen } from '../components/Screen';
 import { Body, Caption } from '../components/Type';
-import { MilestoneStatus, f1, milestones } from '../lib/calc';
-import { formatMedium, toKey, todayKey } from '../lib/date';
+import { MilestoneStatus } from '../lib/calc';
+import { formatMedium, toKey } from '../lib/date';
 
 export function MilestonesScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
-  const { data, setReward } = useStore();
-  const today = todayKey();
+  const { setReward } = useStore();
+  const d = useDerived();
+  const { u } = d;
 
-  const list = milestones(data.entries, data.profile, data.rewards, data.achieved, today);
+  const list = d.milestones;
 
   const badge = (status: MilestoneStatus) => {
     if (status === 'Achieved') return { bg: colors.tint, fg: colors.accent };
@@ -25,7 +27,7 @@ export function MilestonesScreen({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <Screen title="Milestones" meta="Every 5 kg" onBack={onBack}>
+    <Screen title="Milestones" meta={`Every ${u.weight(5)}`} onBack={onBack}>
       {list.map((m) => {
         const achieved = m.status === 'Achieved';
         const tone = badge(m.status);
@@ -53,13 +55,13 @@ export function MilestonesScreen({ onBack }: { onBack: () => void }) {
                   style={[{ fontFamily: font.bold, fontSize: 13 }, tnum]}
                   color={achieved ? colors.onAccent : colors.muted}
                 >
-                  {m.targetKg}
+                  {u.weightValue(m.targetKg, 0)}
                 </Body>
               </View>
 
               <View style={{ flex: 1, gap: 2 }}>
                 <Body style={{ fontFamily: font.semibold, fontSize: 15 }}>
-                  {f1(m.kgFromStart)} kg lost · {f1(m.targetKg)} kg
+                  {u.weight(m.kgFromStart)} lost · {u.weight(m.targetKg)}
                 </Body>
                 {/* Estimates run years out, so they carry a year. */}
                 <Caption style={{ fontSize: 11.5 }}>
