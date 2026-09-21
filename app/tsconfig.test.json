@@ -1,11 +1,17 @@
 {
-  "//": "Tests run on Node, not in the React Native bundler — they need Node's module resolution and its type definitions, which the app config deliberately excludes.",
+  "//": "Tests run on Node, not in the React Native bundler \u2014 they need Node's module resolution and its type definitions, which the app config deliberately excludes.",
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.test.ts", "src/lib/**/*.ts", "src/data/types.ts"]
+  "include": [
+    "src/**/*.test.ts",
+    "src/lib/**/*.ts",
+    "src/data/**/*.ts"
+  ]
 }

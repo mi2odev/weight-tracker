@@ -121,7 +121,21 @@ export interface NotificationSettings {
   milestoneReached: boolean;
 }
 
+/**
+ * The stored-shape version.
+ *
+ * 1 — the original shape, with no version field at all.
+ * 2 — adds `schemaVersion`; from here on every payload is deep-merged
+ *     against the current defaults on load rather than shallow-spread.
+ *
+ * Lives here rather than in `schema.ts` so `seed.ts` can stamp it without the
+ * two files importing each other.
+ */
+export const CURRENT_SCHEMA_VERSION = 2;
+
 export interface AppData {
+  /** The shape version this payload was written at. See `data/schema.ts`. */
+  schemaVersion: number;
   profile: Profile;
   entries: WeighIn[];
   meals: MealEntry[];
