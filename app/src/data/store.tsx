@@ -45,6 +45,12 @@ import { applyRestoredPhotos, ConflictChoice, mergeWeighIns, previewMerge } from
 import { readAsBase64, restorePhotos } from '../lib/photos';
 import { todayKey } from '../lib/date';
 import { HydrationResult, mayPersist, readStoredPayload } from '../lib/hydration';
+import {
+  isDowngrade,
+  premigrationKey,
+  shouldSnapshot,
+  snapshotsToPrune,
+} from '../lib/snapshots';
 
 export const STORAGE_KEY = 'wt.data.v1';
 /** A rescued copy of a payload that would not parse. Never deleted by the app. */
@@ -203,6 +209,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const pendingWrite = useRef<AppData | null>(null);
   /** Set during hydration when a payload had to be rescued; reported once. */
   const corruptNotice = useRef<string | null>(null);
+  /**
+   * Set when the stored payload came from a newer build. Suppresses writing
+   * until the user changes something, so fields this build does not know
+   * about are not deleted by a migration round-trip.
+   */
+  const downgradeHold = useRef(false);
+  const downgradeNotice = useRef(false);
 
   // ── commit ─────────────────────────────────────────────────────────────────
 
@@ -211,6 +224,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    * the next line — or by a second action in the same tick — sees this write.
    */
   const commit = useCallback((next: AppData) => {
+    // The first change after a downgrade releases the write hold: the user's
+    // edit is now the newest thing there is, so it should be saved.
+    downgradeHold.current = false;
     dataRef.current = next;
     setData(next);
   }, []);
@@ -242,6 +258,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── hydration ──────────────────────────────────────────────────────────────
+
+  /**
+   * Copies the payload a migration is about to replace, then prunes all but
+   * the newest two. Failures are swallowed: a snapshot that cannot be written
+   * is a shame, but refusing to open the app over it would be worse.
+   */
+  const keepSnapshot = useCallback(async (raw: string, fromVersion: number) => {
+    try {
+      await AsyncStorage.setItem(premigrationKey(fromVersion), raw);
+      const stale = snapshotsToPrune(await AsyncStorage.getAllKeys() as string[]);
+      if (stale.length) await AsyncStorage.multiRemove(stale);
+    } catch {
+      /* best effort — never block startup on a backup copy */
+    }
+  }, []);
 
   /**
    * Loads the stored payload, or reports that it could not be loaded.
@@ -283,7 +314,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         const migrated = migrate(parsed);
+
+        // Keep the bytes a migration is about to replace. Awaited before
+        // anything can be written, for the same reason the corrupt rescue is.
+        if (shouldSnapshot(migrated)) {
+          await keepSnapshot(result.raw, migrated.fromVersion);
+        }
+
         commit(migrated.data);
+
+        // Data from a newer build can hold fields this one drops, so writing
+        // it back would delete them. Hold off until the user edits something
+        // — at that point their change is the newer truth.
+        if (isDowngrade(migrated.fromVersion)) {
+          downgradeHold.current = true;
+          downgradeNotice.current = true;
+        }
+
         if (migrated.notes.length && __DEV__) {
           // Not shown to the user: a repaired field is not their problem,
           // and the log is what matters for diagnosing it.
@@ -293,7 +340,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     setHydration(result);
-  }, [commit]);
+  }, [commit, keepSnapshot]);
 
   useEffect(() => {
     void hydrate();
@@ -306,6 +353,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [hydrate]);
 
   /** Told once, after hydration, so the message is not lost to a re-render. */
+  useEffect(() => {
+    if (!hydrated || !downgradeNotice.current) return;
+    downgradeNotice.current = false;
+    showToast('Your data was saved by a newer version — nothing will be overwritten until you change something');
+  }, [hydrated, showToast]);
+
   useEffect(() => {
     if (!hydrated || !corruptNotice.current) return;
     const rescued = corruptNotice.current !== 'unsaved';
@@ -331,7 +384,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!mayPersist(hydration)) return;
+    if (!mayPersist(hydration) || downgradeHold.current) return;
     pendingWrite.current = data;
     if (persistTimer.current) clearTimeout(persistTimer.current);
     persistTimer.current = setTimeout(flushWrite, PERSIST_DEBOUNCE_MS);
