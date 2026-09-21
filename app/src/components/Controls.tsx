@@ -218,7 +218,15 @@ export function NumberField({
   return (
     <View
       style={{
-        flex: 1,
+        // Deliberately not `flex: 1`. Every one of these sits in a `Grid`
+        // cell, and a cell is a *column*, so `flex: 1` sets flexBasis 0 on the
+        // vertical axis of a parent whose height comes from this child. Web
+        // flexbox falls back to the content height; Yoga on Android collapses
+        // it, and the field rendered as an empty pill with no label, no
+        // placeholder and nothing to tap. The cell already supplies the width.
+        alignSelf: 'stretch',
+        // A floor, so no future parent can squeeze the contents out of sight.
+        minHeight: 62,
         backgroundColor: colors.card,
         borderWidth: 1,
         borderColor: colors.line,
