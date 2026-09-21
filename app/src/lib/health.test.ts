@@ -20,7 +20,7 @@ import {
   suggestedGentlerTarget,
 } from './health';
 import { bmi, weightForBmi } from './calc';
-import { SUGGESTION_FLOOR_KCAL, suggestedCalorieTarget } from './calc';
+import { birthYearForAge, SUGGESTION_FLOOR_KCAL, suggestedCalorieTarget } from './calc';
 import { Profile } from '../data/types';
 
 const profile: Profile = {
@@ -28,7 +28,7 @@ const profile: Profile = {
   startWeightKg: 157,
   goalWeightKg: 100,
   heightCm: 178,
-  ageYears: 34,
+  birthYear: new Date().getFullYear() - 34,
   sex: 'Male',
   activityLevel: 'Lightly Active',
   goalType: 'lose',
@@ -169,8 +169,8 @@ describe('goal weight', () => {
 
 describe('age', () => {
   it('treats 18 and over as adult', () => {
-    assert.equal(isAdult({ ...profile, ageYears: ADULT_AGE }), true);
-    assert.equal(isAdult({ ...profile, ageYears: 17 }), false);
+    assert.equal(isAdult({ ...profile, birthYear: birthYearForAge(ADULT_AGE) }), true);
+    assert.equal(isAdult({ ...profile, birthYear: birthYearForAge(17) }), false);
   });
 });
 

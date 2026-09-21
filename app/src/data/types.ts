@@ -66,7 +66,15 @@ export interface Profile {
   startWeightKg: number;
   goalWeightKg: number;
   heightCm: number;
-  ageYears: number;
+  /**
+   * The year they were born, not their age.
+   *
+   * An age stored as a number is wrong from the next birthday onward, and this
+   * plan runs for 730 days — so a stored age silently drifts by one or two
+   * years through exactly the window where BMR and the under-18 rule depend on
+   * it. A year of birth is the fact; the age is derived. See `currentAge`.
+   */
+  birthYear: number;
   sex: Sex;
   activityLevel: ActivityLevel;
   /** Absent on payloads written before goal types existed; migrates to 'lose'. */
@@ -173,11 +181,14 @@ export interface NotificationSettings {
  *     against the current defaults on load rather than shallow-spread.
  * 3 — an under-18 profile carries `targetCalories: 0`, meaning no target.
  *     Older payloads have a suggested one, which nobody should act on.
+ * 4 — `profile.ageYears` becomes `profile.birthYear`, so age stops drifting,
+ *     and `adulthoodNoticed` records whether the "you are 18 now" note has
+ *     been shown.
  *
  * Lives here rather than in `schema.ts` so `seed.ts` can stamp it without the
  * two files importing each other.
  */
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 export interface AppData {
   /** The shape version this payload was written at. See `data/schema.ts`. */
@@ -200,6 +211,11 @@ export interface AppData {
   notifications: NotificationSettings;
   lock: LockSettings;
   diagnostics: DiagnosticsSettings;
+  /**
+   * Whether the user has been told, once, that turning 18 makes calorie
+   * targets available. Stored rather than derived so it cannot nag.
+   */
+  adulthoodNoticed: boolean;
   onboarded: boolean;
 }
 

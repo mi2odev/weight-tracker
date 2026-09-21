@@ -83,6 +83,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel,
+  cancelLabel = 'Cancel',
   destructive = false,
   onConfirm,
   onCancel,
@@ -91,6 +92,8 @@ export function ConfirmDialog({
   title: string;
   body: string;
   confirmLabel: string;
+  /** "Not now" reads very differently from "Cancel" on an offer. */
+  cancelLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -136,7 +139,7 @@ export function ConfirmDialog({
                 borderColor: colors.line,
               }}
             >
-              <Body style={{ fontFamily: font.semibold, fontSize: 15 }}>Cancel</Body>
+              <Body style={{ fontFamily: font.semibold, fontSize: 15 }}>{cancelLabel}</Body>
             </Pressable>
 
             <Pressable

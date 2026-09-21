@@ -23,8 +23,10 @@ import { ConfirmDialog, Sheet } from '../components/Overlays';
 import { Screen } from '../components/Screen';
 import { Body, Caption, Title } from '../components/Type';
 import {
+  birthYearForAge,
   bmi,
   bmiBand,
+  currentAge,
   currentWeight,
   expectedLossPerWeek,
   healthyWeightRange,
@@ -120,7 +122,7 @@ export function SettingsScreen({
         <ValueRow label="Starting weight" value={u.weight(profile.startWeightKg)} />
         <ValueRow label="Goal weight" value={u.weight(profile.goalWeightKg)} />
         <ValueRow label="Height" value={u.height(profile.heightCm)} />
-        <ValueRow label="Age" value={`${profile.ageYears} yrs`} />
+        <ValueRow label="Age" value={`${currentAge(profile)} yrs`} />
         <ValueRow label="Sex" value={profile.sex} />
         <ValueRow label="Activity level" value={profile.activityLevel} last />
       </Card>
@@ -378,7 +380,7 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
   const [startWeight, setStartWeight] = useState(u.weightField(profile.startWeightKg));
   const [goalWeight, setGoalWeight] = useState(u.weightField(profile.goalWeightKg));
   const [height, setHeight] = useState(u.lengthField(profile.heightCm));
-  const [age, setAge] = useState(String(profile.ageYears));
+  const [age, setAge] = useState(String(currentAge(profile)));
   const [sex, setSex] = useState<Sex>(profile.sex);
   const [activity, setActivity] = useState<ActivityLevel>(profile.activityLevel);
   const [goalType, setGoalType] = useState<GoalType>(profile.goalType);
@@ -418,7 +420,7 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
       startWeightKg: sw,
       goalWeightKg: gw,
       heightCm: h,
-      ageYears: a,
+      birthYear: birthYearForAge(a),
       sex,
       activityLevel: activity,
       goalType,

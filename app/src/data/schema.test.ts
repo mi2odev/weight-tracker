@@ -10,6 +10,7 @@ import { describe, it } from 'node:test';
 import { CURRENT_SCHEMA_VERSION, describeData, hasAnyData, isDateKey, migrate } from './schema';
 import { emptyData } from './seed';
 import { NO_CALORIE_TARGET } from './types';
+import { currentAge } from '../lib/calc';
 
 /** A minimal but valid v1 payload — no schemaVersion field. */
 function v1Payload(over: Record<string, unknown> = {}) {
@@ -19,7 +20,7 @@ function v1Payload(over: Record<string, unknown> = {}) {
       startWeightKg: 157,
       goalWeightKg: 100,
       heightCm: 178,
-      ageYears: 34,
+      ageYears: 34, // v1 stored an age; v4 converts it to a birth year
       sex: 'Male',
       activityLevel: 'Lightly Active',
       goalType: 'lose',
@@ -287,5 +288,44 @@ describe('v3 — no calorie target under 18', () => {
       profile: { ...v1Payload().profile, targetCalories: 50 },
     }));
     assert.equal(result.data.profile.targetCalories, emptyData().profile.targetCalories);
+  });
+});
+
+describe('v4 — a birth year instead of an age', () => {
+  const thisYear = new Date().getFullYear();
+
+  it('converts a stored age into the year it stood for', () => {
+    const result = migrate(v1Payload());
+    assert.equal(result.data.profile.birthYear, thisYear - 34);
+    assert.equal(currentAge(result.data.profile), 34, 'the same age, today');
+  });
+
+  it('keeps a birth year that is already stored', () => {
+    const result = migrate(v1Payload({
+      profile: { ...v1Payload().profile, birthYear: 1990, ageYears: 99 },
+    }));
+    assert.equal(result.data.profile.birthYear, 1990, 'the newer field wins');
+  });
+
+  it('falls back to the default rather than inventing an age', () => {
+    const result = migrate(v1Payload({
+      profile: { ...v1Payload().profile, ageYears: 'thirty' },
+    }));
+    assert.equal(result.data.profile.birthYear, emptyData().profile.birthYear);
+  });
+
+  it('refuses an age outside the bounds it would accept on the form', () => {
+    for (const ageYears of [3, 140]) {
+      const result = migrate(v1Payload({ profile: { ...v1Payload().profile, ageYears } }));
+      assert.equal(result.data.profile.birthYear, emptyData().profile.birthYear, `age ${ageYears}`);
+    }
+  });
+
+  it('starts everyone off not having seen the adulthood notice', () => {
+    assert.equal(migrate(v1Payload()).data.adulthoodNoticed, false);
+  });
+
+  it('remembers that the notice was already shown', () => {
+    assert.equal(migrate(v1Payload({ adulthoodNoticed: true })).data.adulthoodNoticed, true);
   });
 });

@@ -111,13 +111,22 @@ function migrateProfile(raw: unknown, defaults: Profile, notes: string[]): Profi
     return value;
   };
 
+  const thisYear = new Date().getFullYear();
+
   // Bounds mirror the validation rules in section 3 of the spec.
   return {
     startDate: take('startDate', isDateKey(raw.startDate) ? raw.startDate : null, defaults.startDate),
     startWeightKg: take('startWeightKg', numberIn(raw.startWeightKg, 30, 400), defaults.startWeightKg),
     goalWeightKg: take('goalWeightKg', numberIn(raw.goalWeightKg, 30, 400), defaults.goalWeightKg),
     heightCm: take('heightCm', numberIn(raw.heightCm, 100, 250), defaults.heightCm),
-    ageYears: take('ageYears', numberIn(raw.ageYears, 14, 100), defaults.ageYears),
+    // v4: an age was stored, which is wrong from the next birthday onward.
+    // Converting it here is the only place that still knows what it meant.
+    birthYear: take(
+      'birthYear',
+      numberIn(raw.birthYear, thisYear - MAX_AGE, thisYear - MIN_AGE) ??
+        birthYearFromAge(numberIn(raw.ageYears, MIN_AGE, MAX_AGE), thisYear),
+      defaults.birthYear,
+    ),
     sex: take('sex', oneOf(raw.sex, SEXES), defaults.sex),
     activityLevel: take('activityLevel', oneOf(raw.activityLevel, ACTIVITY_NAMES), defaults.activityLevel),
     // Absent before goal types existed, so an older payload lands on 'lose',
@@ -138,6 +147,15 @@ function migrateProfile(raw: unknown, defaults: Profile, notes: string[]): Profi
     targetSleepH: take('targetSleepH', numberIn(raw.targetSleepH, 0, 24), defaults.targetSleepH),
     units: take('units', oneOf(raw.units, UNITS), defaults.units),
   };
+}
+
+/** Age bounds, kept here so the migration and onboarding cannot disagree. */
+export const MIN_AGE = 14;
+export const MAX_AGE = 100;
+
+/** A v3-and-earlier `ageYears` as the year of birth it stood for. */
+export function birthYearFromAge(age: number | null, year: number): number | null {
+  return age == null ? null : year - age;
 }
 
 function migrateLock(raw: unknown, defaults: LockSettings): LockSettings {
@@ -369,6 +387,7 @@ export function migrate(raw: unknown): MigrationResult {
     notifications: migrateNotifications(raw.notifications, defaults.notifications),
     lock: migrateLock(raw.lock, defaults.lock),
     diagnostics: migrateDiagnostics(raw.diagnostics, defaults.diagnostics),
+    adulthoodNoticed: bool(raw.adulthoodNoticed, defaults.adulthoodNoticed),
     onboarded: bool(raw.onboarded, defaults.onboarded),
   };
 
