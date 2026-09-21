@@ -7,7 +7,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { orphanedPhotoFiles, photoFileName } from './photoRules';
+import {
+  LaunchHydration,
+  maySweepPhotos,
+  orphanedPhotoFiles,
+  photoFileName,
+  SweepTrigger,
+} from './photoRules';
 
 const DIR = 'file:///data/app/Documents/progress-photos';
 
@@ -73,5 +79,83 @@ describe('finding orphaned photos', () => {
 
   it('leaves a file alone when its name cannot be read', () => {
     assert.deepEqual(orphanedPhotoFiles([`${DIR}/`], []), [], 'unreadable is not unclaimed');
+  });
+});
+
+describe('whether a sweep is safe at all', () => {
+  const clean: LaunchHydration = {
+    status: 'loaded',
+    parsed: true,
+    downgrade: false,
+    measurementsAltered: false,
+  };
+  const launch = (over: Partial<LaunchHydration> = {}): SweepTrigger => ({
+    kind: 'launch',
+    hydration: { ...clean, ...over },
+  });
+  const some = { owners: 3, files: 5 };
+
+  it('sweeps at launch when the payload loaded cleanly', () => {
+    assert.deepEqual(maySweepPhotos(launch(), some), { sweep: true, blockedBy: null });
+  });
+
+  it('never sweeps when the payload was rescued rather than parsed', () => {
+    // The app is running on emptyData() while wt.data.corrupt.* still
+    // references every photo — this is the case that deletes the lot.
+    assert.deepEqual(maySweepPhotos(launch({ parsed: false }), { owners: 0, files: 5 }), {
+      sweep: false,
+      blockedBy: 'payload-rescued',
+    });
+  });
+
+  it('never sweeps when storage would not answer', () => {
+    assert.equal(
+      maySweepPhotos(launch({ status: 'unreadable', parsed: false }), some).blockedBy,
+      'storage-unreadable',
+    );
+  });
+
+  it('never sweeps on a first run that found files already there', () => {
+    assert.equal(maySweepPhotos(launch({ status: 'first-run' }), { owners: 0, files: 5 }).blockedBy, 'nothing-loaded');
+  });
+
+  it('never sweeps a downgrade, whose stored measurements are the real ones', () => {
+    assert.equal(maySweepPhotos(launch({ downgrade: true }), some).blockedBy, 'downgrade');
+  });
+
+  it('never sweeps when migration altered the measurements', () => {
+    // Dropped rows may come back from the pre-migration snapshot; their
+    // photos should still be there when they do.
+    assert.equal(
+      maySweepPhotos(launch({ measurementsAltered: true }), some).blockedBy,
+      'measurements-altered',
+    );
+  });
+
+  it('stops at launch when there are files but nothing claims them', () => {
+    assert.equal(maySweepPhotos(launch(), { owners: 0, files: 5 }).blockedBy, 'no-owners');
+  });
+
+  it('lets an explicit reset or restore clear the last photo', () => {
+    assert.deepEqual(maySweepPhotos({ kind: 'user-action' }, { owners: 0, files: 5 }), {
+      sweep: true,
+      blockedBy: null,
+    });
+  });
+
+  it('still sweeps after a user action however the launch went', () => {
+    // A user action happens long after hydration and is its own evidence.
+    assert.equal(maySweepPhotos({ kind: 'user-action' }, { owners: 2, files: 9 }).sweep, true);
+  });
+
+  it('has nothing to do when the directory is empty', () => {
+    assert.deepEqual(maySweepPhotos(launch(), { owners: 0, files: 0 }), {
+      sweep: false,
+      blockedBy: null,
+    });
+    assert.deepEqual(maySweepPhotos({ kind: 'user-action' }, { owners: 0, files: 0 }), {
+      sweep: false,
+      blockedBy: null,
+    });
   });
 });
