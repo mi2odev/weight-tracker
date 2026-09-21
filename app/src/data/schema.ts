@@ -26,6 +26,7 @@ import {
   MealEntry,
   MealType,
   Measurement,
+  NO_CALORIE_TARGET,
   NotificationSettings,
   Profile,
   Sex,
@@ -36,6 +37,7 @@ import {
   WorkoutType,
 } from './types';
 import { emptyData } from './seed';
+import { isAdult } from '../lib/calc';
 
 export { CURRENT_SCHEMA_VERSION };
 
@@ -121,7 +123,15 @@ function migrateProfile(raw: unknown, defaults: Profile, notes: string[]): Profi
     // Absent before goal types existed, so an older payload lands on 'lose',
     // which is exactly what it was doing.
     goalType: oneOf<GoalType>(raw.goalType, GOAL_TYPES) ?? defaults.goalType,
-    targetCalories: take('targetCalories', numberIn(raw.targetCalories, 800, 10000), defaults.targetCalories),
+    // 0 is a real value, not a missing one: it means "no target", which is
+    // what an under-18 profile carries. See `NO_CALORIE_TARGET`.
+    targetCalories: take(
+      'targetCalories',
+      raw.targetCalories === NO_CALORIE_TARGET
+        ? NO_CALORIE_TARGET
+        : numberIn(raw.targetCalories, 800, 10000),
+      defaults.targetCalories,
+    ),
     targetProteinG: take('targetProteinG', numberIn(raw.targetProteinG, 0, 500), defaults.targetProteinG),
     targetWaterL: take('targetWaterL', numberIn(raw.targetWaterL, 0, 15), defaults.targetWaterL),
     targetSteps: take('targetSteps', numberIn(raw.targetSteps, 0, 100000), defaults.targetSteps),
@@ -336,9 +346,19 @@ export function migrate(raw: unknown): MigrationResult {
     notes.push(`stored data is from a newer version (${fromVersion}) — unknown fields ignored`);
   }
 
+  const profile = migrateProfile(raw.profile, defaults.profile, notes);
+
+  // v3: an under-18 profile carries no calorie target. Payloads written
+  // before this rule existed have a suggested one sitting in them, and the
+  // whole point of the rule is that nobody should be acting on it.
+  if (!isAdult(profile) && profile.targetCalories !== NO_CALORIE_TARGET) {
+    profile.targetCalories = NO_CALORIE_TARGET;
+    notes.push('cleared the calorie target on an under-18 profile');
+  }
+
   const data: AppData = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
-    profile: migrateProfile(raw.profile, defaults.profile, notes),
+    profile,
     entries: migrateEntries(raw.entries, notes),
     meals: migrateMeals(raw.meals, notes),
     workouts: migrateWorkouts(raw.workouts, notes),

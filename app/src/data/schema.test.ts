@@ -9,6 +9,7 @@ import { describe, it } from 'node:test';
 
 import { CURRENT_SCHEMA_VERSION, describeData, hasAnyData, isDateKey, migrate } from './schema';
 import { emptyData } from './seed';
+import { NO_CALORIE_TARGET } from './types';
 
 /** A minimal but valid v1 payload — no schemaVersion field. */
 function v1Payload(over: Record<string, unknown> = {}) {
@@ -252,5 +253,39 @@ describe('data predicates', () => {
       }),
     ).data;
     assert.equal(describeData(many), '2 weigh-ins, 1 meal');
+  });
+});
+
+describe('v3 — no calorie target under 18', () => {
+  it('clears a target an older build had suggested to a minor', () => {
+    const result = migrate(v1Payload({
+      profile: { ...v1Payload().profile, ageYears: 16, targetCalories: 2650 },
+    }));
+
+    assert.equal(result.data.profile.targetCalories, NO_CALORIE_TARGET);
+    assert.equal(
+      result.notes.some((n) => n.includes('under-18')),
+      true,
+      'a silently changed target should leave a trace',
+    );
+  });
+
+  it('leaves an adult target exactly as it was', () => {
+    const result = migrate(v1Payload());
+    assert.equal(result.data.profile.targetCalories, 2650);
+  });
+
+  it('keeps a stored zero rather than treating it as a missing value', () => {
+    const result = migrate(v1Payload({
+      profile: { ...v1Payload().profile, ageYears: 16, targetCalories: NO_CALORIE_TARGET },
+    }));
+    assert.equal(result.data.profile.targetCalories, NO_CALORIE_TARGET);
+  });
+
+  it('still rejects an out-of-range target that is not the sentinel', () => {
+    const result = migrate(v1Payload({
+      profile: { ...v1Payload().profile, targetCalories: 50 },
+    }));
+    assert.equal(result.data.profile.targetCalories, emptyData().profile.targetCalories);
   });
 });

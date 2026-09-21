@@ -150,13 +150,36 @@ export function tdee(weightKg: number, profile: Profile): number {
   return bmr(weightKg, profile) * ACTIVITY_FACTORS[profile.activityLevel];
 }
 
-export function plannedDailyDeficit(weightKg: number, profile: Profile): number {
+/**
+ * The age at which the adult formulas in this file start to apply.
+ *
+ * Lives here rather than in `health.ts` because the calculations themselves
+ * have to ask the question — and `health.ts` already depends on this file,
+ * so asking the other way round would be a cycle.
+ */
+export const ADULT_AGE = 18;
+
+export function isAdult(profile: Profile): boolean {
+  return profile.ageYears >= ADULT_AGE;
+}
+
+/**
+ * TDEE minus the calorie target — or null for anyone under 18.
+ *
+ * Null rather than zero, and null rather than a number nobody displays: a
+ * deficit is a prescription, and prescribing one for a growing body is the
+ * thing this app must not do. Returning a number and hoping every screen
+ * remembers to hide it is how it leaks back in.
+ */
+export function plannedDailyDeficit(weightKg: number, profile: Profile): number | null {
+  if (!isAdult(profile)) return null;
   return tdee(weightKg, profile) - profile.targetCalories;
 }
 
-/** kg per week implied by the planned deficit. */
-export function expectedLossPerWeek(weightKg: number, profile: Profile): number {
-  return (plannedDailyDeficit(weightKg, profile) * 7) / KCAL_PER_KG;
+/** kg per week implied by the planned deficit. Null when there is no deficit. */
+export function expectedLossPerWeek(weightKg: number, profile: Profile): number | null {
+  const deficit = plannedDailyDeficit(weightKg, profile);
+  return deficit == null ? null : (deficit * 7) / KCAL_PER_KG;
 }
 
 /** kg per week needed to reach the goal inside the 730-day plan. */
@@ -259,6 +282,9 @@ export function daysToGoal(
   profile: Profile,
   asOf: DateKey = todayKey(),
 ): number | null {
+  // A projected date to arrive at a goal weight is a prescription too.
+  if (!isAdult(profile)) return null;
+
   const trend = trendPerDay(entries, asOf);
   if (trend == null || trend >= 0) return null;
 
@@ -599,7 +625,8 @@ export interface Milestone {
   targetKg: number;
   kgFromStart: number;
   pctOfGoal: number;
-  targetDate: Date;
+  /** Null for a profile with no planned deficit — nothing to pace against. */
+  targetDate: Date | null;
   achievedDate: DateKey | null;
   daysTaken: number | null;
   status: MilestoneStatus;
@@ -621,18 +648,24 @@ export function milestones(
 ): Milestone[] {
   const top = Math.floor(profile.startWeightKg / 5) * 5;
   const span = profile.startWeightKg - profile.goalWeightKg;
-  const planRate = Math.max(0.01, plannedDailyDeficit(currentWeight(entries, profile, asOf), profile) / KCAL_PER_KG);
+  const deficit = plannedDailyDeficit(currentWeight(entries, profile, asOf), profile);
+  const planRate = deficit == null ? null : Math.max(0.01, deficit / KCAL_PER_KG);
   const out: Milestone[] = [];
 
   for (let target = top; target >= profile.goalWeightKg - 1e-9; target -= 5) {
     const kgFromStart = profile.startWeightKg - target;
-    const targetDate = fromKey(profile.startDate);
-    targetDate.setDate(targetDate.getDate() + Math.round(kgFromStart / planRate));
+    let targetDate: Date | null = null;
+    if (planRate != null) {
+      targetDate = fromKey(profile.startDate);
+      targetDate.setDate(targetDate.getDate() + Math.round(kgFromStart / planRate));
+    }
 
     const achievedDate = achieved[String(target)] ?? null;
+    // With no target date there is nothing to be late against, so a
+    // milestone can be reached or waiting — never "Overdue".
     const status: MilestoneStatus = achievedDate
       ? 'Achieved'
-      : toKey(targetDate) < asOf
+      : targetDate && toKey(targetDate) < asOf
         ? 'Overdue'
         : 'Pending';
 

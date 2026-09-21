@@ -67,7 +67,9 @@ export function MilestonesScreen({ onBack }: { onBack: () => void }) {
                 <Caption style={{ fontSize: 11.5 }}>
                   {m.achievedDate
                     ? `Reached ${formatMedium(m.achievedDate)} · ${m.daysTaken} days`
-                    : `Estimated ${formatMedium(toKey(m.targetDate))}`}
+                    : m.targetDate
+                      ? `Estimated ${formatMedium(toKey(m.targetDate))}`
+                      : 'No estimated date — this app sets no pace for under-18s'}
                 </Caption>
                 <Caption style={{ fontSize: 11.5 }}>{Math.round(m.pctOfGoal)}% of goal</Caption>
               </View>

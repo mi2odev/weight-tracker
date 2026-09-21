@@ -17,6 +17,7 @@ import {
   dailyChange,
   entryFor,
   habitTicks,
+  isAdult,
   isLogged,
   mealTotals,
   previousWeight,
@@ -276,7 +277,13 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
         <NumberField
           label="Calories"
           unit="kcal"
-          hint={`Target ${profile.targetCalories.toLocaleString('en-GB')}`}
+          // No target under 18: the app sets none, so the field is a plain
+          // log rather than something to hit.
+          hint={
+            isAdult(profile)
+              ? `Target ${profile.targetCalories.toLocaleString('en-GB')}`
+              : 'Logged, not scored'
+          }
           value={fieldText(entry?.calories)}
           onChangeText={setNumericField('calories', 'manualCalories')}
         />

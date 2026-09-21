@@ -78,10 +78,12 @@ export function checkCalorieTarget(
   }
 
   // The deficit this target implies, expressed as a share of body weight.
+  // Null under 18, where the app sets no target at all — the caller should
+  // not have reached this, and there is certainly no pace to warn about.
   const perWeek = expectedLossPerWeek(currentWeightKg, { ...profile, targetCalories });
   const fastThreshold = currentWeightKg * FAST_LOSS_FRACTION;
 
-  if (perWeek > fastThreshold) {
+  if (perWeek != null && perWeek > fastThreshold) {
     const gentler = suggestedGentlerTarget(profile, currentWeightKg);
     return {
       error: null,
@@ -154,11 +156,7 @@ export function checkGoalWeight(goalWeightKg: number, profile: Profile): GoalChe
  * accepts them and turns the prescribing off: no suggested deficit, no
  * calorie target, no projected goal date.
  */
-export const ADULT_AGE = 18;
-
-export function isAdult(profile: Profile): boolean {
-  return profile.ageYears >= ADULT_AGE;
-}
+export { ADULT_AGE, isAdult } from './calc';
 
 export const UNDER_18_NOTICE =
   'You are under 18, so this app will not set a calorie target or a weight-loss pace for you — the formulas behind those are built for adult bodies. Everything else works: you can log your weight and habits and see your own trend. For anything about what to aim for, a doctor or a parent is the right place to start.';

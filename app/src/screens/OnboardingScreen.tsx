@@ -20,6 +20,7 @@ import {
 import { formatMedium, todayKey } from '../lib/date';
 import { formatterFor } from '../lib/units';
 import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
+import { ADULT_AGE } from '../lib/calc';
 import { defaultProfile } from '../data/seed';
 
 const STEP_COUNT = 5;
@@ -86,7 +87,11 @@ export function OnboardingScreen() {
       ageYears: num(draft.age, base.ageYears),
       sex: draft.sex,
       activityLevel: draft.activity,
-      targetCalories: num(draft.calories, base.targetCalories),
+      // Zero means "no target". Under 18 the app prescribes nothing, and
+      // storing a number nobody is meant to act on is how it creeps back in.
+      targetCalories: num(draft.age, base.ageYears) >= ADULT_AGE
+        ? num(draft.calories, base.targetCalories)
+        : 0,
       targetProteinG: suggestedProteinTarget(metric(draft.goalWeight, u.parseWeight, base.goalWeightKg)),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
