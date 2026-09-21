@@ -1,9 +1,10 @@
 import React from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space } from '../theme/tokens';
 import { Body, Caption, Title } from './Type';
 import { Icon } from './Icon';
+import { useKeyboardHeight } from './keyboard';
 import { PrimaryButton } from './Controls';
 import { Celebration } from '../data/store';
 import { f1 } from '../lib/calc';
@@ -256,33 +257,64 @@ export function Sheet({
   children: React.ReactNode;
 }) {
   const { colors } = useTheme();
+  const { height: screenHeight } = useWindowDimensions();
+  const keyboard = useKeyboardHeight();
+
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(28,28,26,0.45)', justifyContent: 'flex-end' }}>
-        <View
+      {/* Tapping the dimmed area behind the sheet closes it — the gesture
+          everyone tries before looking for the Close button. */}
+      <Pressable
+        accessibilityLabel="Close"
+        onPress={onClose}
+        style={{ flex: 1, backgroundColor: 'rgba(28,28,26,0.45)', justifyContent: 'flex-end' }}
+      >
+        {/* A second Pressable swallows taps inside the panel, so typing in a
+            field does not dismiss the sheet under your finger. */}
+        <Pressable
+          onPress={() => {}}
           style={{
             backgroundColor: colors.page,
             borderTopLeftRadius: 28,
             borderTopRightRadius: 28,
-            padding: space.xl,
-            paddingBottom: space.xxl + space.md,
-            gap: space.md,
+            // Lifted clear of the keys. The panel is bottom-anchored, which
+            // is exactly where the keyboard arrives, so without this the
+            // fields and the save button sit behind it.
+            marginBottom: keyboard,
+            maxHeight: screenHeight - keyboard - space.xxl,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Title style={{ fontSize: 22 }}>{title}</Title>
-            <Body
-              accessibilityRole="button"
-              onPress={onClose}
-              style={{ fontFamily: font.semibold, fontSize: 15, padding: 4 }}
-              color={colors.accent}
-            >
-              Close
-            </Body>
+          <View style={{ paddingHorizontal: space.xl, paddingTop: space.xl }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Title style={{ fontSize: 22 }}>{title}</Title>
+              <Body
+                accessibilityRole="button"
+                onPress={onClose}
+                style={{ fontFamily: font.semibold, fontSize: 15, padding: 4 }}
+                color={colors.accent}
+              >
+                Close
+              </Body>
+            </View>
           </View>
-          {children}
-        </View>
-      </View>
+
+          {/* Scrollable, so a tall form on a short screen can still reach its
+              own save button. `handled` matters: without it the first tap on
+              that button only dismisses the keyboard. */}
+          <ScrollView
+            contentContainerStyle={{
+              paddingHorizontal: space.xl,
+              paddingTop: space.md,
+              paddingBottom: space.xxl + space.md,
+              gap: space.md,
+            }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
