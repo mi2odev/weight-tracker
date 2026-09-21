@@ -39,6 +39,11 @@ import { ConflictChoice } from '../lib/backup';
 import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
 import { formatBytes, totalPhotoBytes } from '../lib/photos';
 
+/** How many measurements still have a photo file behind them. */
+function photoCount(data: { measurements: { photo?: string | null }[] }): number {
+  return data.measurements.filter((m) => !!m.photo).length;
+}
+
 /** One line that says what is on, so Settings still answers the question. */
 function lockSummary(lock: LockSettings, diagnostics: DiagnosticsSettings): string {
   const parts = [
@@ -347,7 +352,9 @@ export function SettingsScreen({
       <ConfirmDialog
         visible={confirmReset}
         title="Reset everything?"
-        body={`You have ${describeData(data)}. Resetting clears all of it. You can undo this from the toast that follows, but not after it disappears — export a copy first if you want to keep it.`}
+        body={`You have ${describeData(data)}. Resetting clears all of it${
+          photoCount(data) ? `, and deletes ${photoCount(data) === 1 ? 'the progress photo' : `all ${photoCount(data)} progress photos`} from this device` : ''
+        }. You can undo this from the toast that follows, but not after it disappears — export a copy first if you want to keep it.`}
         confirmLabel="Delete it all"
         destructive
         onCancel={() => setConfirmReset(false)}

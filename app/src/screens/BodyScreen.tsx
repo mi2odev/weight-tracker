@@ -21,12 +21,13 @@ type Draft = Record<string, string>;
 
 export function BodyScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
-  const { data, addMeasurement, updateMeasurement, showToast } = useStore();
+  const { data, addMeasurement, updateMeasurement, removeMeasurement, showToast } = useStore();
   const u = useUnits();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>({});
   const [photoFor, setPhotoFor] = useState<Measurement | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<Measurement | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Measurement | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -62,6 +63,13 @@ export function BodyScreen({ onBack }: { onBack: () => void }) {
     setConfirmRemove(null);
     setPhotoFor(null);
     showToast('Photo removed');
+  };
+
+  const deleteMeasurement = (target: Measurement) => {
+    setConfirmDelete(null);
+    setPhotoFor(null);
+    // The store keeps the photo file until the undo window closes.
+    removeMeasurement(target.id);
   };
 
   const rows = measurementDeltas(data.measurements);
@@ -198,7 +206,30 @@ export function BodyScreen({ onBack }: { onBack: () => void }) {
             onPress={() => setConfirmRemove(photoFor)}
           />
         )}
+        <GhostButton
+          label="Delete this measurement"
+          tone="muted"
+          onPress={() => photoFor && setConfirmDelete(photoFor)}
+        />
       </Sheet>
+
+      <ConfirmDialog
+        visible={!!confirmDelete}
+        title="Delete this measurement?"
+        body={
+          confirmDelete
+            ? `${formatShort(confirmDelete.logDate)} and its five measurements go${
+                confirmDelete.photo ? ', along with the photo attached to it' : ''
+              }. You can undo this from the toast that follows${
+                confirmDelete.photo ? " — the photo file is kept until then" : ''
+              }.`
+            : ''
+        }
+        confirmLabel="Delete it"
+        destructive
+        onConfirm={() => confirmDelete && deleteMeasurement(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
 
       <ConfirmDialog
         visible={!!confirmRemove}
