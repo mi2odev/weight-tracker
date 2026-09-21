@@ -14,6 +14,7 @@ import {
   HABIT_KEYS,
   MealEntry,
   Measurement,
+  NO_CALORIE_TARGET,
   Profile,
   WeighIn,
   WorkoutEntry,
@@ -137,12 +138,45 @@ export function weightForBmi(bmiValue: number, heightCm: number): number {
 }
 
 /**
+ * How old they are now, from the year they were born.
+ *
+ * Year-precision, because that is what the app asks for — it flips on 1
+ * January rather than on the birthday. That is a day-level approximation of
+ * an age; the thing it replaces was a *year*-level error that grew without
+ * bound, since a stored age never changed at all.
+ */
+export function ageFrom(birthYear: number, asOf: DateKey = todayKey()): number {
+  return fromKey(asOf).getFullYear() - birthYear;
+}
+
+export function currentAge(profile: Profile, asOf: DateKey = todayKey()): number {
+  return ageFrom(profile.birthYear, asOf);
+}
+
+/**
+ * The inverse, for the forms.
+ *
+ * The screens still ask for an age, because that is what people know about
+ * themselves — the conversion happens once, on save, and from then on the
+ * number ages with them instead of standing still.
+ */
+export function birthYearForAge(age: number, asOf: DateKey = todayKey()): number {
+  return fromKey(asOf).getFullYear() - age;
+}
+
+/**
  * Mifflin-St Jeor. Takes the *current* weight, not the starting weight —
  * resting burn drops as the user loses, and freezing it would overstate TDEE.
+ *
+ * Age is derived too, for the same reason: over a 730-day plan a frozen age
+ * quietly overstates resting burn.
  */
-export function bmr(weightKg: number, profile: Profile): number {
+export function bmr(weightKg: number, profile: Profile, asOf?: DateKey): number {
   return (
-    10 * weightKg + 6.25 * profile.heightCm - 5 * profile.ageYears + (profile.sex === 'Male' ? 5 : -161)
+    10 * weightKg +
+    6.25 * profile.heightCm -
+    5 * currentAge(profile, asOf) +
+    (profile.sex === 'Male' ? 5 : -161)
   );
 }
 
@@ -159,8 +193,26 @@ export function tdee(weightKg: number, profile: Profile): number {
  */
 export const ADULT_AGE = 18;
 
-export function isAdult(profile: Profile): boolean {
-  return profile.ageYears >= ADULT_AGE;
+export function isAdult(profile: Profile, asOf?: DateKey): boolean {
+  return currentAge(profile, asOf) >= ADULT_AGE;
+}
+
+/**
+ * Whether to tell someone that turning 18 has made targets available.
+ *
+ * Three conditions, and all three matter. They are an adult *now*; the app is
+ * still carrying no target for them, so nothing was switched on behind their
+ * back; and they have not been told already, so this cannot become a nag.
+ *
+ * Deliberately a notice and not an action: crossing a birthday is not consent
+ * to be put on a calorie deficit.
+ */
+export function shouldOfferAdulthood(
+  profile: Profile,
+  alreadyNoticed: boolean,
+  asOf?: DateKey,
+): boolean {
+  return !alreadyNoticed && isAdult(profile, asOf) && profile.targetCalories === NO_CALORIE_TARGET;
 }
 
 /**

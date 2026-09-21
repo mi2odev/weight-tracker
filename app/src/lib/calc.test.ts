@@ -9,6 +9,9 @@ import { describe, it } from 'node:test';
 
 import {
   ADULT_AGE,
+  ageFrom,
+  birthYearForAge,
+  currentAge,
   averageDailyLossKg,
   averageWeeklyLossKg,
   bmi,
@@ -22,6 +25,7 @@ import {
   expectedLossPerWeek,
   goalCompletionPct,
   habitTicks,
+  isAdult,
   isCountdown,
   maintainStatus,
   healthyWeightRange,
@@ -32,6 +36,7 @@ import {
   plannedDailyDeficit,
   requiredPacePerWeek,
   suggestedCalorieTarget,
+  shouldOfferAdulthood,
   suggestedProteinTarget,
   tdee,
   trendPerDay,
@@ -51,7 +56,7 @@ const profile: Profile = {
   startWeightKg: 157,
   goalWeightKg: 100,
   heightCm: 178,
-  ageYears: 34,
+  birthYear: new Date().getFullYear() - 34,
   sex: 'Male',
   activityLevel: 'Lightly Active',
   goalType: 'lose',
@@ -453,7 +458,7 @@ describe('photoComparison', () => {
 });
 
 describe('under 18, the app prescribes nothing', () => {
-  const minor: Profile = { ...profile, ageYears: 16, targetCalories: 0 };
+  const minor: Profile = { ...profile, birthYear: birthYearForAge(16), targetCalories: 0 };
 
   it('has no planned deficit, and no implied pace', () => {
     assert.equal(plannedDailyDeficit(157, minor), null);
@@ -463,7 +468,7 @@ describe('under 18, the app prescribes nothing', () => {
   it('still computes one for an adult, so the rule is the age and nothing else', () => {
     assert.notEqual(plannedDailyDeficit(157, profile), null);
     assert.notEqual(expectedLossPerWeek(157, profile), null);
-    assert.equal(plannedDailyDeficit(157, { ...profile, ageYears: ADULT_AGE }) != null, true);
+    assert.equal(plannedDailyDeficit(157, { ...profile, birthYear: birthYearForAge(ADULT_AGE) }) != null, true);
   });
 
   it('gives milestones no target date, and never calls one overdue', () => {
@@ -505,5 +510,68 @@ describe('under 18, the app prescribes nothing', () => {
 
     const none = habitTicks({ logDate: START }, minor, START, START);
     assert.equal(none?.calories, false);
+  });
+});
+
+describe('age is derived, not stored', () => {
+  const born = (year: number): Profile => ({ ...profile, birthYear: year });
+
+  it('reads the age off the year of birth', () => {
+    assert.equal(ageFrom(1992, '2026-09-13'), 34);
+    assert.equal(ageFrom(1992, '2027-01-01'), 35, 'it moves on its own');
+    assert.equal(currentAge(born(1992), '2026-09-13'), 34);
+  });
+
+  it('round-trips through the form helper', () => {
+    const year = birthYearForAge(34, '2026-09-13');
+    assert.equal(currentAge(born(year), '2026-09-13'), 34);
+  });
+
+  it('feeds a resting burn that rises with the years, as the formula says', () => {
+    // Mifflin-St Jeor subtracts 5 kcal per year of age, so a birthday lowers
+    // BMR by 5. A stored age would have held it still for the whole plan.
+    const p = born(1992);
+    assert.equal(bmr(152.2, p, '2026-09-13') - bmr(152.2, p, '2027-09-13'), 5);
+  });
+
+  it('turns 18 on its own, without the profile being edited', () => {
+    const p = born(2009);
+    assert.equal(isAdult(p, '2026-12-31'), false);
+    assert.equal(isAdult(p, '2027-01-01'), true);
+  });
+
+  it('starts giving a deficit once they are 18, not before', () => {
+    const p = { ...born(2009), targetCalories: 2000 };
+    assert.equal(plannedDailyDeficit(80, p), null);
+    assert.equal(plannedDailyDeficit(80, p) === null, !isAdult(p));
+  });
+});
+
+describe('the one-time adulthood notice', () => {
+  const minorNow = { ...profile, birthYear: 2009, targetCalories: 0 };
+
+  it('stays quiet while they are still under 18', () => {
+    assert.equal(shouldOfferAdulthood(minorNow, false, '2026-12-31'), false);
+  });
+
+  it('offers once they turn 18 with no target set', () => {
+    assert.equal(shouldOfferAdulthood(minorNow, false, '2027-01-01'), true);
+  });
+
+  it('does not offer twice', () => {
+    assert.equal(shouldOfferAdulthood(minorNow, true, '2027-01-01'), false);
+  });
+
+  it('does not offer to someone who already has a target', () => {
+    // Nothing was switched on behind their back, which is the whole point.
+    assert.equal(
+      shouldOfferAdulthood({ ...minorNow, targetCalories: 2000 }, false, '2027-01-01'),
+      false,
+    );
+  });
+
+  it('never offers to an adult who deliberately has no target', () => {
+    // They are told once; after that the absence of a target is their choice.
+    assert.equal(shouldOfferAdulthood({ ...profile, targetCalories: 0 }, true), false);
   });
 });

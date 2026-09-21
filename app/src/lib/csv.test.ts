@@ -15,7 +15,7 @@ const profile: Profile = {
   startWeightKg: 157,
   goalWeightKg: 100,
   heightCm: 178,
-  ageYears: 34,
+  birthYear: new Date().getFullYear() - 34,
   sex: 'Male',
   activityLevel: 'Lightly Active',
   goalType: 'lose',
@@ -46,6 +46,7 @@ function makeData(over: Partial<AppData> = {}): AppData {
     },
     lock: { enabled: false, graceSeconds: 60 },
     diagnostics: { crashReports: false },
+    adulthoodNoticed: false,
     onboarded: true,
     ...over,
   };

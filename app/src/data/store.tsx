@@ -132,6 +132,8 @@ interface StoreValue {
   setNotification: (key: keyof NotificationSettings, value: boolean) => void;
   setLock: (patch: Partial<LockSettings>) => void;
   setDiagnostics: (patch: Partial<DiagnosticsSettings>) => void;
+  /** Records that the "you are 18 now" notice has been shown, so it shows once. */
+  dismissAdulthoodNotice: () => void;
 
   loadDemo: () => void;
   resetAll: () => void;
@@ -917,6 +919,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [update],
   );
 
+  const dismissAdulthoodNotice = useCallback<StoreValue['dismissAdulthoodNotice']>(() => {
+    update((prev) => (prev.adulthoodNoticed ? prev : { ...prev, adulthoodNoticed: true }));
+  }, [update]);
+
   const setDiagnostics = useCallback<StoreValue['setDiagnostics']>(
     (patch) => {
       update((prev) => ({ ...prev, diagnostics: { ...prev.diagnostics, ...patch } }));
@@ -1078,6 +1084,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setNotification,
       setLock,
       setDiagnostics,
+      dismissAdulthoodNotice,
       loadDemo,
       resetAll,
       exportCsv,
@@ -1117,6 +1124,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setNotification,
       setLock,
       setDiagnostics,
+      dismissAdulthoodNotice,
       loadDemo,
       resetAll,
       exportCsv,

@@ -42,7 +42,7 @@ export function defaultProfile(): Profile {
     startWeightKg: 90,
     goalWeightKg: 81,
     heightCm: 175,
-    ageYears: 34,
+    birthYear: new Date().getFullYear() - 34,
     sex: 'Male',
     activityLevel: 'Lightly Active',
     goalType: 'lose',
@@ -73,6 +73,7 @@ export function emptyData(): AppData {
     notifications: { ...DEFAULT_NOTIFICATIONS },
     lock: { ...DEFAULT_LOCK },
     diagnostics: { ...DEFAULT_DIAGNOSTICS },
+    adulthoodNoticed: false,
     onboarded: false,
   };
 }
@@ -108,7 +109,7 @@ export function demoData(): AppData {
     startWeightKg: 157,
     goalWeightKg: 100,
     heightCm: 178,
-    ageYears: 34,
+    birthYear: new Date().getFullYear() - 34,
     sex: 'Male',
     activityLevel: 'Lightly Active',
     goalType: 'lose',
@@ -208,6 +209,7 @@ export function demoData(): AppData {
     notifications: { ...DEFAULT_NOTIFICATIONS },
     lock: { ...DEFAULT_LOCK },
     diagnostics: { ...DEFAULT_DIAGNOSTICS },
+    adulthoodNoticed: false,
     onboarded: true,
   };
 }

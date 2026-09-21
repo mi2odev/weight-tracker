@@ -26,7 +26,8 @@ import {
   isAdult,
   UNDER_18_NOTICE,
 } from '../lib/health';
-import { ADULT_AGE } from '../lib/calc';
+import { ADULT_AGE, birthYearForAge, currentAge } from '../lib/calc';
+import { MAX_AGE, MIN_AGE } from '../data/schema';
 import { defaultProfile } from '../data/seed';
 
 const STEP_COUNT = 5;
@@ -61,7 +62,7 @@ export function OnboardingScreen() {
     startWeight: String(base.startWeightKg),
     goalWeight: String(base.goalWeightKg),
     height: String(base.heightCm),
-    age: String(base.ageYears),
+    age: String(currentAge(base)),
     sex: base.sex,
     activity: base.activityLevel,
     calories: String(base.targetCalories),
@@ -90,12 +91,12 @@ export function OnboardingScreen() {
       startWeightKg: metric(draft.startWeight, u.parseWeight, base.startWeightKg),
       goalWeightKg: metric(draft.goalWeight, u.parseWeight, base.goalWeightKg),
       heightCm: metric(draft.height, u.parseLength, base.heightCm),
-      ageYears: num(draft.age, base.ageYears),
+      birthYear: birthYearForAge(num(draft.age, currentAge(base))),
       sex: draft.sex,
       activityLevel: draft.activity,
       // Zero means "no target". Under 18 the app prescribes nothing, and
       // storing a number nobody is meant to act on is how it creeps back in.
-      targetCalories: num(draft.age, base.ageYears) >= ADULT_AGE
+      targetCalories: num(draft.age, currentAge(base)) >= ADULT_AGE
         ? num(draft.calories, base.targetCalories)
         : 0,
       targetProteinG: suggestedProteinTarget(metric(draft.goalWeight, u.parseWeight, base.goalWeightKg)),
@@ -127,7 +128,8 @@ export function OnboardingScreen() {
     if (step === 2) {
       if (preview.heightCm < 100 || preview.heightCm > 250)
         return `Height must be between ${u.height(100)} and ${u.height(250)}`;
-      if (preview.ageYears < 14 || preview.ageYears > 100) return 'Age must be between 14 and 100';
+      const age = currentAge(preview);
+      if (age < MIN_AGE || age > MAX_AGE) return `Age must be between ${MIN_AGE} and ${MAX_AGE}`;
     }
     if (step === 4 && isAdult(preview)) {
       const check = checkCalorieTarget(preview.targetCalories, preview, preview.startWeightKg);

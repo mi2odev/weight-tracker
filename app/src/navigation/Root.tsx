@@ -5,7 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../theme/ThemeContext';
 import { useStore } from '../data/store';
 import { TabBar, TabKey } from '../components/TabBar';
-import { CelebrationModal, Toast } from '../components/Overlays';
+import { CelebrationModal, ConfirmDialog, Toast } from '../components/Overlays';
+import { shouldOfferAdulthood } from '../lib/calc';
 import { HOME, Route, SubScreen } from './routes';
 
 import { TodayScreen } from '../screens/TodayScreen';
@@ -30,8 +31,16 @@ import { StorageErrorScreen } from '../screens/StorageErrorScreen';
  */
 export function Root() {
   const { colors, mode } = useTheme();
-  const { data, hydrated, storageUnreadable, toast, undo, celebration, dismissCelebration } =
-    useStore();
+  const {
+    data,
+    hydrated,
+    storageUnreadable,
+    toast,
+    undo,
+    celebration,
+    dismissCelebration,
+    dismissAdulthoodNotice,
+  } = useStore();
   const [route, setRoute] = useState<Route>(HOME);
 
   const goTab = useCallback((tab: TabKey) => setRoute({ kind: 'tab', tab }), []);
@@ -110,6 +119,21 @@ export function Root() {
 
       <Toast message={toast} action={undo} />
       <CelebrationModal celebration={celebration} onClose={dismissCelebration} />
+
+      {/* Turning 18 makes targets available; it does not switch them on. The
+          dialog offers the door and records that it was offered, once. */}
+      <ConfirmDialog
+        visible={shouldOfferAdulthood(data.profile, data.adulthoodNoticed)}
+        title="You’re 18 now"
+        body="While you were under 18 this app set no calorie target, because the formulas behind them are built for adult bodies. It can work one out for you now if you want it to — nothing has been turned on, and your log carries on exactly as it is either way."
+        confirmLabel="Set up targets"
+        cancelLabel="Not now"
+        onConfirm={() => {
+          dismissAdulthoodNotice();
+          goSub('settings', activeTab);
+        }}
+        onCancel={dismissAdulthoodNotice}
+      />
     </View>
   );
 }

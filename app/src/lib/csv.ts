@@ -12,7 +12,7 @@
  */
 
 import { AppData } from '../data/types';
-import { habitTicks, habitsMetCount } from './calc';
+import { currentAge, habitTicks, habitsMetCount } from './calc';
 import { todayKey } from './date';
 
 /**
@@ -137,7 +137,8 @@ export function profileCsv(data: AppData): string {
       ['start_weight_kg', p.startWeightKg],
       ['goal_weight_kg', p.goalWeightKg],
       ['height_cm', p.heightCm],
-      ['age_years', p.ageYears],
+      ['birth_year', p.birthYear],
+      ['age_years', currentAge(p)],
       ['sex', p.sex],
       ['activity_level', p.activityLevel],
       ['target_calories', p.targetCalories],
