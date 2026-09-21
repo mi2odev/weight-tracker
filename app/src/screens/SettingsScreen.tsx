@@ -5,6 +5,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { font, space } from '../theme/tokens';
 import { useStore } from '../data/store';
 import { useDerived } from '../data/derived';
+import { describeData, hasAnyData } from '../data/schema';
 import { ACTIVITY_LEVELS, ActivityLevel, NotificationSettings, Sex, Units } from '../data/types';
 import { Card, Grid } from '../components/Card';
 import { GhostButton, NumberField, PrimaryButton, SectionHeading, Segmented, Toggle, ValueRow } from '../components/Controls';
@@ -34,14 +35,14 @@ const REMINDERS: { key: keyof NotificationSettings; label: string; sub: string }
 
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const { preference, setPreference } = useTheme();
-  const { data, setNotification, updateProfile, replayOnboarding, loadDemo, resetAll, exportCsv, showToast } =
-    useStore();
+  const { data, setNotification, updateProfile, replayOnboarding, loadDemo, resetAll, exportCsv } = useStore();
   const { u } = useDerived();
   const { profile, entries } = data;
 
   const [planSheet, setPlanSheet] = useState(false);
   const [targetSheet, setTargetSheet] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmDemo, setConfirmDemo] = useState(false);
 
   const current = currentWeight(entries, profile);
   const bmiValue = bmi(current, profile.heightCm);
@@ -161,28 +162,45 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       </View>
       <GhostButton label="Export everything as CSV" onPress={exportCsv} />
       <GhostButton label="Replay onboarding" tone="muted" onPress={replayOnboarding} />
-      <GhostButton label="Load the 8-week demo journey" tone="muted" onPress={loadDemo} />
+      <GhostButton
+        label="Load the 8-week demo journey"
+        tone="muted"
+        onPress={() => (hasAnyData(data) ? setConfirmDemo(true) : loadDemo())}
+      />
       <GhostButton label="Reset everything" tone="muted" onPress={() => setConfirmReset(true)} />
       <Caption style={{ fontSize: 11.5, lineHeight: 17, marginTop: space.sm, paddingHorizontal: space.xs }}>
         Everything lives on this device. The demo journey fills in eight weeks of weigh-ins so the populated screens
-        are reachable without waiting.
+        are reachable without waiting — it replaces whatever is logged now, and you can undo it from the toast.
       </Caption>
 
       <PlanSheet visible={planSheet} onClose={() => setPlanSheet(false)} />
       <TargetSheet visible={targetSheet} onClose={() => setTargetSheet(false)} />
 
-      {/* The one action with no undo, so it is the one action that asks. */}
+      {/* Both actions replace the whole dataset, so both ask first and both
+          leave an Undo on the toast. */}
+      <ConfirmDialog
+        visible={confirmDemo}
+        title="Replace your log with the demo?"
+        body={`You have ${describeData(data)}. Loading the demo journey replaces all of it. You can undo this from the toast that follows, or export a copy first.`}
+        confirmLabel="Load the demo"
+        destructive
+        onCancel={() => setConfirmDemo(false)}
+        onConfirm={() => {
+          setConfirmDemo(false);
+          loadDemo();
+        }}
+      />
+
       <ConfirmDialog
         visible={confirmReset}
         title="Reset everything?"
-        body="Every weigh-in, meal, workout and measurement is deleted from this device. This cannot be undone — export first if you want to keep a copy."
+        body={`You have ${describeData(data)}. Resetting clears all of it. You can undo this from the toast that follows, but not after it disappears — export a copy first if you want to keep it.`}
         confirmLabel="Delete it all"
         destructive
         onCancel={() => setConfirmReset(false)}
         onConfirm={() => {
           setConfirmReset(false);
           resetAll();
-          showToast('Everything cleared');
         }}
       />
     </Screen>
