@@ -84,6 +84,27 @@ export async function shareBackup(data: AppData, photos?: Record<string, string>
   return 'Backup shared — keep it somewhere safe';
 }
 
+/**
+ * The last-resort export, for the crash screen.
+ *
+ * It reads the stored payload straight out of AsyncStorage and shares it
+ * as-is. Deliberately bypasses the store: the store may be the thing that
+ * just crashed, and someone staring at an error screen should still be able
+ * to get their log off the phone. Nothing is parsed, migrated or validated —
+ * whatever is on disk is what leaves.
+ */
+export async function shareRawStorage(payload: string): Promise<string> {
+  const name = `weight-tracker-rescue-${new Date().toISOString().slice(0, 10)}.json`;
+  const uri = writeFile(name, payload);
+
+  if (!(await Sharing.isAvailableAsync())) {
+    return 'Saved a copy to app storage';
+  }
+
+  await share(uri, 'application/json', 'Your weight log', 'public.json');
+  return 'Shared — keep it somewhere safe';
+}
+
 // ── reading a file back in ───────────────────────────────────────────────────
 
 export type PickedFile = { canceled: true } | { canceled: false; name: string; text: string };

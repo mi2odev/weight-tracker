@@ -13,6 +13,7 @@ const ITEMS: { key: SubScreen; label: string; sub: string; icon: IconName }[] = 
   { key: 'body', label: 'Body measurements', sub: 'Waist, chest, arms, thighs, neck', icon: 'ruler' },
   { key: 'log', label: 'Food & training log', sub: 'Meals and workouts by day', icon: 'book' },
   { key: 'settings', label: 'Settings & profile', sub: 'Targets and calculated metrics', icon: 'gear' },
+  { key: 'privacy', label: 'Privacy', sub: 'App lock, crash reports, what leaves this device', icon: 'lock' },
 ];
 
 export function MoreScreen({ onOpen }: { onOpen: (screen: SubScreen) => void }) {

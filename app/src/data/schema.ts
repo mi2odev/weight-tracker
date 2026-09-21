@@ -20,6 +20,7 @@ import {
   DateKey,
   INTENSITIES,
   Intensity,
+  DiagnosticsSettings,
   LockSettings,
   MEAL_TYPES,
   MealEntry,
@@ -135,6 +136,11 @@ function migrateLock(raw: unknown, defaults: LockSettings): LockSettings {
     enabled: bool(src.enabled, defaults.enabled),
     graceSeconds: numberIn(src.graceSeconds, 0, 3600) ?? defaults.graceSeconds,
   };
+}
+
+function migrateDiagnostics(raw: unknown, defaults: DiagnosticsSettings): DiagnosticsSettings {
+  const src = isObject(raw) ? raw : {};
+  return { crashReports: bool(src.crashReports, defaults.crashReports) };
 }
 
 function migrateNotifications(raw: unknown, defaults: NotificationSettings): NotificationSettings {
@@ -342,6 +348,7 @@ export function migrate(raw: unknown): MigrationResult {
     celebrated: migrateCelebrated(raw.celebrated),
     notifications: migrateNotifications(raw.notifications, defaults.notifications),
     lock: migrateLock(raw.lock, defaults.lock),
+    diagnostics: migrateDiagnostics(raw.diagnostics, defaults.diagnostics),
     onboarded: bool(raw.onboarded, defaults.onboarded),
   };
 

@@ -27,6 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   AppData,
   DateKey,
+  DiagnosticsSettings,
   MealEntry,
   Measurement,
   LockSettings,
@@ -44,7 +45,7 @@ import { applyRestoredPhotos, ConflictChoice, mergeWeighIns, previewMerge } from
 import { readAsBase64, restorePhotos } from '../lib/photos';
 import { todayKey } from '../lib/date';
 
-const STORAGE_KEY = 'wt.data.v1';
+export const STORAGE_KEY = 'wt.data.v1';
 /** A rescued copy of a payload that would not parse. Never deleted by the app. */
 export const CORRUPT_KEY_PREFIX = 'wt.data.corrupt.';
 const PERSIST_DEBOUNCE_MS = 500;
@@ -104,6 +105,7 @@ interface StoreValue {
   replayOnboarding: () => void;
   setNotification: (key: keyof NotificationSettings, value: boolean) => void;
   setLock: (patch: Partial<LockSettings>) => void;
+  setDiagnostics: (patch: Partial<DiagnosticsSettings>) => void;
 
   loadDemo: () => void;
   resetAll: () => void;
@@ -681,6 +683,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [update],
   );
 
+  const setDiagnostics = useCallback<StoreValue['setDiagnostics']>(
+    (patch) => {
+      update((prev) => ({ ...prev, diagnostics: { ...prev.diagnostics, ...patch } }));
+    },
+    [update],
+  );
+
   const loadDemo = useCallback(() => {
     replaceAll(demoData(), 'Loaded the 8-week demo journey');
   }, [replaceAll]);
@@ -828,6 +837,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       replayOnboarding,
       setNotification,
       setLock,
+      setDiagnostics,
       loadDemo,
       resetAll,
       exportCsv,
@@ -862,6 +872,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       replayOnboarding,
       setNotification,
       setLock,
+      setDiagnostics,
       loadDemo,
       resetAll,
       exportCsv,
