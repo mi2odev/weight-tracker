@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { measurementsCsv, profileCsv, weighInsCsv } from './csv';
-import { AppData, Profile } from '../data/types';
+import { AppData, CURRENT_SCHEMA_VERSION, Profile } from '../data/types';
 
 const profile: Profile = {
   startDate: '2026-09-13',
@@ -28,6 +28,7 @@ const profile: Profile = {
 
 function makeData(over: Partial<AppData> = {}): AppData {
   return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     profile,
     entries: [],
     meals: [],

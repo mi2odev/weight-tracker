@@ -14,6 +14,7 @@
 
 import {
   AppData,
+  CURRENT_SCHEMA_VERSION,
   DateKey,
   Measurement,
   MealEntry,
@@ -55,6 +56,7 @@ export function defaultProfile(): Profile {
 
 export function emptyData(): AppData {
   return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     profile: defaultProfile(),
     entries: [],
     meals: [],
@@ -186,6 +188,7 @@ export function demoData(): AppData {
   }
 
   return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     profile,
     entries,
     meals,
