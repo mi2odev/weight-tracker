@@ -20,6 +20,22 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Weight Tracker uses your photo library so you can attach progress photos to a measurement. They stay on this device.",
+          "cameraPermission": "Weight Tracker uses the camera so you can take a progress photo. It stays on this device.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Weight Tracker uses Face ID to keep your weight log private."
+        }
+      ]
+    ]
   }
 }

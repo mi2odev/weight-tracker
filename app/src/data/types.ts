@@ -134,6 +134,12 @@ export interface Measurement {
   photo?: string | null;
 }
 
+/** See `lib/lockRules.ts`. Stored here so it survives a reinstall-from-backup. */
+export interface LockSettings {
+  enabled: boolean;
+  graceSeconds: number;
+}
+
 export interface NotificationSettings {
   morningWeighIn: boolean;
   eveningLog: boolean;
@@ -172,6 +178,7 @@ export interface AppData {
   /** Milestone targets whose celebration has already been shown once. */
   celebrated: number[];
   notifications: NotificationSettings;
+  lock: LockSettings;
   onboarded: boolean;
 }
 

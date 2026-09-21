@@ -29,6 +29,7 @@ import {
   DateKey,
   MealEntry,
   Measurement,
+  LockSettings,
   NotificationSettings,
   Profile,
   WeighIn,
@@ -39,7 +40,8 @@ import { describeData, hasAnyData, migrate } from './schema';
 import { mealTotals, newlyAchievedMilestones, workoutTotals } from '../lib/calc';
 import { fireMilestoneReached, syncReminders } from '../lib/notifications';
 import { pickBackup, pickWeighInCsv, shareBackup, shareExport } from '../lib/export';
-import { ConflictChoice, mergeWeighIns, previewMerge } from '../lib/backup';
+import { applyRestoredPhotos, ConflictChoice, mergeWeighIns, previewMerge } from '../lib/backup';
+import { readAsBase64, restorePhotos } from '../lib/photos';
 import { todayKey } from '../lib/date';
 
 const STORAGE_KEY = 'wt.data.v1';
@@ -101,19 +103,20 @@ interface StoreValue {
   completeOnboarding: (profile: Profile) => void;
   replayOnboarding: () => void;
   setNotification: (key: keyof NotificationSettings, value: boolean) => void;
+  setLock: (patch: Partial<LockSettings>) => void;
 
   loadDemo: () => void;
   resetAll: () => void;
   /** Writes the log out as CSV and opens the share sheet. */
   exportCsv: () => Promise<void>;
   /** The whole dataset as one JSON file, which is what a restore needs. */
-  exportBackup: () => Promise<void>;
+  exportBackup: (includePhotos?: boolean) => Promise<void>;
   /**
    * Picks a backup and validates it. Nothing is applied — the caller shows
    * the summary, asks, and then calls `applyRestore`.
    */
   previewRestore: () => Promise<RestorePreview | null>;
-  applyRestore: (data: AppData) => void;
+  applyRestore: (preview: RestorePreview) => void;
   /** Picks this app's weigh-in CSV and reports what merging it would do. */
   previewCsvImport: () => Promise<CsvImportPreview | null>;
   applyCsvImport: (rows: WeighIn[], onConflict: ConflictChoice) => void;
@@ -123,6 +126,11 @@ export interface RestorePreview {
   data: AppData;
   exportedAt: string | null;
   summary: string;
+  /**
+   * The backup's photos as base64, keyed by measurement id. Held rather than
+   * written: nothing touches the file system until the user confirms.
+   */
+  photos: Record<string, string>;
 }
 
 export interface CsvImportPreview {
@@ -575,12 +583,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (m) => {
       const prev = dataRef.current;
       const replaced = prev.measurements.find((x) => x.logDate === m.logDate);
+      // Re-measuring a day should not silently orphan that day's photo file —
+      // the new set inherits it unless the caller supplied one of its own.
+      const photo = m.photo ?? replaced?.photo ?? null;
 
       commit({
         ...prev,
         measurements: prev.measurements
           .filter((x) => x.logDate !== m.logDate)
-          .concat({ ...m, id: `meas-${Date.now()}` })
+          .concat({ ...m, photo, id: `meas-${Date.now()}` })
           .sort((a, b) => (a.logDate < b.logDate ? -1 : 1)),
       });
 
@@ -663,6 +674,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [commit, showToast],
   );
 
+  const setLock = useCallback<StoreValue['setLock']>(
+    (patch) => {
+      update((prev) => ({ ...prev, lock: { ...prev.lock, ...patch } }));
+    },
+    [update],
+  );
+
   const loadDemo = useCallback(() => {
     replaceAll(demoData(), 'Loaded the 8-week demo journey');
   }, [replaceAll]);
@@ -679,13 +697,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [showToast]);
 
-  const exportBackup = useCallback(async () => {
-    try {
-      showToast(await shareBackup(dataRef.current));
-    } catch {
-      showToast('Could not write the backup — try again');
-    }
-  }, [showToast]);
+  const exportBackup = useCallback<StoreValue['exportBackup']>(
+    async (includePhotos = false) => {
+      try {
+        const data = dataRef.current;
+        // Photos roughly double in size as base64, so carrying them is a
+        // separate choice rather than the default.
+        const photos = includePhotos
+          ? readAsBase64(
+              Object.fromEntries(
+                data.measurements.filter((m) => m.photo).map((m) => [m.id, m.photo as string]),
+              ),
+            )
+          : undefined;
+        showToast(await shareBackup(data, photos));
+      } catch {
+        showToast('Could not write the backup — try again');
+      }
+    },
+    [showToast],
+  );
 
   const previewRestore = useCallback<StoreValue['previewRestore']>(async () => {
     try {
@@ -699,6 +730,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         data: picked.data,
         exportedAt: picked.exportedAt,
         summary: describeData(picked.data),
+        photos: picked.photos,
       };
     } catch {
       showToast('Could not read that file — try again');
@@ -711,8 +743,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    * closure exactly as the demo and reset paths do.
    */
   const applyRestore = useCallback<StoreValue['applyRestore']>(
-    (restored) => {
-      replaceAll(restored, 'Backup restored');
+    (preview) => {
+      // Photo *bytes* travel in a backup; photo *paths* do not survive the
+      // trip, so the files are written here, at the point of no return, and
+      // every measurement is re-pointed at what actually landed on this device.
+      replaceAll(
+        applyRestoredPhotos(preview.data, restorePhotos(preview.photos)),
+        'Backup restored',
+      );
     },
     [replaceAll],
   );
@@ -789,6 +827,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       completeOnboarding,
       replayOnboarding,
       setNotification,
+      setLock,
       loadDemo,
       resetAll,
       exportCsv,
@@ -822,6 +861,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       completeOnboarding,
       replayOnboarding,
       setNotification,
+      setLock,
       loadDemo,
       resetAll,
       exportCsv,

@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  applyRestoredPhotos,
   BACKUP_FORMAT,
   backupFileName,
   buildBackup,
@@ -20,7 +21,7 @@ import {
 } from './backup';
 import { weighInsCsv } from './csv';
 import { emptyData } from '../data/seed';
-import { CURRENT_SCHEMA_VERSION, WeighIn } from '../data/types';
+import { CURRENT_SCHEMA_VERSION, Measurement, WeighIn } from '../data/types';
 
 function dataWith(entries: WeighIn[]) {
   return { ...emptyData(), entries, onboarded: true };
@@ -232,5 +233,57 @@ describe('merging an import', () => {
       merged.map((e) => e.logDate),
       ['2026-09-01', '2026-09-13', '2026-09-14'],
     );
+  });
+});
+
+
+describe('photos in a backup', () => {
+  const measurement = (id: string, photo: string | null): Measurement => ({
+    id,
+    logDate: '2026-09-13',
+    waistCm: 130,
+    chestCm: 120,
+    armsCm: 40,
+    thighsCm: 70,
+    neckCm: 45,
+    photo,
+  });
+
+  it('leaves photos out unless they were asked for', () => {
+    assert.equal('photos' in buildBackup(emptyData()), false);
+    assert.equal('photos' in buildBackup(emptyData(), {}), false);
+    assert.deepEqual(buildBackup(emptyData(), { 'm-1': 'AAAA' }).photos, { 'm-1': 'AAAA' });
+  });
+
+  it('reads them back, ignoring anything that is not a string', () => {
+    const text = JSON.stringify({
+      ...buildBackup(emptyData()),
+      photos: { 'm-1': 'AAAA', 'm-2': 42, 'm-3': '' },
+    });
+    const result = parseBackup(text);
+    assert.ok(result.ok);
+    assert.deepEqual(result.photos, { 'm-1': 'AAAA' });
+  });
+
+  it('has no photos when the backup carried none', () => {
+    const result = parseBackup(JSON.stringify(buildBackup(emptyData())));
+    assert.ok(result.ok);
+    assert.deepEqual(result.photos, {});
+  });
+
+  it("re-points measurements at this device's files", () => {
+    const data = { ...emptyData(), measurements: [measurement('m-1', 'file://old/a.jpg')] };
+    const out = applyRestoredPhotos(data, { 'm-1': 'file://new/a.jpg' });
+    assert.equal(out.measurements[0].photo, 'file://new/a.jpg');
+  });
+
+  it('clears a photo whose file did not come with the backup, rather than pointing at nothing', () => {
+    const data = { ...emptyData(), measurements: [measurement('m-1', 'file://old/a.jpg')] };
+    assert.equal(applyRestoredPhotos(data, {}).measurements[0].photo, null);
+  });
+
+  it('leaves a photo-free dataset untouched', () => {
+    const data = { ...emptyData(), measurements: [measurement('m-1', null)] };
+    assert.equal(applyRestoredPhotos(data, {}), data);
   });
 });

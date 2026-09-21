@@ -20,6 +20,7 @@ import {
   DateKey,
   INTENSITIES,
   Intensity,
+  LockSettings,
   MEAL_TYPES,
   MealEntry,
   MealType,
@@ -125,6 +126,14 @@ function migrateProfile(raw: unknown, defaults: Profile, notes: string[]): Profi
     targetSteps: take('targetSteps', numberIn(raw.targetSteps, 0, 100000), defaults.targetSteps),
     targetSleepH: take('targetSleepH', numberIn(raw.targetSleepH, 0, 24), defaults.targetSleepH),
     units: take('units', oneOf(raw.units, UNITS), defaults.units),
+  };
+}
+
+function migrateLock(raw: unknown, defaults: LockSettings): LockSettings {
+  const src = isObject(raw) ? raw : {};
+  return {
+    enabled: bool(src.enabled, defaults.enabled),
+    graceSeconds: numberIn(src.graceSeconds, 0, 3600) ?? defaults.graceSeconds,
   };
 }
 
@@ -332,6 +341,7 @@ export function migrate(raw: unknown): MigrationResult {
     achieved: migrateAchieved(raw.achieved),
     celebrated: migrateCelebrated(raw.celebrated),
     notifications: migrateNotifications(raw.notifications, defaults.notifications),
+    lock: migrateLock(raw.lock, defaults.lock),
     onboarded: bool(raw.onboarded, defaults.onboarded),
   };
 
