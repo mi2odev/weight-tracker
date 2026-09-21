@@ -19,7 +19,13 @@ import {
 } from '../lib/calc';
 import { formatMedium, todayKey } from '../lib/date';
 import { formatterFor } from '../lib/units';
-import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
+import {
+  calorieTargetExplainer,
+  checkCalorieTarget,
+  checkGoalWeight,
+  isAdult,
+  UNDER_18_NOTICE,
+} from '../lib/health';
 import { ADULT_AGE } from '../lib/calc';
 import { defaultProfile } from '../data/seed';
 
@@ -149,6 +155,9 @@ export function OnboardingScreen() {
   const skip = () => completeOnboarding({ ...base, startDate: todayKey() });
 
   const copy = STEP_COPY[step];
+  // The targets step quotes numbers that live in health.ts, so it is built
+  // rather than written out — the two had already drifted apart once.
+  const body = step === 4 ? calorieTargetExplainer(preview.sex) : copy.body;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.page }}>
@@ -177,7 +186,7 @@ export function OnboardingScreen() {
         </Label>
         <Title style={{ fontSize: 30, marginTop: space.sm, lineHeight: 35 }}>{copy.title}</Title>
         <Body style={{ fontSize: 15, lineHeight: 22, marginTop: space.sm + 2 }} color={colors.muted}>
-          {copy.body}
+          {body}
         </Body>
 
         <View style={{ gap: space.md, marginTop: 26 }}>
@@ -413,6 +422,7 @@ const STEP_COPY = [
   },
   {
     title: 'Your daily targets',
-    body: 'We suggest a 750 kcal deficit, never below 1 500 kcal. Change it if your coach or doctor says otherwise.',
+    // Filled in at render: the floor depends on the profile being built.
+    body: '',
   },
 ];

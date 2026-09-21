@@ -14,11 +14,13 @@ import {
   calorieFloor,
   checkCalorieTarget,
   checkGoalWeight,
+  calorieTargetExplainer,
   isAdult,
   isLosingTooFast,
   suggestedGentlerTarget,
 } from './health';
 import { bmi, weightForBmi } from './calc';
+import { SUGGESTION_FLOOR_KCAL, suggestedCalorieTarget } from './calc';
 import { Profile } from '../data/types';
 
 const profile: Profile = {
@@ -196,5 +198,41 @@ describe('rapid loss', () => {
     const perDay = -1.2 / 7; // 1.2 kg a week
     assert.equal(isLosingTooFast(perDay, 150), false, '0.8% for a larger person');
     assert.equal(isLosingTooFast(perDay, 60), true, '2% for a smaller one');
+  });
+});
+
+describe('copy comes from the constants', () => {
+  it('quotes the suggestion floor and the male save floor as one number', () => {
+    const text = calorieTargetExplainer('Male');
+    assert.equal(text.includes('750 kcal deficit'), true);
+    assert.equal(text.includes('never below 1,500 kcal'), true);
+    assert.equal(
+      text.includes('will not save'),
+      false,
+      'for men the two floors match, so saying it twice would be noise',
+    );
+  });
+
+  it('says both numbers for women, where they differ', () => {
+    const text = calorieTargetExplainer('Female');
+    assert.equal(text.includes('never below 1,500 kcal'), true, 'what it suggests');
+    assert.equal(text.includes('1,200 kcal'), true, 'what it will actually save');
+  });
+
+  it('never claims a floor the app would not enforce', () => {
+    for (const sex of ['Male', 'Female'] as const) {
+      const text = calorieTargetExplainer(sex);
+      const floor = calorieFloor(sex).toLocaleString('en-GB');
+      assert.equal(
+        text.includes(floor),
+        true,
+        `${sex}: the copy must name the floor checkCalorieTarget enforces (${floor})`,
+      );
+    }
+  });
+
+  it('keeps the suggestion at or above its own stated floor', () => {
+    assert.equal(suggestedCalorieTarget(1000), SUGGESTION_FLOOR_KCAL);
+    assert.equal(suggestedCalorieTarget(3395.6), 2650);
   });
 });

@@ -18,20 +18,43 @@
  */
 
 import { Profile } from '../data/types';
-import { KCAL_PER_KG, expectedLossPerWeek, healthyWeightRange, tdee, weightForBmi } from './calc';
+import {
+  KCAL_PER_KG,
+  SUGGESTED_DEFICIT_KCAL,
+  SUGGESTION_FLOOR_KCAL,
+  expectedLossPerWeek,
+  healthyWeightRange,
+  tdee,
+  weightForBmi,
+} from './calc';
 
 // ── calorie targets ──────────────────────────────────────────────────────────
 
 /**
- * The floor below which the app will not go.
+ * The floor below which the app will not let a target be *saved*.
  *
  * 1500 for men and 1200 for women are the conventional lower bounds for
- * unsupervised dieting, and 1500 already matches the floor in
- * `suggestedCalorieTarget`, so the suggestion can never land under its own
- * minimum.
+ * unsupervised dieting. This is lower than `SUGGESTION_FLOOR_KCAL`, and
+ * deliberately so: the app suggests conservatively but accepts a lower number
+ * from someone who has a reason for it.
+ *
+ * Every piece of copy that quotes a floor derives it from here — the two
+ * numbers used to be written out by hand in different places and had already
+ * drifted apart.
  */
 export function calorieFloor(sex: Profile['sex']): number {
   return sex === 'Male' ? 1500 : 1200;
+}
+
+/** "We suggest a 750 kcal deficit, never below 1,500 kcal…" — built, not typed. */
+export function calorieTargetExplainer(sex: Profile['sex']): string {
+  const suggestion = SUGGESTION_FLOOR_KCAL.toLocaleString('en-GB');
+  const floor = calorieFloor(sex).toLocaleString('en-GB');
+  const both =
+    calorieFloor(sex) === SUGGESTION_FLOOR_KCAL
+      ? `never below ${suggestion} kcal`
+      : `never below ${suggestion} kcal, and it will not save a target under ${floor} kcal`;
+  return `We suggest a ${SUGGESTED_DEFICIT_KCAL} kcal deficit, ${both}. Change it if your coach or doctor says otherwise.`;
 }
 
 /** Well above any plausible real target; catches a slipped decimal point. */
