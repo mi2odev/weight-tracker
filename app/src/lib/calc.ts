@@ -126,8 +126,13 @@ export function bmiBand(value: number): string {
 
 /** BMI 18.5–24.9 converted back to kg for this height. */
 export function healthyWeightRange(heightCm: number): { lowKg: number; highKg: number } {
+  return { lowKg: weightForBmi(18.5, heightCm), highKg: weightForBmi(24.9, heightCm) };
+}
+
+/** The inverse of `bmi` — what a given BMI weighs at this height. */
+export function weightForBmi(bmiValue: number, heightCm: number): number {
   const m = heightCm / 100;
-  return { lowKg: 18.5 * m * m, highKg: 24.9 * m * m };
+  return bmiValue * m * m;
 }
 
 /**
