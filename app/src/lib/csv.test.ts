@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { measurementsCsv, profileCsv, weighInsCsv } from './csv';
+import { measurementsCsv, mealsCsv, neutraliseFormula, profileCsv, weighInsCsv } from './csv';
 import { AppData, CURRENT_SCHEMA_VERSION, Profile } from '../data/types';
 
 const profile: Profile = {
@@ -72,6 +72,62 @@ describe('CSV escaping', () => {
       entries: [{ logDate: '2026-09-13', weightKg: 157, notes: 'One\nTwo' }],
     });
     assert.ok(weighInsCsv(data).includes('"One\nTwo"'));
+  });
+});
+
+describe('formula injection', () => {
+  const withNote = (notes: string) =>
+    weighInsCsv(makeData({ entries: [{ logDate: '2026-09-13', weightKg: 157, notes }] }))
+      .split('\r\n')[1];
+
+  it('neutralises every leading character a spreadsheet reads as a formula', () => {
+    for (const lead of ['=', '+', '-', '@', '\t', '\r']) {
+      const payload = `${lead}HYPERLINK("http://evil","click")`;
+      const row = withNote(payload);
+      assert.ok(
+        row.includes(`'${lead}`) || row.includes(`"'${lead}`),
+        `expected a leading quote for ${JSON.stringify(lead)}, got: ${row}`,
+      );
+    }
+  });
+
+  it('quotes as well as neutralises when the payload also needs escaping', () => {
+    // Both problems at once: a formula lead and an embedded comma.
+    const row = withNote('=SUM(A1,A2)');
+    assert.ok(row.includes(`"'=SUM(A1,A2)"`), row);
+  });
+
+  it('leaves a negative number alone — it is data, not a formula', () => {
+    const data = makeData({
+      entries: [{ logDate: '2026-09-13', weightKg: 157, calories: -250 }],
+    });
+    const row = weighInsCsv(data).split('\r\n')[1];
+    assert.equal(row.split(',')[2], '-250', 'a numeric cell must stay numeric');
+    assert.ok(!row.includes("'-250"));
+  });
+
+  it('leaves ordinary text and dates alone', () => {
+    const row = withNote('Felt good today');
+    assert.ok(row.includes('Felt good today'));
+    assert.ok(!row.includes("'Felt"));
+    assert.equal(row.split(',')[0], '2026-09-13', 'dates must not gain a quote');
+  });
+
+  it('neutralises a meal description too, not only notes', () => {
+    const data = makeData({
+      meals: [
+        { id: 'a', logDate: '2026-09-13', mealType: 'Lunch', description: '=1+1', calories: 1, proteinG: 1 },
+      ],
+    });
+    assert.ok(mealsCsv(data).includes("'=1+1"));
+  });
+
+  it('is exposed on its own so the rule can be reused', () => {
+    assert.equal(neutraliseFormula('=A1'), "'=A1");
+    assert.equal(neutraliseFormula('safe'), 'safe');
+    assert.equal(neutraliseFormula(-5), -5);
+    assert.equal(neutraliseFormula(''), '');
+    assert.equal(neutraliseFormula(null), null);
   });
 });
 

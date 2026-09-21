@@ -15,10 +15,33 @@ import { AppData } from '../data/types';
 import { habitTicks, habitsMetCount } from './calc';
 import { todayKey } from './date';
 
+/**
+ * Leading characters Excel, Numbers and Sheets read as the start of a formula
+ * rather than text. A note or meal description beginning with one of these is
+ * executable on open — the CSV-injection problem.
+ *
+ * Tab and carriage return are in the list because a spreadsheet strips leading
+ * whitespace before deciding, so "\t=cmd()" is still a formula.
+ */
+const FORMULA_LEADS = ['=', '+', '-', '@', '\t', '\r'];
+
+/**
+ * Neutralises a text cell that would otherwise be read as a formula, by
+ * prefixing the single quote spreadsheets treat as "this is literally text".
+ *
+ * Only applied to strings. Numbers pass through untouched, so a negative
+ * weight change still exports as -0.4 and stays a number on the other side —
+ * quoting those would break every formula the user writes over the export.
+ */
+export function neutraliseFormula(value: unknown): unknown {
+  if (typeof value !== 'string' || value === '') return value;
+  return FORMULA_LEADS.includes(value[0]) ? `'${value}` : value;
+}
+
 /** RFC 4180: quote when the value contains a comma, quote or newline. */
 function cell(value: unknown): string {
   if (value == null) return '';
-  const s = String(value);
+  const s = String(neutraliseFormula(value));
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
