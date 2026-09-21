@@ -1,18 +1,30 @@
 /**
  * The four reminders — section 6 of the App Spec sheet.
  *
- * All four are *local* notifications, scheduled on the device. That matters:
- * it means they work offline, which the spec requires, and they work in Expo
- * Go, which remote push no longer does.
+ * All four are *local* notifications, scheduled on the device, so they work
+ * offline as the spec requires.
  *
  * Two of the four are conditional ("suppressed if today's weight is already
  * logged", "only if fewer than 3 of the 6 habits are ticked"). A scheduled
  * notification cannot evaluate a condition at fire time, so instead the
  * schedule is rewritten whenever the log changes: if today's condition is
  * already satisfied, today's occurrence is simply not scheduled.
+ *
+ * ## Why the module is loaded lazily
+ *
+ * `expo-notifications` cannot be imported at all on Android inside Expo Go.
+ * Its index re-exports `DevicePushTokenAutoRegistration.fx`, which calls
+ * `addPushTokenListener()` at module scope, and since SDK 53 that throws
+ * rather than warns on Android in Expo Go — remote push was removed from the
+ * Go client. A top-level import therefore takes the whole app down at
+ * startup, before any screen renders, over a feature this app never uses.
+ *
+ * So the module is required on first use, and not at all where the require
+ * itself is fatal. Reminders are the only thing that stops working there;
+ * everything else in the app runs. A development build has no such limit.
  */
 
-import * as Notifications from 'expo-notifications';
+import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 
 import { AppData, DateKey } from '../data/types';
@@ -22,6 +34,36 @@ import { addDays, daysBetween, fromKey, todayKey } from './date';
 /** Identifiers so a reschedule replaces rather than duplicates. */
 const CHANNEL = 'reminders';
 
+/**
+ * False only where importing `expo-notifications` would throw: Android inside
+ * Expo Go. iOS in Expo Go downgrades to a console warning, so local
+ * notifications still work there.
+ */
+export const remindersSupported = !(isRunningInExpoGo() && Platform.OS === 'android');
+
+type NotificationsModule = typeof import('expo-notifications');
+let cached: NotificationsModule | null = null;
+
+/**
+ * The module, or null where it cannot be loaded.
+ *
+ * `typeof import(...)` is erased at compile time, so this file still has no
+ * runtime import of `expo-notifications` — which is the entire point.
+ */
+function api(): NotificationsModule | null {
+  if (!remindersSupported) return null;
+  if (!cached) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      cached = require('expo-notifications') as NotificationsModule;
+    } catch (error) {
+      if (__DEV__) console.warn('[notifications] unavailable on this build', error);
+      return null;
+    }
+  }
+  return cached;
+}
+
 export const REMINDER_TIMES = {
   morningWeighIn: { hour: 7, minute: 0 },
   eveningLog: { hour: 21, minute: 0 },
@@ -30,7 +72,7 @@ export const REMINDER_TIMES = {
 
 let handlerInstalled = false;
 
-function installHandler() {
+function installHandler(Notifications: NotificationsModule) {
   if (handlerInstalled) return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -49,7 +91,9 @@ function installHandler() {
  * "reminders off" rather than an error.
  */
 export async function ensurePermission(): Promise<boolean> {
-  installHandler();
+  const Notifications = api();
+  if (!Notifications) return false;
+  installHandler(Notifications);
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CHANNEL, {
@@ -160,7 +204,10 @@ export async function syncReminders(data: AppData): Promise<void> {
     data.notifications.eveningLog ||
     data.notifications.weeklySummary;
 
-  installHandler();
+  const Notifications = api();
+  if (!Notifications) return;
+
+  installHandler(Notifications);
   await Notifications.cancelAllScheduledNotificationsAsync();
   if (!anyOn) return;
 
@@ -189,7 +236,10 @@ export async function fireMilestoneReached(
   kgFromStart: number,
   reward: string,
 ): Promise<void> {
-  installHandler();
+  const Notifications = api();
+  if (!Notifications) return;
+
+  installHandler(Notifications);
   const granted = await ensurePermission();
   if (!granted) return;
 
