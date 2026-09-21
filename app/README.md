@@ -14,7 +14,8 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 159 tests — calc engine, units, CSV, backup, health, crash scrubbing
+npm test           # 212 tests — calc, units, CSV, backup, health, hydration,
+                   #             snapshots, lock rules, photo sweeps, crash scrubbing
 ```
 
 `npm run web` runs it in a browser, which is how the screenshots during
@@ -28,14 +29,14 @@ src/
   data/       types.ts (spec §3) · store.tsx (state + AsyncStorage) · seed.ts
               derived.tsx — memoised derived data, computed once per change
   lib/        calc.ts (spec §4) · insights.ts (spec §5) · units.ts · csv.ts
-              backup.ts · export.ts · health.ts · photos.ts · diagnostics.ts
-              lockRules.ts / lock.ts · notifications.ts (spec §6) · date.ts
-              *.test.ts
+              backup.ts · export.ts · health.ts · diagnostics.ts · date.ts
+              hydration.ts · snapshots.ts · notifications.ts (spec §6)
+              lockRules.ts / lock.ts · photoRules.ts / photos.ts · *.test.ts
   components/ Card, Controls, HabitTicks, Icon, Overlays, Screen, TabBar, Type
               ErrorBoundary, LockGate
               charts/ TrendChart, Sparkline, LossBars, HeatMap
   screens/    Onboarding, Today, Progress, Trends, Habits, Milestones,
-              Body, Log, More, Settings, Privacy
+              Body, Log, More, Settings, Privacy, StorageError
   navigation/ Root.tsx — an explicit route union, no navigation library
 tools/        generate-icons.mjs — redraws everything in assets/
 ```
@@ -153,12 +154,23 @@ once the restore is confirmed.
 The app gives people numbers about their own bodies, so several rules are
 enforced in `lib/health.ts` rather than left to the UI:
 
-- **A calorie target has a floor**: 1 500 kcal for men, 1 200 for women, and a
-  6 000 ceiling. Going under is warned about once, with a gentler target
-  suggested, and saving anyway is the user's call.
+- **Two calorie floors, which are different promises.**
+  `SUGGESTION_FLOOR_KCAL` (1,500) is the lowest the app will *suggest*;
+  `calorieFloor(sex)` — 1,500 for men, 1,200 for women — is the lowest it will
+  *accept*. Suggesting conservatively while accepting a lower number from
+  someone who has a reason for it is deliberate. Every piece of copy quoting
+  either is built from them by `calorieTargetExplainer`, with a test asserting
+  the wording always names the floor actually enforced. It previously said
+  "never below 1 500" to everyone, which was simply not the rule.
+- **A 6 000 kcal ceiling**, to catch a slipped decimal point.
 - **A goal weight below BMI 17 is refused**, and below 18.5 is warned about.
-- **Under 18, the calculated block is replaced** with a note to talk to a
-  doctor. Adult formulas do not apply to a growing body.
+- **Under 18, nothing is prescribed at all.** Not just hidden — the numbers are
+  not produced. `plannedDailyDeficit` and `expectedLossPerWeek` return null,
+  milestones get no target date and are never "Overdue", `daysToGoal` returns
+  null, and the stored `targetCalories` is `NO_CALORIE_TARGET` (0). Returning a
+  number and trusting every screen to remember to hide it is how it leaked out
+  the first time. A milestone that was *reached* still says so — the
+  achievement is theirs either way.
 - **Losing faster than 1.5 % of body weight a week** raises a supportive note,
   not an alarm.
 
@@ -176,37 +188,94 @@ device's storage. **More → Privacy** says so in full, and holds the two switch
   enabling a gate you cannot open is the one failure that costs someone their
   whole log. `LockGate` puts up two separate covers: the lock screen after the
   grace period, and an opaque cover during `inactive`, which is when the OS
-  takes the app-switcher snapshot.
+  takes the app-switcher snapshot. The locked content is hidden from the
+  accessibility tree too, so VoiceOver and TalkBack cannot read out the weights
+  behind it — tied to *locked*, not *covered*, so a glance at the control
+  centre does not yank a screen reader out of its place.
+
+  If the phone's passcode or enrolment is deleted **after** the lock was turned
+  on, the gate would otherwise stand in front of a prompt that can never
+  succeed. `classifyAuthResult` separates that case (`passcode_not_set`,
+  `not_enrolled`, `not_available`) from an ordinary cancel, and offers "Turn
+  the lock off and continue". That escape hatch appears only then — offering it
+  after a cancel would let anyone holding the phone walk past the lock.
 - **Crash reports**, also off by default. A report is assembled from a fixed set
   of fields and the error *message* is not one of them — a message is where a
   user's own numbers end up ("Invalid weight 152.2"). Only the error class and
   its stack frames travel, with paths cut back to basenames. The crash screen
   shows the whole report verbatim, and `diagnostics.test.ts` feeds it stacks
-  full of weights, dates and photo paths to prove none survive. No reporting
-  service is wired up, so nothing is uploaded today; the switch is what one
-  would have to ask first.
+  full of weights, dates and photo paths to prove none survive. Nothing uploads
+  on its own: a kept report sits on the device until the user taps **Send crash
+  report** — on the crash screen, or in Privacy — which shares exactly the text
+  they were shown. There is no fuller version held back for sending.
 
 Progress photos live in the document directory, never the cache — the cache is
 the OS's to delete when storage runs low, and a before-photo from six months ago
 is not recoverable.
 
+**A photo file outlives its row until the undo window closes.** Deleting it the
+moment the measurement disappears would make Undo a lie: the row comes back
+pointing at an image that is gone. `UndoAction.onExpire` runs only when the
+window closes *without* the undo being taken, and that is where the deletion
+lives — for a single delete, for a reset and for a restore alike. The sweep is
+computed by `orphanedPhotoFiles` from the measurements themselves rather than
+from a remembered list, and its tests lean on the expensive direction: a
+referenced file must never be reported as an orphan, however its URI is spelled.
+A sweep also runs at startup, so a window cut short by the app being killed does
+not strand files forever.
+
 ## When something goes wrong
 
 `ErrorBoundary` sits outside every provider, so it still renders when the store
-or the theme is the thing that threw. It offers two actions in the order a
-person needs them: **Export my data**, which reads AsyncStorage directly rather
-than going through the store it cannot trust, and **Restart**, which remounts
-rather than reloads so nothing the debounced write had not flushed is lost.
+or the theme is the thing that threw. It offers, in the order a person needs
+them: **Export my data**, which reads AsyncStorage directly rather than going
+through the store it cannot trust; **Send crash report**; and **Restart**, which
+remounts rather than reloads so nothing the debounced write had not flushed is
+lost.
 
-A payload that will not parse at startup is never discarded: it is copied to
+**Storage that will not answer is not an empty log.** A read that threw used to
+be swallowed — hydration completed on defaults and the next debounced write
+saved them over the user's real data. `lib/hydration.ts` retries a throwing read
+twice and returns one of three outcomes, and only a read that *succeeded* and
+returned nothing counts as a first run. Writing is gated on
+`mayPersist(hydration)`, not on "did hydration finish", because finishing
+unsuccessfully is exactly the case that must not write. When it still fails, the
+app blocks on a Retry screen rather than opening empty. There is deliberately no
+"continue anyway": continuing means writing.
+
+A payload that will not parse is never discarded: it is copied to
 `wt.data.corrupt.<timestamp>` and that copy is awaited *before* the app reports
 itself hydrated, so the rescue always wins the race against the first write.
 
+**A migration keeps the bytes it replaces.** When one repairs or drops
+anything, the original is copied to
+`wt.data.premigration.<fromVersion>.<timestamp>` first, and the newest two are
+kept. `snapshotsToPrune` filters by prefix before sorting, with a test asserting
+it can never return `wt.data.v1` — deleting the wrong key here would be worse
+than keeping too many.
+
+**A downgrade is never written over.** Data from a newer build can hold fields
+this one does not recognise, and `migrate()` drops what it does not know, so
+writing it back would delete them. A downgrade takes the same snapshot and then
+holds off writing entirely until the user changes something — at which point
+their edit is the newer truth, and a toast has said so.
+
+**A failed save says so, once.** `setItem(...).catch(() => {})` meant a phone
+out of space logged nothing and said nothing. Now the first failure in a spell
+raises a toast — once, because the write is debounced per keystroke — and the
+payload goes back on the queue so it retries.
+
 ## Releasing it
 
-`eas.json` carries the three usual profiles — `development` (a dev client),
-`preview` (an internal APK) and `production`. `app.json` sets the bundle
-identifier, the Android package, the adaptive icon and a light/dark splash.
+`eas.json` carries the three usual profiles — `development` and `preview`
+(internal builds) and `production`. `app.json` sets the bundle identifier, the
+Android package, the adaptive icon and a light/dark splash.
+
+Two keys are deliberately absent. `channel` is the link between a build and an
+expo-updates release train, and expo-updates is not installed — it named a
+delivery mechanism that did not exist. `developmentClient: true` needs
+expo-dev-client, a native dependency. Both are one-line reinstatements once
+those are decisions rather than defaults.
 
 > The identifier is currently `com.mi2odev.weighttracker`, chosen as a
 > placeholder. Change it before the first submission — it cannot be changed
@@ -223,6 +292,12 @@ adjusted without a design tool.
   rather than on the code.
 - **A home-screen quick action** for "log my weight". `expo-quick-actions` is a
   third-party package with a config plugin, so it too leaves Expo Go behind.
+- **A crash reporting service.** The scrubber, the opt-in and the share button
+  are done; wiring `beforeSend` to something like Sentry is a native dependency
+  and a decision about a third party seeing crash data.
+- **Blocking the Android recent-apps thumbnail** with `expo-screen-capture`.
+  The in-app cover is up during `inactive`; making the OS itself refuse the
+  screenshot is one more native module.
 - **PDF export.** CSV and JSON are done; PDF would need a rendering library.
 - **Gain as a goal type.** Lose and maintain are implemented; inverting the
   milestone ladder, the "total lost" framing and the whole insight vocabulary
