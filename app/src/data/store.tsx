@@ -35,10 +35,11 @@ import {
   WorkoutEntry,
 } from './types';
 import { demoData, emptyData } from './seed';
-import { hasAnyData, migrate } from './schema';
+import { describeData, hasAnyData, migrate } from './schema';
 import { mealTotals, newlyAchievedMilestones, workoutTotals } from '../lib/calc';
 import { fireMilestoneReached, syncReminders } from '../lib/notifications';
-import { shareExport } from '../lib/export';
+import { pickBackup, pickWeighInCsv, shareBackup, shareExport } from '../lib/export';
+import { ConflictChoice, mergeWeighIns, previewMerge } from '../lib/backup';
 import { todayKey } from '../lib/date';
 
 const STORAGE_KEY = 'wt.data.v1';
@@ -95,6 +96,33 @@ interface StoreValue {
   resetAll: () => void;
   /** Writes the log out as CSV and opens the share sheet. */
   exportCsv: () => Promise<void>;
+  /** The whole dataset as one JSON file, which is what a restore needs. */
+  exportBackup: () => Promise<void>;
+  /**
+   * Picks a backup and validates it. Nothing is applied — the caller shows
+   * the summary, asks, and then calls `applyRestore`.
+   */
+  previewRestore: () => Promise<RestorePreview | null>;
+  applyRestore: (data: AppData) => void;
+  /** Picks this app's weigh-in CSV and reports what merging it would do. */
+  previewCsvImport: () => Promise<CsvImportPreview | null>;
+  applyCsvImport: (rows: WeighIn[], onConflict: ConflictChoice) => void;
+}
+
+export interface RestorePreview {
+  data: AppData;
+  exportedAt: string | null;
+  summary: string;
+}
+
+export interface CsvImportPreview {
+  fileName: string;
+  rows: WeighIn[];
+  newCount: number;
+  conflictCount: number;
+  identicalCount: number;
+  skipped: number;
+  warning: string | null;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -531,6 +559,88 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [showToast]);
 
+  const exportBackup = useCallback(async () => {
+    try {
+      showToast(await shareBackup(dataRef.current));
+    } catch {
+      showToast('Could not write the backup — try again');
+    }
+  }, [showToast]);
+
+  const previewRestore = useCallback<StoreValue['previewRestore']>(async () => {
+    try {
+      const picked = await pickBackup();
+      if (picked.canceled) return null;
+      if (!picked.ok) {
+        showToast(picked.reason);
+        return null;
+      }
+      return {
+        data: picked.data,
+        exportedAt: picked.exportedAt,
+        summary: describeData(picked.data),
+      };
+    } catch {
+      showToast('Could not read that file — try again');
+      return null;
+    }
+  }, [showToast]);
+
+  /**
+   * A restore replaces everything, so the outgoing dataset goes into the undo
+   * closure exactly as the demo and reset paths do.
+   */
+  const applyRestore = useCallback<StoreValue['applyRestore']>(
+    (restored) => {
+      replaceAll(restored, 'Backup restored');
+    },
+    [replaceAll],
+  );
+
+  const previewCsvImport = useCallback<StoreValue['previewCsvImport']>(async () => {
+    try {
+      const picked = await pickWeighInCsv();
+      if (picked.canceled) return null;
+      if (!picked.rows.length) {
+        showToast(picked.warning ?? 'No weigh-ins found in that file');
+        return null;
+      }
+      const preview = previewMerge(dataRef.current.entries, picked.rows);
+      return {
+        fileName: picked.name,
+        rows: picked.rows,
+        newCount: preview.newDates.length,
+        conflictCount: preview.conflictDates.length,
+        identicalCount: preview.identicalDates.length,
+        skipped: picked.skipped,
+        warning: picked.warning,
+      };
+    } catch {
+      showToast('Could not read that file — try again');
+      return null;
+    }
+  }, [showToast]);
+
+  /**
+   * Merging adds days and may overwrite existing ones, so it is undoable the
+   * same way a delete is — the whole previous log goes in the closure.
+   */
+  const applyCsvImport = useCallback<StoreValue['applyCsvImport']>(
+    (rows, onConflict) => {
+      const snapshot = dataRef.current;
+      const merged = mergeWeighIns(snapshot.entries, rows, onConflict);
+      const added = merged.length - snapshot.entries.length;
+
+      commit({ ...snapshot, entries: merged });
+
+      showToast(added > 0 ? `Imported — ${added} new day(s)` : 'Imported', {
+        label: 'Undo',
+        run: () => commit(snapshot),
+      });
+    },
+    [commit, showToast],
+  );
+
   const value = useMemo<StoreValue>(
     () => ({
       data,
@@ -558,6 +668,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       loadDemo,
       resetAll,
       exportCsv,
+      exportBackup,
+      previewRestore,
+      applyRestore,
+      previewCsvImport,
+      applyCsvImport,
     }),
     [
       data,
@@ -582,6 +697,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       loadDemo,
       resetAll,
       exportCsv,
+      exportBackup,
+      previewRestore,
+      applyRestore,
+      previewCsvImport,
+      applyCsvImport,
     ],
   );
 
