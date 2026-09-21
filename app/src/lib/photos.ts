@@ -17,7 +17,7 @@ import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 
 import { DateKey } from '../data/types';
-import { orphanedPhotoFiles, PhotoOwner } from './photoRules';
+import { maySweepPhotos, orphanedPhotoFiles, PhotoOwner, SweepTrigger } from './photoRules';
 
 export * from './photoRules';
 
@@ -93,9 +93,23 @@ export function listPhotoFiles(): string[] {
  * Deliberately driven by `orphanedPhotoFiles` rather than by a list of URIs a
  * caller remembered: after a reset or a restore the only reliable account of
  * what is still wanted is the measurements themselves.
+ *
+ * `trigger` is not decoration. The measurements in memory are only an account
+ * of which photos are wanted when the payload they came from loaded cleanly,
+ * so `maySweepPhotos` refuses the whole operation otherwise — see its comment
+ * for the states that matter. A refusal returns 0 and touches nothing.
  */
-export function sweepOrphanedPhotos(owners: PhotoOwner[]): number {
-  const orphans = orphanedPhotoFiles(listPhotoFiles(), owners);
+export function sweepOrphanedPhotos(owners: PhotoOwner[], trigger: SweepTrigger): number {
+  const files = listPhotoFiles();
+  const decision = maySweepPhotos(trigger, { owners: owners.length, files: files.length });
+  if (!decision.sweep) {
+    if (__DEV__ && decision.blockedBy) {
+      console.warn('[photos] launch sweep skipped:', decision.blockedBy);
+    }
+    return 0;
+  }
+
+  const orphans = orphanedPhotoFiles(files, owners);
   for (const uri of orphans) deletePhoto(uri);
   return orphans.length;
 }

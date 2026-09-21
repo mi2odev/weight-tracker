@@ -42,7 +42,12 @@ import { mealTotals, newlyAchievedMilestones, workoutTotals } from '../lib/calc'
 import { fireMilestoneReached, syncReminders } from '../lib/notifications';
 import { pickBackup, pickWeighInCsv, shareBackup, shareExport } from '../lib/export';
 import { applyRestoredPhotos, ConflictChoice, mergeWeighIns, previewMerge } from '../lib/backup';
-import { readAsBase64, restorePhotos, sweepOrphanedPhotos } from '../lib/photos';
+import {
+  LaunchHydration,
+  readAsBase64,
+  restorePhotos,
+  sweepOrphanedPhotos,
+} from '../lib/photos';
 import { todayKey } from '../lib/date';
 import { HydrationResult, mayPersist, readStoredPayload } from '../lib/hydration';
 import {
@@ -226,6 +231,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    */
   const downgradeHold = useRef(false);
   const downgradeNotice = useRef(false);
+  /**
+   * What the launch learned about how the payload arrived, for the photo
+   * sweep. An empty log in memory is only evidence of an empty log on disk
+   * when the payload actually loaded and parsed.
+   */
+  const launchFacts = useRef<Omit<LaunchHydration, 'status'>>({
+    parsed: false,
+    downgrade: false,
+    measurementsAltered: false,
+  });
   /** The undo currently on offer, so its `onExpire` fires exactly once. */
   const pendingUndo = useRef<UndoAction | null>(null);
   /**
@@ -348,6 +363,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         readable = false;
       }
 
+      launchFacts.current = { parsed: readable, downgrade: false, measurementsAltered: false };
+
       if (!readable) {
         // Rescue the bytes before anything can write over them. Persistence
         // is gated on `hydrated`, which is only set below, so this await
@@ -361,6 +378,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         const migrated = migrate(parsed);
+
+        // Counted rather than matched on note wording: if migration produced
+        // fewer measurement rows than the payload held, some were dropped,
+        // and the photos they referenced may still be wanted.
+        const storedRows = Array.isArray((parsed as { measurements?: unknown })?.measurements)
+          ? ((parsed as { measurements: unknown[] }).measurements).length
+          : 0;
+        launchFacts.current.measurementsAltered =
+          storedRows !== migrated.data.measurements.length ||
+          migrated.notes.some((note) => note.includes('measurement'));
 
         // Keep the bytes a migration is about to replace. Awaited before
         // anything can be written, for the same reason the corrupt rescue is.
@@ -376,6 +403,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (isDowngrade(migrated.fromVersion)) {
           downgradeHold.current = true;
           downgradeNotice.current = true;
+          launchFacts.current.downgrade = true;
         }
 
         if (migrated.notes.length && __DEV__) {
@@ -401,13 +429,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Tidies up anything a cut-short undo window left behind — the app being
-   * killed mid-toast, say. Safe by construction: it only removes files that
-   * no measurement references, and the measurements are loaded by now.
+   * killed mid-toast, say.
+   *
+   * Only safe when the payload loaded cleanly. On the corrupt path the app is
+   * running on `emptyData()` while the rescued copy still references every
+   * photo, so a sweep here would delete the lot and leave the rescue
+   * worthless. `maySweepPhotos` is what refuses that, and the other states
+   * where the measurements in memory are not the whole story.
    */
   useEffect(() => {
-    if (!hydrated) return;
-    sweepOrphanedPhotos(dataRef.current.measurements);
-  }, [hydrated]);
+    if (!hydration) return;
+    sweepOrphanedPhotos(dataRef.current.measurements, {
+      kind: 'launch',
+      hydration: { status: hydration.status, ...launchFacts.current },
+    });
+  }, [hydration]);
 
   /** Told once, after hydration, so the message is not lost to a re-render. */
   useEffect(() => {
@@ -731,7 +767,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               .concat(removed)
               .sort((a, b) => (a.logDate < b.logDate ? -1 : 1)),
           })),
-        onExpire: () => sweepOrphanedPhotos(dataRef.current.measurements),
+        onExpire: () => sweepOrphanedPhotos(dataRef.current.measurements, { kind: 'user-action' }),
       });
     },
     [commit, update, showToast],
@@ -863,13 +899,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               // A reset or a restore can orphan every photo at once, but the
               // files have to survive the undo — which would hand back
               // measurements that still point at them.
-              onExpire: () => sweepOrphanedPhotos(dataRef.current.measurements),
+              onExpire: () => sweepOrphanedPhotos(dataRef.current.measurements, { kind: 'user-action' }),
             }
           : // Nothing to offer back, so nothing is waiting: sweep now.
             undefined,
       );
 
-      if (!hasAnyData(snapshot)) sweepOrphanedPhotos(next.measurements);
+      if (!hasAnyData(snapshot)) sweepOrphanedPhotos(next.measurements, { kind: 'user-action' });
     },
     [commit, showToast],
   );
