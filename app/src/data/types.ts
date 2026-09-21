@@ -52,6 +52,15 @@ export const GOAL_TYPES: GoalType[] = ['lose', 'maintain'];
 /** How far either side of the goal still counts as holding steady. */
 export const MAINTAIN_BAND_KG = 1.5;
 
+/**
+ * `targetCalories` when the app sets no target at all — under-18 profiles.
+ *
+ * Zero rather than null so the field stays a plain number everywhere, and a
+ * named constant rather than a bare 0 so the meaning survives being read six
+ * months from now.
+ */
+export const NO_CALORIE_TARGET = 0;
+
 export interface Profile {
   startDate: DateKey;
   startWeightKg: number;
@@ -62,6 +71,7 @@ export interface Profile {
   activityLevel: ActivityLevel;
   /** Absent on payloads written before goal types existed; migrates to 'lose'. */
   goalType: GoalType;
+  /** 0 means no target — see `NO_CALORIE_TARGET`. */
   targetCalories: number;
   targetProteinG: number;
   targetWaterL: number;
@@ -161,11 +171,13 @@ export interface NotificationSettings {
  * 1 — the original shape, with no version field at all.
  * 2 — adds `schemaVersion`; from here on every payload is deep-merged
  *     against the current defaults on load rather than shallow-spread.
+ * 3 — an under-18 profile carries `targetCalories: 0`, meaning no target.
+ *     Older payloads have a suggested one, which nobody should act on.
  *
  * Lives here rather than in `schema.ts` so `seed.ts` can stamp it without the
  * two files importing each other.
  */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export interface AppData {
   /** The shape version this payload was written at. See `data/schema.ts`. */

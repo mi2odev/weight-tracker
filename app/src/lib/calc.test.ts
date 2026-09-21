@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  ADULT_AGE,
   averageDailyLossKg,
   averageWeeklyLossKg,
   bmi,
@@ -128,8 +129,12 @@ describe('body metrics', () => {
 
   it('derives the deficit and the pace it implies', () => {
     const deficit = plannedDailyDeficit(152.2, profile);
+    assert.ok(deficit != null);
     assert.equal(Math.round(deficit), 746);
-    assert.equal(expectedLossPerWeek(152.2, profile).toFixed(2), ((deficit * 7) / 7700).toFixed(2));
+
+    const perWeek = expectedLossPerWeek(152.2, profile);
+    assert.ok(perWeek != null);
+    assert.equal(perWeek.toFixed(2), ((deficit * 7) / 7700).toFixed(2));
   });
 
   it('suggests TDEE − 750 to the nearest 50, floored at 1500', () => {
@@ -444,5 +449,61 @@ describe('photoComparison', () => {
     assert.ok(result);
     assert.equal(result.weightDeltaKg, null);
     assert.equal(result.waistDeltaCm, -1);
+  });
+});
+
+describe('under 18, the app prescribes nothing', () => {
+  const minor: Profile = { ...profile, ageYears: 16, targetCalories: 0 };
+
+  it('has no planned deficit, and no implied pace', () => {
+    assert.equal(plannedDailyDeficit(157, minor), null);
+    assert.equal(expectedLossPerWeek(157, minor), null);
+  });
+
+  it('still computes one for an adult, so the rule is the age and nothing else', () => {
+    assert.notEqual(plannedDailyDeficit(157, profile), null);
+    assert.notEqual(expectedLossPerWeek(157, profile), null);
+    assert.equal(plannedDailyDeficit(157, { ...profile, ageYears: ADULT_AGE }) != null, true);
+  });
+
+  it('gives milestones no target date, and never calls one overdue', () => {
+    const rows = milestones([], minor, {}, {}, addDays(START, 400));
+    assert.ok(rows.length > 0);
+    for (const row of rows) {
+      assert.equal(row.targetDate, null);
+      assert.notEqual(row.status, 'Overdue');
+    }
+  });
+
+  it('keeps target dates for an adult on the same dataset', () => {
+    const rows = milestones([], profile, {}, {}, addDays(START, 400));
+    assert.notEqual(rows[0].targetDate, null);
+  });
+
+  it('still marks a milestone reached — achievements are theirs either way', () => {
+    const rows = milestones([], minor, {}, { '155': addDays(START, 20) }, addDays(START, 400));
+    const reached = rows.find((r) => r.targetKg === 155);
+    assert.equal(reached?.status, 'Achieved');
+  });
+
+  it('projects no goal date, however clear the downward trend is', () => {
+    const losing: WeighIn[] = Array.from({ length: 30 }, (_, i) => ({
+      logDate: addDays(START, i),
+      weightKg: 157 - i * 0.1,
+    }));
+    const asOf = addDays(START, 29);
+
+    assert.notEqual(daysToGoal(losing, profile, asOf), null, 'an adult gets a projection');
+    assert.equal(daysToGoal(losing, minor, asOf), null);
+    assert.equal(estimatedGoalDate(losing, minor, asOf), null);
+    assert.equal(weeksToGoal(losing, minor, asOf), null);
+  });
+
+  it('scores the calories habit on having logged, not on hitting a target', () => {
+    const ticks = habitTicks({ logDate: START, calories: 1200 }, minor, START, START);
+    assert.equal(ticks?.calories, true, 'logging is the whole bar');
+
+    const none = habitTicks({ logDate: START }, minor, START, START);
+    assert.equal(none?.calories, false);
   });
 });
