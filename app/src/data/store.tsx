@@ -44,6 +44,7 @@ import { pickBackup, pickWeighInCsv, shareBackup, shareExport } from '../lib/exp
 import { applyRestoredPhotos, ConflictChoice, mergeWeighIns, previewMerge } from '../lib/backup';
 import { readAsBase64, restorePhotos } from '../lib/photos';
 import { todayKey } from '../lib/date';
+import { HydrationResult, mayPersist, readStoredPayload } from '../lib/hydration';
 
 export const STORAGE_KEY = 'wt.data.v1';
 /** A rescued copy of a payload that would not parse. Never deleted by the app. */
@@ -67,6 +68,10 @@ export interface UndoAction {
 interface StoreValue {
   data: AppData;
   hydrated: boolean;
+  /** True when storage would not answer, after retries. Nothing is written. */
+  storageUnreadable: boolean;
+  /** Tries the first read again, for the retry button on the blocking screen. */
+  retryHydration: () => void;
 
   /** The day the user is currently looking at on Today / Log. */
   cursor: DateKey;
@@ -176,11 +181,20 @@ function applyLogRollup(data: AppData, date: DateKey): WeighIn[] {
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<AppData>(() => emptyData());
-  const [hydrated, setHydrated] = useState(false);
+  /**
+   * Null while the first read is in flight. `mayPersist` — not "is this
+   * non-null" — decides whether writing is allowed, because a finished but
+   * failed hydration is exactly the case that must never write.
+   */
+  const [hydration, setHydration] = useState<HydrationResult | null>(null);
   const [cursor, setCursor] = useState<DateKey>(() => todayKey());
   const [toast, setToast] = useState('');
   const [undo, setUndo] = useState<UndoAction | null>(null);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
+
+  /** Everything downstream still asks one question: is the data ready? */
+  const hydrated = hydration != null && hydration.status !== 'unreadable';
+  const storageUnreadable = hydration?.status === 'unreadable';
 
   /** Always the latest committed state, readable synchronously. */
   const dataRef = useRef<AppData>(data);
@@ -229,55 +243,67 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // ── hydration ──────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    let cancelled = false;
+  /**
+   * Loads the stored payload, or reports that it could not be loaded.
+   *
+   * The one rule that matters here: a read that *throws* is not an empty log.
+   * `readStoredPayload` retries, and if storage still will not answer this
+   * leaves `hydration` at `unreadable` — which keeps `hydrated` false, which
+   * keeps the persist effect from running. Nothing is written over data that
+   * might still be there. Root shows a retry screen instead of an empty app.
+   */
+  const hydrate = useCallback(async () => {
+    const result = await readStoredPayload({ read: () => AsyncStorage.getItem(STORAGE_KEY) });
 
-    (async () => {
-      let raw: string | null = null;
+    if (result.status === 'unreadable') {
+      if (__DEV__) console.warn('[store] storage unreadable after retries', result.error);
+      setHydration(result);
+      return;
+    }
+
+    if (result.status === 'loaded') {
+      let parsed: unknown = null;
+      let readable = true;
       try {
-        raw = await AsyncStorage.getItem(STORAGE_KEY);
+        parsed = JSON.parse(result.raw);
       } catch {
-        /* storage unreadable — start clean rather than block the app */
+        readable = false;
       }
 
-      if (raw) {
-        let parsed: unknown = null;
-        let readable = true;
+      if (!readable) {
+        // Rescue the bytes before anything can write over them. Persistence
+        // is gated on `hydrated`, which is only set below, so this await
+        // always wins the race against the first save.
+        const backupKey = `${CORRUPT_KEY_PREFIX}${Date.now()}`;
         try {
-          parsed = JSON.parse(raw);
+          await AsyncStorage.setItem(backupKey, result.raw);
+          corruptNotice.current = backupKey;
         } catch {
-          readable = false;
+          corruptNotice.current = 'unsaved';
         }
-
-        if (!readable) {
-          // Rescue the bytes before anything can write over them. Persistence
-          // is gated on `hydrated`, which is only set below, so this await
-          // always wins the race against the first save.
-          const backupKey = `${CORRUPT_KEY_PREFIX}${Date.now()}`;
-          try {
-            await AsyncStorage.setItem(backupKey, raw);
-            corruptNotice.current = backupKey;
-          } catch {
-            corruptNotice.current = 'unsaved';
-          }
-        } else {
-          const result = migrate(parsed);
-          if (!cancelled) commit(result.data);
-          if (result.notes.length && __DEV__) {
-            // Not shown to the user: a repaired field is not their problem,
-            // and the log is what matters for diagnosing it.
-            console.warn('[store] migration notes', result.fromVersion, result.notes);
-          }
+      } else {
+        const migrated = migrate(parsed);
+        commit(migrated.data);
+        if (migrated.notes.length && __DEV__) {
+          // Not shown to the user: a repaired field is not their problem,
+          // and the log is what matters for diagnosing it.
+          console.warn('[store] migration notes', migrated.fromVersion, migrated.notes);
         }
       }
+    }
 
-      if (!cancelled) setHydrated(true);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    setHydration(result);
   }, [commit]);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  /** For the retry button on the "couldn't open your data" screen. */
+  const retryHydration = useCallback(() => {
+    setHydration(null);
+    void hydrate();
+  }, [hydrate]);
 
   /** Told once, after hydration, so the message is not lost to a re-render. */
   useEffect(() => {
@@ -305,11 +331,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!mayPersist(hydration)) return;
     pendingWrite.current = data;
     if (persistTimer.current) clearTimeout(persistTimer.current);
     persistTimer.current = setTimeout(flushWrite, PERSIST_DEBOUNCE_MS);
-  }, [data, hydrated, flushWrite]);
+  }, [data, hydration, flushWrite]);
 
   // Leaving the foreground is the last reliable moment before the process can
   // be killed, so the debounce is cut short there.
@@ -812,6 +838,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     () => ({
       data,
       hydrated,
+      storageUnreadable,
+      retryHydration,
       cursor,
       setCursor,
       toast,
@@ -850,6 +878,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [
       data,
       hydrated,
+      storageUnreadable,
+      retryHydration,
       cursor,
       toast,
       showToast,
