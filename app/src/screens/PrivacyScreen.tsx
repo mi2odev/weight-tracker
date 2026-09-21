@@ -175,8 +175,11 @@ export function PrivacyScreen({ onBack }: { onBack: () => void }) {
       <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
         The lock keeps a passing glance out. It is a gate in front of the screen, not encryption —
         it will not protect a phone someone else has already unlocked, and the Privacy screen would
-        rather say so than imply more. The app also covers itself while switching apps, so your
-        weight is not sitting in the app switcher.
+        rather say so than imply more.
+      </Caption>
+      <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
+        While the lock is on, screenshots and screen recordings of this app are blocked, and your
+        weight will not appear in the app switcher. Turning the lock off allows them again.
       </Caption>
 
       {/* ── crash reports ────────────────────────────────────────────────── */}

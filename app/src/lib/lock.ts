@@ -11,9 +11,42 @@
  */
 
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as ScreenCapture from 'expo-screen-capture';
 
 export * from './lockRules';
 import { AuthOutcome, classifyAuthResult } from './lockRules';
+
+/**
+ * Scopes the screenshot block to this app's lock.
+ *
+ * `expo-screen-capture` is process-wide, so a key keeps our prevent/allow
+ * pair from fighting anything else that might call it.
+ */
+const CAPTURE_KEY = 'weight-tracker-lock';
+
+/**
+ * Asks the OS to refuse screenshots and screen recordings while the lock is
+ * on, and to stop refusing when it is off.
+ *
+ * This is what the in-app privacy cover cannot do. The cover hides the UI
+ * *inside* the app, but on Android the recent-apps thumbnail is taken by the
+ * system, and only the system can be told not to keep it. The cover stays —
+ * it is the fallback when this is unavailable, and it also handles the moment
+ * before this call resolves.
+ *
+ * Tied to `lock.enabled` rather than to being locked: someone who has turned
+ * the lock on has said their log is private, and a screenshot taken while
+ * they are looking at it is exactly as revealing as the thumbnail.
+ */
+export async function setScreenCaptureBlocked(blocked: boolean): Promise<void> {
+  try {
+    if (blocked) await ScreenCapture.preventScreenCaptureAsync(CAPTURE_KEY);
+    else await ScreenCapture.allowScreenCaptureAsync(CAPTURE_KEY);
+  } catch {
+    /* Unsupported here — the in-app cover is still up, so this is a downgrade
+       in protection rather than a failure worth interrupting anyone over. */
+  }
+}
 
 export interface LockCapability {
   /** The device has the hardware. */
