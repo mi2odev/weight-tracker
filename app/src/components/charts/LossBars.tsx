@@ -24,8 +24,18 @@ export function LossBars({ bars }: { bars: Bar[] }) {
   const { colors } = useTheme();
   const max = Math.max(0.6, ...bars.map((b) => Math.abs(b.value ?? 0)));
 
+  const summary = bars
+    .filter((b) => b.value != null)
+    .map((b) => `${b.label}: ${(b.value as number) > 0 ? 'lost' : 'gained'} ${Math.abs(b.value as number).toFixed(1)} kg`)
+    .join(', ');
+
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: TRACK_HEIGHT }}>
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={summary ? `Weight change per period. ${summary}` : 'No periods to compare yet'}
+      style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: TRACK_HEIGHT }}
+    >
       {bars.map((bar, i) => {
         const value = bar.value ?? 0;
         const isLoss = value > 0.05;

@@ -29,6 +29,9 @@ import {
   estimatedGoalDate,
   goalCompletionPct,
   habitRatePct,
+  isCountdown,
+  MaintainStatus,
+  maintainStatus,
   milestones as buildMilestones,
   monthlyRollups,
   projectedWeight,
@@ -75,6 +78,14 @@ export interface Derived {
   weeks: WeekRollup[];
   months: MonthRollup[];
   weekNumber: number;
+
+  /**
+   * False while maintaining: milestones, projections and goal completion all
+   * assume a destination, and maintaining has none.
+   */
+  isCountdown: boolean;
+  /** Only meaningful when `isCountdown` is false. */
+  maintain: MaintainStatus;
 
   milestones: Milestone[];
   nextMilestone: Milestone | null;
@@ -143,6 +154,9 @@ export function DerivedProvider({ children }: { children: React.ReactNode }) {
       weeks: weeklyRollups(entries, profile, today),
       months: monthlyRollups(entries, today),
       weekNumber: Math.max(1, Math.ceil((daysBetween(profile.startDate, today) + 1) / 7)),
+
+      isCountdown: isCountdown(profile),
+      maintain: maintainStatus(entries, profile, today),
 
       milestones: ms,
       nextMilestone: ms.find((m) => m.status !== 'Achieved') ?? null,

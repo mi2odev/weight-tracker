@@ -42,9 +42,10 @@ export function BodyScreen({ onBack }: { onBack: () => void }) {
       neckCm: values[4],
       photo: null,
     });
+    // The store raises the toast — it is the one that knows whether this
+    // replaced an existing set, and therefore whether to offer an undo.
     setDraft({});
     setSheetOpen(false);
-    showToast(hasBaseline ? 'Measurement saved' : 'Baseline recorded');
   };
 
   return (

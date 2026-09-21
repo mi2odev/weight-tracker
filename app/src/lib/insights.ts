@@ -24,6 +24,7 @@ import {
 } from './calc';
 import { daysBetween, formatMonthYear, fromKey, todayKey } from './date';
 import { isAdult, isLosingTooFast, rapidLossMessage, UNDER_18_NOTICE } from './health';
+import { isCountdown, maintainStatus } from './calc';
 
 export type InsightTone = 'good' | 'plain' | 'locked' | 'caution';
 export type InsightIcon = 'down' | 'up' | 'rate' | 'goal' | 'steady' | 'habit' | 'lock' | 'caution';
@@ -70,6 +71,39 @@ export function buildInsights(
       tone: 'locked',
       icon: 'lock',
     });
+    out.push({
+      id: 'consistency',
+      title: 'Habit consistency',
+      text: `Habit consistency over the last 7 days: ${consistencyPct(entries, profile, 7, asOf)}%.`,
+      tone: 'plain',
+      icon: 'habit',
+    });
+    return out;
+  }
+
+  // Maintaining has no countdown, so the projection and the "lost this week"
+  // framing are replaced by how well the band is being held.
+  if (!isCountdown(profile)) {
+    const status = maintainStatus(entries, profile, asOf);
+    out.push({
+      id: 'week',
+      title: 'Holding steady',
+      text:
+        status.state === 'in-range'
+          ? `You are inside your target band of ${f1(status.lowKg)}–${f1(status.highKg)} kg.`
+          : `You are ${f1(Math.abs(status.deltaKg))} kg ${status.state} your target band. Small, steady corrections work better than big ones.`,
+      tone: status.state === 'in-range' ? 'good' : 'plain',
+      icon: status.state === 'in-range' ? 'habit' : 'steady',
+    });
+    if (status.daysInRangePct != null) {
+      out.push({
+        id: 'rate',
+        title: 'Time in range',
+        text: `You have been inside the band on ${status.daysInRangePct}% of your weigh-ins this month.`,
+        tone: 'plain',
+        icon: 'rate',
+      });
+    }
     out.push({
       id: 'consistency',
       title: 'Habit consistency',

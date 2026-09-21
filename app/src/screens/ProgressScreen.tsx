@@ -90,12 +90,22 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           }
           valueColor={d.lostKg > 0.05 ? colors.greenText : colors.text}
         />
-        <StatCard
-          label="Remaining"
-          value={u.weightValue(d.remainingKg)}
-          unit={u.labels.weight}
-          sub={`To ${u.weight(profile.goalWeightKg)}`}
-        />
+        {d.isCountdown ? (
+          <StatCard
+            label="Remaining"
+            value={u.weightValue(d.remainingKg)}
+            unit={u.labels.weight}
+            sub={`To ${u.weight(profile.goalWeightKg)}`}
+          />
+        ) : (
+          <StatCard
+            label="From target"
+            value={u.weightValue(Math.abs(d.maintain.deltaKg))}
+            unit={u.labels.weight}
+            sub={d.maintain.state === 'in-range' ? 'Inside the band' : `Target ${u.weight(profile.goalWeightKg)}`}
+            valueColor={d.maintain.state === 'in-range' ? colors.greenText : colors.text}
+          />
+        )}
         <StatCard
           label="Avg weekly loss"
           value={u.weightValue(d.averageWeeklyLossKg)}
@@ -103,12 +113,21 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           sub={d.averageWeeklyLossKg == null ? 'Needs two weigh-ins' : `Over ${d.weekNumber} weeks`}
         />
         <StatCard label="BMI" value={d.bmi.toFixed(1)} sub={d.bmiBand} />
-        <StatCard
-          label="Est. goal date"
-          value={d.goalDate ? d.goalDate.toLocaleDateString('en-GB', { month: 'long' }) : '—'}
-          unit={d.goalDate ? String(d.goalDate.getFullYear()) : undefined}
-          sub={d.goalDate ? 'At the current rate' : 'Needs a downward trend'}
-        />
+        {d.isCountdown ? (
+          <StatCard
+            label="Est. goal date"
+            value={d.goalDate ? d.goalDate.toLocaleDateString('en-GB', { month: 'long' }) : '—'}
+            unit={d.goalDate ? String(d.goalDate.getFullYear()) : undefined}
+            sub={d.goalDate ? 'At the current rate' : 'Needs a downward trend'}
+          />
+        ) : (
+          <StatCard
+            label="Days in range"
+            value={d.maintain.daysInRangePct == null ? '—' : String(d.maintain.daysInRangePct)}
+            unit={d.maintain.daysInRangePct == null ? undefined : '%'}
+            sub="Of the last month's weigh-ins"
+          />
+        )}
         <StatCard
           label="7-day consistency"
           value={String(d.consistency7)}
@@ -117,7 +136,28 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
         />
       </StatGrid>
 
-      {/* ── goal completion ─────────────────────────────────────────────── */}
+      {/* ── goal completion, or the maintenance band ────────────────────── */}
+      {!d.isCountdown ? (
+        <Card style={{ paddingHorizontal: 13, paddingTop: space.md, paddingBottom: 13, gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
+            <Label>Holding steady</Label>
+            <Caption
+              style={[{ fontSize: 12, fontFamily: font.semibold }, tnum]}
+              color={d.maintain.state === 'in-range' ? colors.greenText : colors.text}
+            >
+              {d.maintain.state === 'in-range'
+                ? 'In range'
+                : `${u.weightDelta(d.maintain.deltaKg)} ${d.maintain.state === 'above' ? 'above' : 'below'}`}
+            </Caption>
+          </View>
+          <Caption style={{ fontSize: 11.5, lineHeight: 17 }}>
+            Target band {u.weightValue(d.maintain.lowKg)}–{u.weight(d.maintain.highKg)}
+            {d.maintain.daysInRangePct != null
+              ? ` · in range on ${d.maintain.daysInRangePct}% of the last month's weigh-ins`
+              : ''}
+          </Caption>
+        </Card>
+      ) : (
       <Card style={{ paddingHorizontal: 13, paddingTop: space.md, paddingBottom: 13 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
           <Label>Goal completion</Label>
@@ -144,6 +184,7 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           />
         </View>
       </Card>
+      )}
 
       {/* ── the trend chart ─────────────────────────────────────────────── */}
       <Card hero style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: space.md }}>
@@ -158,7 +199,7 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
       </Card>
 
       {/* ── projections ─────────────────────────────────────────────────── */}
-      <ProjectionCard />
+      {d.isCountdown && <ProjectionCard />}
 
       {/* ── insight messages ────────────────────────────────────────────── */}
       <View style={{ marginTop: space.md, paddingHorizontal: 2 }}>
@@ -214,6 +255,7 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
       </View>
 
       {/* ── next milestone ──────────────────────────────────────────────── */}
+      {d.isCountdown && (
       <Pressable
         accessibilityRole="button"
         onPress={onOpenMilestones}
@@ -235,6 +277,7 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
         </Body>
         <Icon name="chevronRight" size={13} color={colors.accent} />
       </Pressable>
+      )}
     </Screen>
   );
 }

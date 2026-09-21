@@ -29,6 +29,7 @@ const profile: Profile = {
   ageYears: 34,
   sex: 'Male',
   activityLevel: 'Lightly Active',
+  goalType: 'lose',
   targetCalories: 2650,
   targetProteinG: 120,
   targetWaterL: 3,

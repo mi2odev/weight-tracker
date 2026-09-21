@@ -41,6 +41,7 @@ export function defaultProfile(): Profile {
     ageYears: 34,
     sex: 'Male',
     activityLevel: 'Lightly Active',
+    goalType: 'lose',
     targetCalories: 2000,
     targetProteinG: 97,
     targetWaterL: 3,
@@ -104,6 +105,7 @@ export function demoData(): AppData {
     ageYears: 34,
     sex: 'Male',
     activityLevel: 'Lightly Active',
+    goalType: 'lose',
     targetCalories: 2800, // user-overridden; the suggestion for this profile is 2 650
     targetProteinG: 120,
     targetWaterL: 3,
