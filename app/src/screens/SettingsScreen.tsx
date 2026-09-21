@@ -40,6 +40,7 @@ import { formatMedium } from '../lib/date';
 import { ConflictChoice } from '../lib/backup';
 import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
 import { formatBytes, totalPhotoBytes } from '../lib/photos';
+import { remindersSupported } from '../lib/notifications';
 
 /** How many measurements still have a photo file behind them. */
 function photoCount(data: { measurements: { photo?: string | null }[] }): number {
@@ -197,12 +198,20 @@ export function SettingsScreen({
             </View>
             <Toggle
               value={data.notifications[reminder.key]}
+              disabled={!remindersSupported}
               accessibilityLabel={reminder.label}
               onChange={(next) => setNotification(reminder.key, next)}
             />
           </Card>
         ))}
       </View>
+      {!remindersSupported && (
+        <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
+          Reminders need a development build. Expo Go on Android dropped the notification support
+          they rely on, so the switches are off here — everything else works as normal, and a
+          development build turns them back on.
+        </Caption>
+      )}
 
       {/* ── units ───────────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>

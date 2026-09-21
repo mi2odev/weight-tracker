@@ -329,8 +329,21 @@ adjusted without a design tool.
 
 ## Notes on the reminders
 
-All four are *local* notifications, so they work offline — which the spec
-requires — and they work in Expo Go, which remote push no longer does.
+All four are *local* notifications, so they work offline, which the spec
+requires.
+
+**They need a development build on Android.** Not because local notifications
+stopped working, but because `expo-notifications` cannot be *imported* at all
+on Android inside Expo Go: its index re-exports
+`DevicePushTokenAutoRegistration.fx`, which calls `addPushTokenListener()` at
+module scope, and since SDK 53 that throws rather than warns — remote push was
+removed from the Go client. A top-level import took the whole app down at
+startup, over a feature this app never uses.
+
+So the module is `require`d on first use and not at all where the require is
+fatal (`remindersSupported`). Reminders are the only thing that stops working
+there; the Settings switches say so and disable themselves. iOS in Expo Go
+only warns, so they work there.
 
 Two of the four are conditional: the morning weigh-in is suppressed once the
 day is logged, and the evening nudge only fires under three habits. A scheduled
@@ -339,6 +352,6 @@ schedule is rewritten whenever the log changes: if today's condition is already
 satisfied, today's occurrence is simply never scheduled. `plannedReminders` is
 pure, so those rules are readable without a device.
 
-On a simulator or in Expo Go you will be asked for notification permission the
-first time the app has something to schedule. Declining turns the feature off
-rather than erroring — logging never depends on it.
+On a simulator, or in a development build, you will be asked for notification
+permission the first time the app has something to schedule. Declining turns
+the feature off rather than erroring — logging never depends on it.
