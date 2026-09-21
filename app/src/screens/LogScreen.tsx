@@ -23,6 +23,7 @@ import { Screen } from '../components/Screen';
 import { Body, Caption } from '../components/Type';
 import { entryFor, mealTotals, workoutTotals } from '../lib/calc';
 import { formatShort, todayKey } from '../lib/date';
+import { parseDecimalInput } from '../lib/numberInput';
 
 export function LogScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
@@ -383,13 +384,28 @@ function MealSheet({
     setProtein(editing ? String(editing.proteinG) : '');
   }, [target, editing]);
 
+  /**
+   * A blank number means zero, not a mistake.
+   *
+   * Requiring both refused to save an apple from anyone who did not know its
+   * protein — which is most people, most of the time. The description is the
+   * only thing actually needed to make the row worth having; a number that is
+   * out of range is still refused, because that is a typo rather than a gap.
+   */
   const submit = () => {
-    const kcal = Number.parseFloat(calories);
-    const pro = Number.parseFloat(protein);
     if (!description.trim()) return showToast('Describe the meal first');
-    if (!Number.isFinite(kcal) || kcal < 0 || kcal > 10000) return showToast('Calories must be 0–10 000');
-    if (!Number.isFinite(pro) || pro < 0 || pro > 500) return showToast('Protein must be 0–500 g');
-    onSubmit({ mealType, description: description.trim(), calories: Math.round(kcal), proteinG: Math.round(pro) });
+
+    const kcal = parseDecimalInput(calories) ?? 0;
+    const pro = parseDecimalInput(protein) ?? 0;
+    if (kcal < 0 || kcal > 10000) return showToast('Calories must be 0–10 000');
+    if (pro < 0 || pro > 500) return showToast('Protein must be 0–500 g');
+
+    onSubmit({
+      mealType,
+      description: description.trim(),
+      calories: Math.round(kcal),
+      proteinG: Math.round(pro),
+    });
   };
 
   return (
@@ -443,12 +459,14 @@ function WorkoutSheet({
     setBurned(editing ? String(editing.caloriesBurned) : '');
   }, [target, editing]);
 
+  /** Same rule as a meal: a blank number is zero, not a reason to refuse. */
   const submit = () => {
-    const mins = Number.parseFloat(duration);
-    const kcal = burned === '' ? 0 : Number.parseFloat(burned);
     if (!session.trim()) return showToast('Name the session first');
-    if (!Number.isFinite(mins) || mins < 0 || mins > 600) return showToast('Duration must be 0–600 minutes');
-    if (!Number.isFinite(kcal) || kcal < 0) return showToast('Calories burned must be a positive number');
+
+    const mins = parseDecimalInput(duration) ?? 0;
+    const kcal = parseDecimalInput(burned) ?? 0;
+    if (mins < 0 || mins > 600) return showToast('Duration must be 0–600 minutes');
+    if (kcal < 0) return showToast('Calories burned must be a positive number');
     onSubmit({
       type,
       session: session.trim(),

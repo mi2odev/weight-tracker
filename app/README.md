@@ -14,7 +14,7 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 238 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 248 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing
 ```
 
@@ -102,8 +102,18 @@ library: the design draws its own tab bar and its sub-screens are simple pushes
 over a tab, so this keeps the chrome pixel-exact and the whole flow readable in
 one file. Android hardware back pops a sub-screen.
 
-**Number fields** show grouped thousands at rest and raw digits while editing —
-a separator that appears mid-keystroke fights the caret.
+**Number fields keep their own text while you are typing.** They show grouped
+thousands at rest and raw digits while editing, but the draft matters for a
+sharper reason: a field bound straight to a parsed number can never accept a
+decimal point. "2." round-trips through the parser as 2, the prop comes back
+"2", and the point is erased on the next render — so "2.5 L" of water was
+being stored as 25. `NumberField` now holds what was typed until blur.
+
+**One reader for every number field.** `parseDecimalInput` strips a grouped
+separator before parsing, because `parseFloat('1,250')` is 1 and `parseInt`
+stops there too — a 1,250 kcal meal logged as one calorie, an 8,000 step
+target saved as 8. A lone comma is still read as a decimal point, since
+someone typing "2,5" means two and a half.
 
 **Units are display-only.** Storage is always metric, as the spec requires.
 `lib/units.ts` holds the conversions and a formatter bound to the profile's

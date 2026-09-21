@@ -8,6 +8,7 @@
  */
 
 import { Units } from '../data/types';
+import { parseDecimalInput } from './numberInput';
 
 const LB_PER_KG = 2.2046226218;
 const IN_PER_CM = 0.3937007874;
@@ -67,10 +68,8 @@ export interface UnitFormatter {
   volumeField: (litres: number | null | undefined) => string;
 }
 
-function num(text: string): number | null {
-  const parsed = Number.parseFloat(text.replace(',', '.').trim());
-  return Number.isFinite(parsed) ? parsed : null;
-}
+/** See `numberInput.ts` — "1,250" must not read back as 1. */
+const num = parseDecimalInput;
 
 function fixed(value: number | null | undefined, decimals: number): string {
   return value == null || Number.isNaN(value) ? '—' : value.toFixed(decimals);

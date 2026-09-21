@@ -24,6 +24,7 @@ import {
   workoutTotals,
 } from '../lib/calc';
 import { addDays, daysBetween, formatLong, todayKey } from '../lib/date';
+import { parseDecimalInput } from '../lib/numberInput';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
@@ -103,11 +104,12 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
 
   /** Typing into a field marks it manual, so the meal/workout roll-up leaves it alone. */
   const setNumericField = (field: keyof WeighIn, manualFlag?: keyof WeighIn) => (text: string) => {
-    const cleaned = text.replace(',', '.');
-    const parsed = cleaned === '' ? null : Number.parseFloat(cleaned);
+    // "2." parses to null, which is right: there is no number yet. The field
+    // keeps the text either way, so the decimal point survives the round trip.
+    const parsed = parseDecimalInput(text);
     updateEntry(cursor, {
-      [field]: parsed != null && Number.isNaN(parsed) ? null : parsed,
-      ...(manualFlag ? { [manualFlag]: cleaned !== '' } : {}),
+      [field]: parsed,
+      ...(manualFlag ? { [manualFlag]: text.trim() !== '' } : {}),
     } as Partial<WeighIn>);
   };
 
