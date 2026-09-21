@@ -10,8 +10,10 @@ const PATHS_16 = {
   weight: 'M3 6h10l1.5 7.5H1.5L3 6zM6 6V4.5a2 2 0 014 0V6',
   food: 'M4 2v5a2 2 0 004 0V2M6 7v7M12 2v12M10.5 2v3.5a1.5 1.5 0 003 0V2',
   water: 'M8 1.5S3.5 6.5 3.5 9.5a4.5 4.5 0 009 0C12.5 6.5 8 1.5 8 1.5z',
+  // Two footprints. The second used to stop mid-curve and never close, so it
+  // drew a loose squiggle beside the first rather than a second print.
   steps:
-    'M4.5 13.5c-1 0-1.5-.7-1.5-2 0-1.8 1-2.3 1-4.5C4 5.3 4.8 4 6 4s1.8 1 1.8 3-1.3 3.3-1.3 5c0 1-.8 1.5-2 1.5zM11 9.5c-1 0-1.5-.7-1.5-2 0-1.8 1-2.3 1-4.5',
+    'M4.6 2.8c1.1 0 1.8.9 1.8 2.2 0 1.6-.6 2.4-.6 3.6 0 .9-.5 1.4-1.2 1.4s-1.2-.5-1.2-1.4c0-1.2-.6-2-.6-3.6 0-1.3.7-2.2 1.8-2.2zM11.4 5.9c1.1 0 1.8.9 1.8 2.2 0 1.6-.6 2.4-.6 3.6 0 .9-.5 1.4-1.2 1.4s-1.2-.5-1.2-1.4c0-1.2-.6-2-.6-3.6 0-1.3.7-2.2 1.8-2.2z',
   workout: 'M2 6v4M14 6v4M4 5v6M12 5v6M4 8h8',
   sleep: 'M13.5 9.5A5.5 5.5 0 016.5 2.5a5.5 5.5 0 107 7z',
 
@@ -27,7 +29,10 @@ const PATHS_16 = {
   star: 'M8 2l1.8 3.9 4.2.5-3.1 2.9.8 4.2L8 11.4 4.3 13.5l.8-4.2L2 6.4l4.2-.5L8 2z',
   ruler: 'M1 6h14v4H1V6zM4 6v2M7 6v3M10 6v2M13 6v3',
   plate: 'M8 2a6 6 0 100 12A6 6 0 008 2zM8 5a3 3 0 100 6 3 3 0 000-6z',
-  gear: 'M8 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4',
+  // Sliders, not a cog. The cog was a ring with eight spokes, which at 16px
+  // is the same drawing as `sun` — Settings and Appearance shared a glyph.
+  gear:
+    'M2 4.5h12M2 8h12M2 11.5h12M5 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM10.5 6.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM6.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3z',
   book: 'M3 2.5h10v11H3v-11zM6 5.5h4M6 8h4M6 10.5h2',
   camera: 'M2 12l3.5-4 2.5 3 2-2.5L14 12M2 4h12v8H2V4z',
   bars: 'M2 13V9m4 4V4m4 9V7m4 6V3',
