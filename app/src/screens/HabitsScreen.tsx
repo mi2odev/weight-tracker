@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space, tnum } from '../theme/tokens';
 import { useStore } from '../data/store';
+import { useDerived } from '../data/derived';
 import { Card, StatCard, StatGrid } from '../components/Card';
 import { SectionHeading } from '../components/Controls';
 import { HABIT_META } from '../components/HabitTicks';
@@ -18,10 +19,11 @@ import { todayKey } from '../lib/date';
 export function HabitsScreen() {
   const { colors } = useTheme();
   const { data } = useStore();
+  const d = useDerived();
   const { profile, entries } = data;
   const today = todayKey();
 
-  const streaks = weighInStreaks(entries, profile, today);
+  const streaks = d.streaks;
   const rules = { water: profile.targetWaterL, steps: profile.targetSteps, sleep: profile.targetSleepH };
 
   return (
@@ -36,13 +38,13 @@ export function HabitsScreen() {
         />
         <StatCard
           label="7-day score"
-          value={`${consistencyPct(entries, profile, 7, today)}`}
+          value={`${d.consistency7}`}
           unit="%"
           sub="Rolling average"
         />
         <StatCard
           label="30-day score"
-          value={`${consistencyPct(entries, profile, 30, today)}`}
+          value={`${d.consistency30}`}
           unit="%"
           sub="Rolling average"
         />
@@ -65,7 +67,7 @@ export function HabitsScreen() {
       <View style={{ gap: space.sm, marginTop: space.sm }}>
         {HABIT_KEYS.map((key) => {
           const meta = HABIT_META[key];
-          const rate = habitRatePct(entries, profile, key, 30, today);
+          const rate = d.habitRates[key];
           return (
             <Card
               key={key}

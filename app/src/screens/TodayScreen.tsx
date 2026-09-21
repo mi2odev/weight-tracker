@@ -4,13 +4,15 @@ import { Pressable, TextInput, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, MIN_TAP, radius, space, tnum, type } from '../theme/tokens';
 import { useStore } from '../data/store';
+import { useUnits } from '../data/derived';
+import { UnitFormatter } from '../lib/units';
 import { WeighIn } from '../data/types';
 import { Card, Grid } from '../components/Card';
 import { NumberField, PrimaryButton, Toggle } from '../components/Controls';
 import { HabitTicks } from '../components/HabitTicks';
 import { Icon } from '../components/Icon';
 import { Screen } from '../components/Screen';
-import { Body, Caption, Display, Label } from '../components/Type';
+import { Body, Display, Label } from '../components/Type';
 import {
   dailyChange,
   entryFor,
@@ -30,6 +32,7 @@ const SAVE_BAR_HEIGHT = 71;
 export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
   const { colors } = useTheme();
   const { data, cursor, setCursor, saveWeighIn, updateEntry, showToast } = useStore();
+  const u = useUnits();
   const { profile, entries } = data;
 
   const [draft, setDraft] = useState('');
@@ -43,16 +46,15 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
   // The keypad is up whenever there is nothing saved for this day, or the user
   // has explicitly tapped Edit.
   const keypadUp = savedWeight == null || editing;
-  const draftValue = draft !== '' ? Number.parseFloat(draft) : savedWeight;
 
   const delta = useMemo(() => {
     if (draft !== '') {
-      const parsed = Number.parseFloat(draft);
-      if (!Number.isFinite(parsed)) return null;
+      const parsed = u.parseWeight(draft);
+      if (parsed == null) return null;
       return parsed - previousWeight(entries, profile, cursor);
     }
     return dailyChange(entries, profile, cursor);
-  }, [draft, entries, profile, cursor]);
+  }, [draft, entries, profile, cursor, u]);
 
   const ticks = habitTicks(entry, profile, cursor, today);
   const dayHasData = isLogged(entry);
@@ -62,7 +64,9 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
 
   const pressKey = (key: string) => {
     setDraft((prev) => {
-      let next = prev !== '' ? prev : savedWeight != null ? String(savedWeight) : '';
+      // The keypad works in whatever unit is on screen; conversion to metric
+      // happens once, on save.
+      let next = prev !== '' ? prev : savedWeight != null ? u.weightField(savedWeight) : '';
       if (key === '⌫') next = next.slice(0, -1);
       else if (key === '.') next = !next.includes('.') && next !== '' ? `${next}.` : next;
       else next = (next + key).replace(/^0+(\d)/, '$1').slice(0, 5);
@@ -70,13 +74,27 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
     });
   };
 
+  const draftKg = draft !== '' ? u.parseWeight(draft) : savedWeight;
+
+  /**
+   * Validated as you type rather than after the fact, so the Save button can
+   * say why it is unavailable instead of a toast explaining it afterwards.
+   */
+  const draftError =
+    draft === '' || draftKg == null
+      ? null
+      : draftKg < 30
+        ? `That is under ${u.weight(30)} — check the number`
+        : draftKg > 400
+          ? `That is over ${u.weight(400)} — check the number`
+          : null;
+
   const onSave = () => {
-    const value = draft !== '' ? Number.parseFloat(draft) : savedWeight;
-    if (value == null) {
+    if (draftKg == null) {
       showToast('Enter a weight first');
       return;
     }
-    const error = saveWeighIn(cursor, value);
+    const error = saveWeighIn(cursor, draftKg);
     if (error) showToast(error);
     else {
       setDraft('');
@@ -97,7 +115,7 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
   const fieldText = (value: number | null | undefined) => (value == null ? '' : String(value));
 
   const saveLabel = savedWeight != null && !editing ? 'Update today' : 'Save weigh-in';
-  const saveDisabled = savedWeight != null && !editing && draft === '';
+  const saveDisabled = draftError != null || (savedWeight != null && !editing && draft === '');
 
   return (
     <Screen
@@ -199,7 +217,7 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
 
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.sm, marginTop: 2, minHeight: 70 }}>
           {draft !== '' || savedWeight != null ? (
-            <Display>{draft !== '' ? draft : savedWeight!.toFixed(1)}</Display>
+            <Display>{draft !== '' ? draft : u.weightValue(savedWeight)}</Display>
           ) : (
             // Caret where the numeral will go.
             <View style={{ height: 70, justifyContent: 'center', paddingLeft: 2 }}>
@@ -207,13 +225,16 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
             </View>
           )}
           <Body style={{ fontFamily: font.medium, fontSize: 20 }} color={colors.muted}>
-            kg
+            {u.labels.weight}
           </Body>
         </View>
 
         <View style={{ marginTop: 6 }}>
-          <Body style={{ fontFamily: font.medium, fontSize: 14 }} color={deltaColor(delta, colors)}>
-            {deltaText(delta, draftValue, cursor === today)}
+          <Body
+            style={{ fontFamily: font.medium, fontSize: 14 }}
+            color={draftError ? colors.missed : deltaColor(delta, colors)}
+          >
+            {draftError ?? deltaText(delta, draftKg, cursor === today, u)}
           </Body>
         </View>
       </Card>
@@ -269,10 +290,12 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
         />
         <NumberField
           label="Water"
-          unit="L"
-          hint={targetHint(entry?.waterL, profile.targetWaterL, 'L')}
-          value={fieldText(entry?.waterL)}
-          onChangeText={setNumericField('waterL')}
+          unit={u.labels.volume}
+          hint={volumeTargetHint(entry?.waterL, profile.targetWaterL, u)}
+          value={u.volumeField(entry?.waterL)}
+          onChangeText={(text) =>
+            updateEntry(cursor, { waterL: text === '' ? null : u.parseVolume(text) })
+          }
           valueColor={missedColor(entry?.waterL, profile.targetWaterL, colors)}
         />
         <NumberField
@@ -386,13 +409,18 @@ function deltaColor(delta: number | null, colors: Colors): string {
   return delta < -0.05 ? colors.greenText : colors.text;
 }
 
-function deltaText(delta: number | null, draftValue: number | null, isToday: boolean): string {
+function deltaText(
+  delta: number | null,
+  draftKg: number | null,
+  isToday: boolean,
+  u: UnitFormatter,
+): string {
   if (delta == null) {
-    return draftValue == null ? 'Nothing logged yet — tap a number' : 'First weigh-in of the plan';
+    return draftKg == null ? 'Nothing logged yet — tap a number' : 'First weigh-in of the plan';
   }
-  if (Math.abs(delta) < 0.05) return `No change since ${isToday ? 'yesterday' : 'the last weigh-in'}`;
-  const arrow = delta < 0 ? '↓' : '↑';
-  return `${arrow} ${Math.abs(delta).toFixed(1)} kg since ${isToday ? 'yesterday' : 'the last weigh-in'}`;
+  const since = isToday ? 'yesterday' : 'the last weigh-in';
+  const shown = u.weightDelta(delta);
+  return shown === 'No change' ? `No change since ${since}` : `${shown} since ${since}`;
 }
 
 /** "− 0.2 L under 3 L" / "+ 1,240 over 8,000" — the shortfall spelled out. */
@@ -405,6 +433,21 @@ function targetHint(value: number | null | undefined, target: number, unit: stri
   return diff < 0
     ? `− ${rounded}${suffix} under ${target.toLocaleString('en-GB')}${suffix}`
     : `+ ${rounded}${suffix} over ${target.toLocaleString('en-GB')}${suffix}`;
+}
+
+/** The same shortfall sentence, in whichever volume unit is on screen. */
+function volumeTargetHint(
+  litres: number | null | undefined,
+  targetLitres: number,
+  u: UnitFormatter,
+): string {
+  if (litres == null) return `Target ${u.volume(targetLitres)}`;
+  const diff = litres - targetLitres;
+  if (Math.abs(diff) < 0.001) return `Exactly ${u.volume(targetLitres)}`;
+  const magnitude = u.volume(Math.abs(diff));
+  return diff < 0
+    ? `− ${magnitude} under ${u.volume(targetLitres)}`
+    : `+ ${magnitude} over ${u.volume(targetLitres)}`;
 }
 
 /** Amber-red on a logged value that missed its habit threshold. */

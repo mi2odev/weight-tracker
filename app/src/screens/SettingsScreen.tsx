@@ -4,10 +4,11 @@ import { View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, space } from '../theme/tokens';
 import { useStore } from '../data/store';
-import { ACTIVITY_LEVELS, ActivityLevel, NotificationSettings, Sex } from '../data/types';
+import { useDerived } from '../data/derived';
+import { ACTIVITY_LEVELS, ActivityLevel, NotificationSettings, Sex, Units } from '../data/types';
 import { Card, Grid } from '../components/Card';
 import { GhostButton, NumberField, PrimaryButton, SectionHeading, Segmented, Toggle, ValueRow } from '../components/Controls';
-import { Sheet } from '../components/Overlays';
+import { ConfirmDialog, Sheet } from '../components/Overlays';
 import { Screen } from '../components/Screen';
 import { Body, Caption } from '../components/Type';
 import {
@@ -15,7 +16,6 @@ import {
   bmiBand,
   currentWeight,
   expectedLossPerWeek,
-  f1,
   healthyWeightRange,
   int,
   bmr as restingBurn,
@@ -34,11 +34,14 @@ const REMINDERS: { key: keyof NotificationSettings; label: string; sub: string }
 
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const { preference, setPreference } = useTheme();
-  const { data, setNotification, replayOnboarding, loadDemo, resetAll, showToast } = useStore();
+  const { data, setNotification, updateProfile, replayOnboarding, loadDemo, resetAll, exportCsv, showToast } =
+    useStore();
+  const { u } = useDerived();
   const { profile, entries } = data;
 
   const [planSheet, setPlanSheet] = useState(false);
   const [targetSheet, setTargetSheet] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const current = currentWeight(entries, profile);
   const bmiValue = bmi(current, profile.heightCm);
@@ -52,9 +55,9 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       <SectionHeading title="Your plan" />
       <Card padded={false} hero style={{ paddingHorizontal: 18 }}>
         <ValueRow label="Start date" value={formatMedium(profile.startDate)} />
-        <ValueRow label="Starting weight" value={`${f1(profile.startWeightKg)} kg`} />
-        <ValueRow label="Goal weight" value={`${f1(profile.goalWeightKg)} kg`} />
-        <ValueRow label="Height" value={`${profile.heightCm} cm`} />
+        <ValueRow label="Starting weight" value={u.weight(profile.startWeightKg)} />
+        <ValueRow label="Goal weight" value={u.weight(profile.goalWeightKg)} />
+        <ValueRow label="Height" value={u.height(profile.heightCm)} />
         <ValueRow label="Age" value={`${profile.ageYears} yrs`} />
         <ValueRow label="Sex" value={profile.sex} />
         <ValueRow label="Activity level" value={profile.activityLevel} last />
@@ -67,7 +70,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       <Card padded={false} hero style={{ paddingHorizontal: 18 }}>
         <ValueRow label="Calories" value={`${int(profile.targetCalories)} kcal`} />
         <ValueRow label="Protein" value={`${profile.targetProteinG} g`} />
-        <ValueRow label="Water" value={`${profile.targetWaterL} L`} />
+        <ValueRow label="Water" value={u.volume(profile.targetWaterL)} />
         <ValueRow label="Steps" value={int(profile.targetSteps)} />
         <ValueRow label="Sleep" value={`${profile.targetSleepH} h`} last />
       </Card>
@@ -83,7 +86,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         <ValueRow
           label="Healthy weight range"
           note="BMI 18.5–24.9 at your height"
-          value={`${f1(healthy.lowKg)}–${f1(healthy.highKg)} kg`}
+          value={`${u.weightValue(healthy.lowKg)}–${u.weight(healthy.highKg)}`}
         />
         <ValueRow
           label="Resting burn (BMR)"
@@ -95,12 +98,12 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         <ValueRow
           label="Expected loss at target"
           note="7 700 kcal ≈ 1 kg"
-          value={`${f1(expectedLossPerWeek(current, profile))} kg/week`}
+          value={`${u.weight(expectedLossPerWeek(current, profile))}/week`}
         />
         <ValueRow
           label="Required pace"
           note="To reach goal inside 730 days"
-          value={`${f1(requiredPacePerWeek(profile))} kg/week`}
+          value={`${u.weight(requiredPacePerWeek(profile))}/week`}
           last
         />
       </Card>
@@ -128,6 +131,20 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         ))}
       </View>
 
+      {/* ── units ───────────────────────────────────────────────────────── */}
+      <View style={{ marginTop: space.lg }}>
+        <SectionHeading title="Units" />
+      </View>
+      <Segmented
+        options={['metric', 'imperial'] as const}
+        value={profile.units}
+        onChange={(units: Units) => updateProfile({ units })}
+      />
+      <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
+        Display only — everything is stored in kilograms and centimetres, so switching back and forth never loses
+        precision.
+      </Caption>
+
       {/* ── appearance ──────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
         <SectionHeading title="Appearance" />
@@ -142,16 +159,10 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       <View style={{ marginTop: space.lg }}>
         <SectionHeading title="Data" />
       </View>
+      <GhostButton label="Export everything as CSV" onPress={exportCsv} />
       <GhostButton label="Replay onboarding" tone="muted" onPress={replayOnboarding} />
       <GhostButton label="Load the 8-week demo journey" tone="muted" onPress={loadDemo} />
-      <GhostButton
-        label="Reset everything"
-        tone="muted"
-        onPress={() => {
-          resetAll();
-          showToast('Everything cleared');
-        }}
-      />
+      <GhostButton label="Reset everything" tone="muted" onPress={() => setConfirmReset(true)} />
       <Caption style={{ fontSize: 11.5, lineHeight: 17, marginTop: space.sm, paddingHorizontal: space.xs }}>
         Everything lives on this device. The demo journey fills in eight weeks of weigh-ins so the populated screens
         are reachable without waiting.
@@ -159,6 +170,21 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
 
       <PlanSheet visible={planSheet} onClose={() => setPlanSheet(false)} />
       <TargetSheet visible={targetSheet} onClose={() => setTargetSheet(false)} />
+
+      {/* The one action with no undo, so it is the one action that asks. */}
+      <ConfirmDialog
+        visible={confirmReset}
+        title="Reset everything?"
+        body="Every weigh-in, meal, workout and measurement is deleted from this device. This cannot be undone — export first if you want to keep a copy."
+        confirmLabel="Delete it all"
+        destructive
+        onCancel={() => setConfirmReset(false)}
+        onConfirm={() => {
+          setConfirmReset(false);
+          resetAll();
+          showToast('Everything cleared');
+        }}
+      />
     </Screen>
   );
 }
@@ -167,25 +193,30 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
 
 function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { data, updateProfile, showToast } = useStore();
+  const { u } = useDerived();
   const { profile } = data;
 
-  const [startWeight, setStartWeight] = useState(String(profile.startWeightKg));
-  const [goalWeight, setGoalWeight] = useState(String(profile.goalWeightKg));
-  const [height, setHeight] = useState(String(profile.heightCm));
+  // Fields hold display units; every bound is checked against metric.
+  const [startWeight, setStartWeight] = useState(u.weightField(profile.startWeightKg));
+  const [goalWeight, setGoalWeight] = useState(u.weightField(profile.goalWeightKg));
+  const [height, setHeight] = useState(u.lengthField(profile.heightCm));
   const [age, setAge] = useState(String(profile.ageYears));
   const [sex, setSex] = useState<Sex>(profile.sex);
   const [activity, setActivity] = useState<ActivityLevel>(profile.activityLevel);
 
   const submit = () => {
-    const sw = Number.parseFloat(startWeight);
-    const gw = Number.parseFloat(goalWeight);
-    const h = Number.parseInt(height, 10);
+    const sw = u.parseWeight(startWeight);
+    const gw = u.parseWeight(goalWeight);
+    const h = u.parseLength(height);
     const a = Number.parseInt(age, 10);
 
-    if (!Number.isFinite(sw) || sw < 30 || sw > 400) return showToast('Starting weight must be 30–400 kg');
-    if (!Number.isFinite(gw) || gw < 30 || gw > 400) return showToast('Goal weight must be 30–400 kg');
+    if (sw == null || sw < 30 || sw > 400)
+      return showToast(`Starting weight must be ${u.weightValue(30)}–${u.weight(400)}`);
+    if (gw == null || gw < 30 || gw > 400)
+      return showToast(`Goal weight must be ${u.weightValue(30)}–${u.weight(400)}`);
     if (gw >= sw) return showToast('Goal weight must be below your starting weight');
-    if (!Number.isFinite(h) || h < 100 || h > 250) return showToast('Height must be 100–250 cm');
+    if (h == null || h < 100 || h > 250)
+      return showToast(`Height must be ${u.height(100)}–${u.height(250)}`);
     if (!Number.isFinite(a) || a < 14 || a > 100) return showToast('Age must be 14–100');
 
     updateProfile({
@@ -203,9 +234,9 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
   return (
     <Sheet visible={visible} title="Edit plan" onClose={onClose}>
       <Grid columns={2}>
-        <NumberField label="Starting weight" unit="kg" value={startWeight} onChangeText={setStartWeight} />
-        <NumberField label="Goal weight" unit="kg" value={goalWeight} onChangeText={setGoalWeight} />
-        <NumberField label="Height" unit="cm" value={height} onChangeText={setHeight} />
+        <NumberField label="Starting weight" unit={u.labels.weight} value={startWeight} onChangeText={setStartWeight} />
+        <NumberField label="Goal weight" unit={u.labels.weight} value={goalWeight} onChangeText={setGoalWeight} />
+        <NumberField label="Height" unit={u.labels.length} value={height} onChangeText={setHeight} />
         <NumberField label="Age" unit="yrs" value={age} onChangeText={setAge} />
       </Grid>
       <Segmented options={['Male', 'Female'] as const} value={sex} onChange={setSex} />
@@ -220,11 +251,12 @@ function PlanSheet({ visible, onClose }: { visible: boolean; onClose: () => void
 
 function TargetSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { data, updateProfile, showToast } = useStore();
+  const { u } = useDerived();
   const { profile } = data;
 
   const [calories, setCalories] = useState(String(profile.targetCalories));
   const [protein, setProtein] = useState(String(profile.targetProteinG));
-  const [water, setWater] = useState(String(profile.targetWaterL));
+  const [water, setWater] = useState(u.volumeField(profile.targetWaterL));
   const [steps, setSteps] = useState(String(profile.targetSteps));
   const [sleep, setSleep] = useState(String(profile.targetSleepH));
 
@@ -232,7 +264,7 @@ function TargetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
     const values = {
       targetCalories: Number.parseInt(calories, 10),
       targetProteinG: Number.parseInt(protein, 10),
-      targetWaterL: Number.parseFloat(water),
+      targetWaterL: u.parseVolume(water) ?? NaN,
       targetSteps: Number.parseInt(steps, 10),
       targetSleepH: Number.parseFloat(sleep),
     };
@@ -249,7 +281,7 @@ function TargetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
       <Grid columns={2}>
         <NumberField label="Calories" unit="kcal" value={calories} onChangeText={setCalories} />
         <NumberField label="Protein" unit="g" value={protein} onChangeText={setProtein} />
-        <NumberField label="Water" unit="L" value={water} onChangeText={setWater} />
+        <NumberField label="Water" unit={u.labels.volume} value={water} onChangeText={setWater} />
         <NumberField label="Steps" value={steps} onChangeText={setSteps} />
         <NumberField label="Sleep" unit="h" value={sleep} onChangeText={setSleep} />
       </Grid>

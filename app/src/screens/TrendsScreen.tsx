@@ -4,13 +4,15 @@ import { View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space, tnum } from '../theme/tokens';
 import { useStore } from '../data/store';
+import { useDerived } from '../data/derived';
+import { UnitFormatter } from '../lib/units';
 import { Card } from '../components/Card';
 import { EmptyState, Segmented } from '../components/Controls';
 import { Screen } from '../components/Screen';
 import { Bar, LossBars } from '../components/charts/LossBars';
 import { Body, Caption, Stat } from '../components/Type';
-import { f1, int, monthlyRollups, weeklyRollups } from '../lib/calc';
-import { addDays, formatShort, todayKey } from '../lib/date';
+import { f1, int } from '../lib/calc';
+import { addDays, formatShort } from '../lib/date';
 
 const MODES = ['Week', 'Month'] as const;
 type Mode = (typeof MODES)[number];
@@ -23,12 +25,13 @@ interface Chip {
 export function TrendsScreen() {
   const { colors } = useTheme();
   const { data } = useStore();
-  const { profile, entries } = data;
-  const today = todayKey();
+  const d = useDerived();
+  const { u } = d;
+  const { profile } = data;
   const [mode, setMode] = useState<Mode>('Week');
 
-  const weeks = weeklyRollups(entries, profile, today);
-  const months = monthlyRollups(entries, today);
+  const weeks = d.weeks;
+  const months = d.months;
 
   const bars: Bar[] =
     mode === 'Week'
@@ -47,12 +50,12 @@ export function TrendsScreen() {
             lost: w.lostKg,
             pct: w.pctChange,
             chips: [
-              { key: 'Avg wt', value: f1(w.averageWeightKg) },
+              { key: 'Avg wt', value: u.weightValue(w.averageWeightKg) },
               { key: 'Kcal', value: int(w.avgCalories) },
               { key: 'Protein', value: w.avgProteinG == null ? '—' : `${Math.round(w.avgProteinG)}g` },
               { key: 'Steps', value: int(w.avgSteps) },
               { key: 'Sleep', value: w.avgSleepH == null ? '—' : `${f1(w.avgSleepH)}h` },
-              { key: 'Water', value: w.avgWaterL == null ? '—' : `${f1(w.avgWaterL)}L` },
+              { key: 'Water', value: u.volume(w.avgWaterL) },
               { key: 'Cardio', value: `${w.cardioMin}min` },
               { key: 'Strength', value: `${w.strengthDays}d` },
               { key: 'Logged', value: `${w.daysLogged}/7` },
@@ -68,10 +71,10 @@ export function TrendsScreen() {
             lost: m.lostKg,
             pct: m.pctLost == null ? null : -m.pctLost,
             chips: [
-              { key: 'Start', value: f1(m.startWeightKg) },
-              { key: 'End', value: f1(m.endWeightKg) },
+              { key: 'Start', value: u.weightValue(m.startWeightKg) },
+              { key: 'End', value: u.weightValue(m.endWeightKg) },
               { key: 'Per day', value: m.avgDailyLossKg == null ? '—' : m.avgDailyLossKg.toFixed(2) },
-              { key: 'Per week', value: f1(m.avgWeeklyLossKg) },
+              { key: 'Per week', value: u.weightValue(m.avgWeeklyLossKg) },
               { key: 'Logged', value: `${m.daysLogged}d` },
             ] as Chip[],
           }));
@@ -101,7 +104,7 @@ export function TrendsScreen() {
         <>
           <Card hero style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14, marginTop: space.sm }}>
             <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>
-              Kilos lost per {mode.toLowerCase()}
+              {u.units === 'imperial' ? 'Pounds' : 'Kilos'} lost per {mode.toLowerCase()}
             </Body>
             <View style={{ marginTop: space.lg }}>
               <LossBars bars={bars} />
@@ -122,7 +125,7 @@ export function TrendsScreen() {
                     style={{ fontSize: 19 }}
                     color={(row.lost ?? 0) > 0.05 ? colors.greenText : colors.text}
                   >
-                    {formatLost(row.lost)}
+                    {formatLost(row.lost, u)}
                   </Stat>
                   <Caption style={[{ fontSize: 11.5 }, tnum]}>
                     {row.pct == null ? '—' : `${row.pct > 0 ? '+' : ''}${row.pct.toFixed(1)}%`}
@@ -163,8 +166,8 @@ export function TrendsScreen() {
  * A flat week shows no sign at all — a bare "0.0 kg" reads better than
  * "− 0.0 kg", which the design chat called out explicitly.
  */
-function formatLost(lost: number | null): string {
-  if (lost == null) return '— kg';
-  if (Math.abs(lost) < 0.05) return '0.0 kg';
-  return `${lost > 0 ? '−' : '+'} ${Math.abs(lost).toFixed(1)} kg`;
+function formatLost(lost: number | null, u: UnitFormatter): string {
+  if (lost == null) return `— ${u.labels.weight}`;
+  if (Math.abs(lost) < 0.05) return `0.0 ${u.labels.weight}`;
+  return `${lost > 0 ? '−' : '+'} ${u.weight(Math.abs(lost))}`;
 }

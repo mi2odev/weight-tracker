@@ -28,7 +28,7 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
  */
 export function Root() {
   const { colors, mode } = useTheme();
-  const { data, hydrated, toast, celebration, dismissCelebration } = useStore();
+  const { data, hydrated, toast, undo, celebration, dismissCelebration } = useStore();
   const [route, setRoute] = useState<Route>(HOME);
 
   const goTab = useCallback((tab: TabKey) => setRoute({ kind: 'tab', tab }), []);
@@ -91,7 +91,7 @@ export function Root() {
 
       <TabBar active={activeTab} onChange={goTab} />
 
-      <Toast message={toast} />
+      <Toast message={toast} action={undo} />
       <CelebrationModal celebration={celebration} onClose={dismissCelebration} />
     </View>
   );

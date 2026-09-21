@@ -21,6 +21,8 @@ import {
 } from './types';
 import { demoData, emptyData } from './seed';
 import { mealTotals, newlyAchievedMilestones, workoutTotals } from '../lib/calc';
+import { fireMilestoneReached, syncReminders } from '../lib/notifications';
+import { shareExport } from '../lib/export';
 import { todayKey } from '../lib/date';
 
 const STORAGE_KEY = 'wt.data.v1';
@@ -41,7 +43,10 @@ interface StoreValue {
   setCursor: (d: DateKey) => void;
 
   toast: string;
-  showToast: (message: string) => void;
+  showToast: (message: string, undoable?: { label: string; run: () => void }) => void;
+  /** Set alongside a toast when the action that raised it can be taken back. */
+  undo: { label: string; run: () => void } | null;
+  dismissUndo: () => void;
 
   celebration: Celebration | null;
   dismissCelebration: () => void;
@@ -64,6 +69,8 @@ interface StoreValue {
 
   loadDemo: () => void;
   resetAll: () => void;
+  /** Writes the log out as CSV and opens the share sheet. */
+  exportCsv: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -100,6 +107,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [cursor, setCursor] = useState<DateKey>(() => todayKey());
   const [toast, setToast] = useState('');
+  const [undo, setUndo] = useState<{ label: string; run: () => void } | null>(null);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -121,14 +129,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data)).catch(() => {});
   }, [data, hydrated]);
 
+  /**
+   * Two of the four reminders are conditional on the log, so the schedule is
+   * rewritten whenever the log or the toggles change rather than set once.
+   * Failure here is never surfaced — a reminder that could not be scheduled
+   * must not block logging.
+   */
+  useEffect(() => {
+    if (!hydrated || !data.onboarded) return;
+    syncReminders(data).catch(() => {});
+  }, [hydrated, data]);
+
   useEffect(() => () => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
-  const showToast = useCallback((message: string) => {
+  const showToast = useCallback((message: string, undoable?: { label: string; run: () => void }) => {
     setToast(message);
+    setUndo(undoable ?? null);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(''), 2400);
+    // An undoable toast lingers longer — it is asking a question, not just
+    // reporting, and 2.4 s is not enough time to decide.
+    toastTimer.current = setTimeout(
+      () => {
+        setToast('');
+        setUndo(null);
+      },
+      undoable ? 5000 : 2400,
+    );
   }, []);
 
   const saveWeighIn = useCallback<StoreValue['saveWeighIn']>(
@@ -162,18 +190,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const target = Math.min(...crossed);
         const span = data.profile.startWeightKg - data.profile.goalWeightKg;
         const kgFromStart = data.profile.startWeightKg - target;
+        const reward = data.rewards[String(target)] ?? '';
         setCelebration({
           targetKg: target,
           kgFromStart,
           pctOfGoal: span > 0 ? (kgFromStart / span) * 100 : 0,
-          reward: data.rewards[String(target)] ?? '',
+          reward,
         });
+        // Fired once, the first time the achieved date is set.
+        if (data.notifications.milestoneReached) {
+          fireMilestoneReached(target, kgFromStart, reward).catch(() => {});
+        }
       } else {
         showToast(date === todayKey() ? 'Weigh-in saved for today' : 'Weigh-in saved');
       }
       return null;
     },
-    [data.profile, data.rewards, showToast],
+    [data.profile, data.rewards, data.notifications.milestoneReached, showToast],
   );
 
   const updateEntry = useCallback<StoreValue['updateEntry']>((date, patch) => {
@@ -196,13 +229,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const removeMeal = useCallback<StoreValue['removeMeal']>((id) => {
-    setData((prev) => {
-      const target = prev.meals.find((m) => m.id === id);
-      const next: AppData = { ...prev, meals: prev.meals.filter((m) => m.id !== id) };
-      return target ? { ...next, entries: applyLogRollup(next, target.logDate) } : next;
-    });
-  }, []);
+  /**
+   * Deletes are undoable: the removed row is captured and re-inserted intact,
+   * so an accidental tap costs nothing. The roll-up is recomputed both ways.
+   */
+  const removeMeal = useCallback<StoreValue['removeMeal']>(
+    (id) => {
+      let removed: MealEntry | undefined;
+      setData((prev) => {
+        removed = prev.meals.find((m) => m.id === id);
+        if (!removed) return prev;
+        const next: AppData = { ...prev, meals: prev.meals.filter((m) => m.id !== id) };
+        return { ...next, entries: applyLogRollup(next, removed.logDate) };
+      });
+
+      if (!removed) return;
+      const restored = removed;
+      showToast('Meal deleted', {
+        label: 'Undo',
+        run: () =>
+          setData((prev) => {
+            if (prev.meals.some((m) => m.id === restored.id)) return prev;
+            const next: AppData = { ...prev, meals: prev.meals.concat(restored) };
+            return { ...next, entries: applyLogRollup(next, restored.logDate) };
+          }),
+      });
+    },
+    [showToast],
+  );
 
   const addWorkout = useCallback<StoreValue['addWorkout']>((workout) => {
     setData((prev) => {
@@ -214,13 +268,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const removeWorkout = useCallback<StoreValue['removeWorkout']>((id) => {
-    setData((prev) => {
-      const target = prev.workouts.find((w) => w.id === id);
-      const next: AppData = { ...prev, workouts: prev.workouts.filter((w) => w.id !== id) };
-      return target ? { ...next, entries: applyLogRollup(next, target.logDate) } : next;
-    });
-  }, []);
+  const removeWorkout = useCallback<StoreValue['removeWorkout']>(
+    (id) => {
+      let removed: WorkoutEntry | undefined;
+      setData((prev) => {
+        removed = prev.workouts.find((w) => w.id === id);
+        if (!removed) return prev;
+        const next: AppData = { ...prev, workouts: prev.workouts.filter((w) => w.id !== id) };
+        return { ...next, entries: applyLogRollup(next, removed.logDate) };
+      });
+
+      if (!removed) return;
+      const restored = removed;
+      showToast('Workout deleted', {
+        label: 'Undo',
+        run: () =>
+          setData((prev) => {
+            if (prev.workouts.some((w) => w.id === restored.id)) return prev;
+            const next: AppData = { ...prev, workouts: prev.workouts.concat(restored) };
+            return { ...next, entries: applyLogRollup(next, restored.logDate) };
+          }),
+      });
+    },
+    [showToast],
+  );
 
   const addMeasurement = useCallback<StoreValue['addMeasurement']>((m) => {
     setData((prev) => ({
@@ -263,6 +334,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCursor(todayKey());
   }, []);
 
+  const exportCsv = useCallback(async () => {
+    try {
+      showToast(await shareExport(data));
+    } catch {
+      showToast('Could not export — try again');
+    }
+  }, [data, showToast]);
+
   const value = useMemo<StoreValue>(
     () => ({
       data,
@@ -271,6 +350,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setCursor,
       toast,
       showToast,
+      undo,
+      dismissUndo: () => setUndo(null),
       celebration,
       dismissCelebration: () => setCelebration(null),
       saveWeighIn,
@@ -287,6 +368,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setNotification,
       loadDemo,
       resetAll,
+      exportCsv,
     }),
     [
       data,
@@ -294,6 +376,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       cursor,
       toast,
       showToast,
+      undo,
       celebration,
       saveWeighIn,
       updateEntry,
@@ -309,6 +392,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setNotification,
       loadDemo,
       resetAll,
+      exportCsv,
     ],
   );
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space } from '../theme/tokens';
 import { Body, Caption, Title } from './Type';
@@ -8,12 +8,21 @@ import { PrimaryButton } from './Controls';
 import { Celebration } from '../data/store';
 import { f1 } from '../lib/calc';
 
-export function Toast({ message }: { message: string }) {
+export function Toast({
+  message,
+  action,
+}: {
+  message: string;
+  /** Renders an inline button — used for Undo after a delete. */
+  action?: { label: string; run: () => void } | null;
+}) {
   const { colors } = useTheme();
   if (!message) return null;
+
   return (
     <View
-      pointerEvents="none"
+      // Only swallow touches when there is something to tap.
+      pointerEvents={action ? 'box-none' : 'none'}
       accessibilityLiveRegion="polite"
       style={{
         position: 'absolute',
@@ -22,17 +31,139 @@ export function Toast({ message }: { message: string }) {
         bottom: 96,
         backgroundColor: colors.text,
         borderRadius: radius.md,
-        paddingVertical: 14,
-        paddingHorizontal: space.lg,
+        paddingVertical: action ? 10 : 14,
+        paddingLeft: space.lg,
+        paddingRight: action ? space.sm : space.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space.md,
       }}
     >
       <Body
-        style={{ textAlign: 'center', fontFamily: font.semibold, fontSize: 13.5 }}
+        style={{
+          flex: 1,
+          textAlign: action ? 'left' : 'center',
+          fontFamily: font.semibold,
+          fontSize: 13.5,
+        }}
         color={colors.page}
       >
         {message}
       </Body>
+
+      {!!action && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
+          onPress={action.run}
+          hitSlop={8}
+          style={({ pressed }) => ({
+            minHeight: 36,
+            paddingHorizontal: 14,
+            justifyContent: 'center',
+            borderRadius: radius.sm,
+            backgroundColor: pressed ? 'rgba(255,255,255,0.18)' : 'transparent',
+          })}
+        >
+          <Body style={{ fontFamily: font.semibold, fontSize: 13.5 }} color={colors.accent}>
+            {action.label}
+          </Body>
+        </Pressable>
+      )}
     </View>
+  );
+}
+
+/**
+ * A blocking yes/no. Used only where an action cannot be undone — resetting
+ * the log, which has no restore path once the store is overwritten.
+ */
+export function ConfirmDialog({
+  visible,
+  title,
+  body,
+  confirmLabel,
+  destructive = false,
+  onConfirm,
+  onCancel,
+}: {
+  visible: boolean;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  destructive?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onCancel}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(28,28,26,0.55)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 28,
+        }}
+      >
+        <View
+          style={{
+            width: '100%',
+            backgroundColor: colors.card,
+            borderRadius: 24,
+            padding: space.xl,
+            gap: space.sm,
+          }}
+        >
+          <Title style={{ fontSize: 20 }}>{title}</Title>
+          <Body style={{ fontSize: 14, lineHeight: 20 }} color={colors.muted}>
+            {body}
+          </Body>
+
+          <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onCancel}
+              style={{
+                flex: 1,
+                minHeight: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: radius.md,
+                borderWidth: 1,
+                borderColor: colors.line,
+              }}
+            >
+              <Body style={{ fontFamily: font.semibold, fontSize: 15 }}>Cancel</Body>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={onConfirm}
+              style={({ pressed }) => ({
+                flex: 1,
+                minHeight: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: radius.md,
+                backgroundColor: destructive
+                  ? colors.missed
+                  : pressed
+                    ? colors.accentPressed
+                    : colors.accent,
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Body style={{ fontFamily: font.semibold, fontSize: 15 }} color="#FFFFFF">
+                {confirmLabel}
+              </Body>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
