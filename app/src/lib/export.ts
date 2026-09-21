@@ -105,6 +105,26 @@ export async function shareRawStorage(payload: string): Promise<string> {
   return 'Shared — keep it somewhere safe';
 }
 
+/**
+ * Shares one scrubbed crash report as a text file.
+ *
+ * The user has to start this, every time. Nothing is uploaded on its own, and
+ * what goes out is exactly the text the crash screen and the Privacy screen
+ * already showed them — `diagnostics.ts` built it, and there is no second,
+ * fuller version kept back for this.
+ */
+export async function shareCrashReport(text: string): Promise<string> {
+  const name = `weight-tracker-crash-${new Date().toISOString().slice(0, 10)}.txt`;
+  const uri = writeFile(name, text);
+
+  if (!(await Sharing.isAvailableAsync())) {
+    return 'Saved the report to app storage';
+  }
+
+  await share(uri, 'text/plain', 'Crash report', 'public.plain-text');
+  return 'Report shared — thank you';
+}
+
 // ── reading a file back in ───────────────────────────────────────────────────
 
 export type PickedFile = { canceled: true } | { canceled: false; name: string; text: string };
