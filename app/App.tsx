@@ -13,6 +13,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { StoreProvider } from './src/data/store';
 import { DerivedProvider } from './src/data/derived';
 import { Root } from './src/navigation/Root';
+import { LockGate } from './src/components/LockGate';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -26,7 +27,9 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <StoreProvider>
-          <DerivedProvider>{fontsLoaded ? <Root /> : <Splash />}</DerivedProvider>
+          <DerivedProvider>
+            <LockGate>{fontsLoaded ? <Root /> : <Splash />}</LockGate>
+          </DerivedProvider>
         </StoreProvider>
       </ThemeProvider>
     </SafeAreaProvider>

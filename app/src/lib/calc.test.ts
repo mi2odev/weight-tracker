@@ -27,6 +27,7 @@ import {
   milestones,
   monthlyRollups,
   newlyAchievedMilestones,
+  photoComparison,
   plannedDailyDeficit,
   requiredPacePerWeek,
   suggestedCalorieTarget,
@@ -40,7 +41,7 @@ import {
   workoutTotals,
 } from './calc';
 import { addDays } from './date';
-import { Profile, WeighIn, WorkoutEntry } from '../data/types';
+import { Measurement, Profile, WeighIn, WorkoutEntry } from '../data/types';
 
 const START = '2026-09-13';
 
@@ -394,5 +395,54 @@ describe('maintaining', () => {
   it('turns off the countdown, which has nowhere to arrive', () => {
     assert.equal(isCountdown(profile), true);
     assert.equal(isCountdown(maintain), false);
+  });
+});
+
+describe('photoComparison', () => {
+  const meas = (logDate: string, waistCm: number, photo: string | null): Measurement => ({
+    id: `m-${logDate}`,
+    logDate,
+    waistCm,
+    chestCm: 120,
+    armsCm: 40,
+    thighsCm: 70,
+    neckCm: 45,
+    photo,
+  });
+
+  it('pairs the earliest and latest photographed days', () => {
+    const result = photoComparison(
+      [
+        meas(START, 130, 'file://a.jpg'),
+        meas(addDays(START, 30), 126, null),
+        meas(addDays(START, 60), 122, 'file://b.jpg'),
+      ],
+      [
+        { logDate: START, weightKg: 157 },
+        { logDate: addDays(START, 60), weightKg: 150 },
+      ],
+    );
+
+    assert.ok(result);
+    assert.equal(result.before.logDate, START);
+    assert.equal(result.after.logDate, addDays(START, 60));
+    assert.equal(result.days, 60);
+    assert.equal(result.weightDeltaKg, -7);
+    assert.equal(result.waistDeltaCm, -8);
+  });
+
+  it('needs both halves — one photo is not a comparison', () => {
+    assert.equal(photoComparison([meas(START, 130, 'file://a.jpg')], []), null);
+    assert.equal(photoComparison([meas(START, 130, null), meas(addDays(START, 7), 129, null)], []), null);
+  });
+
+  it('still pairs when a photographed day was never weighed', () => {
+    const result = photoComparison(
+      [meas(START, 130, 'file://a.jpg'), meas(addDays(START, 7), 129, 'file://b.jpg')],
+      [{ logDate: START, weightKg: 157 }],
+    );
+    assert.ok(result);
+    assert.equal(result.weightDeltaKg, null);
+    assert.equal(result.waistDeltaCm, -1);
   });
 });

@@ -44,6 +44,7 @@ function makeData(over: Partial<AppData> = {}): AppData {
       weeklySummary: true,
       milestoneReached: true,
     },
+    lock: { enabled: false, graceSeconds: 60 },
     onboarded: true,
     ...over,
   };

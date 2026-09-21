@@ -45,8 +45,25 @@ export function backupFileName(now: Date = new Date()): string {
 }
 
 export type RestoreResult =
-  | { ok: true; data: AppData; exportedAt: string | null; notes: string[] }
+  | {
+      ok: true;
+      data: AppData;
+      exportedAt: string | null;
+      notes: string[];
+      /** Base64 photos keyed by measurement id, when the backup carried them. */
+      photos: Record<string, string>;
+    }
   | { ok: false; reason: string };
+
+/** Base64 photos off a parsed envelope, keeping only usable string entries. */
+function readPhotos(raw: unknown): Record<string, string> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string' && value.length) out[id] = value;
+  }
+  return out;
+}
 
 /**
  * Validates a backup file's text and returns the data it holds.
@@ -94,6 +111,22 @@ export function parseBackup(text: string): RestoreResult {
     data: result.data,
     exportedAt: typeof envelope.exportedAt === 'string' ? envelope.exportedAt : null,
     notes: result.notes,
+    photos: readPhotos(envelope.photos),
+  };
+}
+
+/**
+ * Re-points restored measurements at the photo files written on *this* device.
+ *
+ * Every URI in a backup belongs to the device that made it, so a measurement
+ * either gets a freshly written local file or nothing at all. Keeping the old
+ * path would leave the UI showing a broken frame for a photo that cannot exist.
+ */
+export function applyRestoredPhotos(data: AppData, uriById: Record<string, string>): AppData {
+  if (!data.measurements.some((m) => m.photo || uriById[m.id])) return data;
+  return {
+    ...data,
+    measurements: data.measurements.map((m) => ({ ...m, photo: uriById[m.id] ?? null })),
   };
 }
 

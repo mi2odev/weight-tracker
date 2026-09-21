@@ -24,6 +24,7 @@ import {
 } from './types';
 import { addDays, todayKey } from '../lib/date';
 import { suggestedCalorieTarget, suggestedProteinTarget, tdee } from '../lib/calc';
+import { DEFAULT_LOCK } from '../lib/lockRules';
 
 const DEFAULT_NOTIFICATIONS = {
   morningWeighIn: true,
@@ -67,6 +68,7 @@ export function emptyData(): AppData {
     achieved: {},
     celebrated: [],
     notifications: { ...DEFAULT_NOTIFICATIONS },
+    lock: { ...DEFAULT_LOCK },
     onboarded: false,
   };
 }
@@ -200,6 +202,7 @@ export function demoData(): AppData {
     achieved,
     celebrated: Object.keys(achieved).map(Number),
     notifications: { ...DEFAULT_NOTIFICATIONS },
+    lock: { ...DEFAULT_LOCK },
     onboarded: true,
   };
 }

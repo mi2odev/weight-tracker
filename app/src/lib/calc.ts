@@ -720,6 +720,44 @@ export function measurementDeltas(measurements: Measurement[]) {
   }));
 }
 
+export interface PhotoComparison {
+  before: Measurement;
+  after: Measurement;
+  days: number;
+  /** Null when either day has no weigh-in — a photo pair is still worth showing. */
+  weightDeltaKg: number | null;
+  waistDeltaCm: number;
+}
+
+/**
+ * The earliest and latest measurements that actually carry a photo.
+ *
+ * Null when fewer than two do: a before-and-after needs both halves, and one
+ * photo on its own is not a comparison.
+ */
+export function photoComparison(
+  measurements: Measurement[],
+  entries: WeighIn[],
+): PhotoComparison | null {
+  const withPhotos = measurements
+    .filter((m) => !!m.photo)
+    .sort((a, b) => (a.logDate < b.logDate ? -1 : 1));
+  if (withPhotos.length < 2) return null;
+
+  const before = withPhotos[0];
+  const after = withPhotos[withPhotos.length - 1];
+  const beforeKg = entryFor(entries, before.logDate)?.weightKg ?? null;
+  const afterKg = entryFor(entries, after.logDate)?.weightKg ?? null;
+
+  return {
+    before,
+    after,
+    days: daysBetween(before.logDate, after.logDate),
+    weightDeltaKg: beforeKg != null && afterKg != null ? afterKg - beforeKg : null,
+    waistDeltaCm: after.waistCm - before.waistCm,
+  };
+}
+
 // ── formatting ───────────────────────────────────────────────────────────────
 
 /** One decimal, em-dash for nothing. Used for every weight on screen. */
