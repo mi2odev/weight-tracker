@@ -19,6 +19,7 @@ import { LogScreen } from '../screens/LogScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { PrivacyScreen } from '../screens/PrivacyScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { StorageErrorScreen } from '../screens/StorageErrorScreen';
 
 /**
  * A small explicit router rather than a navigation library.
@@ -29,7 +30,8 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
  */
 export function Root() {
   const { colors, mode } = useTheme();
-  const { data, hydrated, toast, undo, celebration, dismissCelebration } = useStore();
+  const { data, hydrated, storageUnreadable, toast, undo, celebration, dismissCelebration } =
+    useStore();
   const [route, setRoute] = useState<Route>(HOME);
 
   const goTab = useCallback((tab: TabKey) => setRoute({ kind: 'tab', tab }), []);
@@ -52,6 +54,17 @@ export function Root() {
     });
     return () => sub.remove();
   }, [route, back]);
+
+  // Storage would not answer, so nothing is being written. Blocking here is
+  // the point: an empty app plus a debounced save is how a log gets erased.
+  if (storageUnreadable) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.page }}>
+        <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+        <StorageErrorScreen />
+      </View>
+    );
+  }
 
   if (!hydrated) return <View style={{ flex: 1, backgroundColor: colors.page }} />;
 
