@@ -321,20 +321,25 @@ those are decisions rather than defaults.
 
 Every asset in `assets/` is cut from one artboard,
 `assets/source/weighpoint-logo.webp`, by `tools/generate-icons.mjs` — so a
-change to the logo is one re-run rather than six exports. Three things that
-artboard cannot be used for as-is, and what the tool does instead:
+change to the logo is one re-run rather than six exports.
 
-- **iOS masks its own corners**, so shipping a pre-rounded tile gives a double
-  rounding with pale corners showing through. The icon is drawn on a full-bleed
-  gradient sampled from the tile at an 8% inset — far enough in to miss the
-  artboard's white margin, close enough to the corners to miss the artwork.
-- **Android composites a foreground over a background** and crops the outer
-  third. The mark is keyed off the tile by luminance and scaled into the safe
-  zone; the gradient is supplied separately as the background layer.
-- **The wordmark does not survive being shrunk** to a 48px favicon or a
-  launcher icon, so everything small uses the mark alone. The tool finds where
-  the wordmark starts by looking for the first quiet run of rows below the
-  scale — not the longest, which is the padding underneath it.
+The rule is that the logo goes out **whole** — scale, trend line and wordmark —
+wherever the platform allows it. An earlier version of this script took the
+logo apart and rebuilt it from its pieces, which produced a launcher icon that
+was just the scale mark on a gradient: recognisably related to the brand, and
+not the thing anyone asked for. Two liberties remain, both forced:
+
+- **The artboard's white margin is trimmed**, because it is padding rather than
+  design and would otherwise show as a pale frame inside every icon. The
+  corners that trim exposes are filled with the tile's own corner colour, since
+  iOS applies its own rounding and a pre-rounded tile shows pale notches.
+- **Android insets the logo to 66%** of the adaptive foreground. The launcher
+  crops the outer third of that layer, which would cut the wordmark in half, so
+  the whole logo is scaled to sit inside the guaranteed-visible zone and
+  survives every mask shape intact.
+
+There is no monochrome layer: a themed-icon monochrome asset has to be a
+silhouette, and a full-colour logo with a wordmark has no honest one.
 
 Two identifiers deliberately did **not** change with the name:
 `STORAGE_KEY` (`wt.data.v1`), which is where every existing log lives, and
