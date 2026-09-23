@@ -37,7 +37,8 @@ src/
               reminderRules.ts / notifications.ts (spec §6) · inbox.ts
               lockRules.ts / lock.ts · photoRules.ts / photos.ts · *.test.ts
   components/ Card, Controls, HabitTicks, Icon, Overlays, Screen, TabBar, Type
-              ErrorBoundary, LockGate, InboxBell, ProgressRing
+              ErrorBoundary, LockGate, InboxBell, ProgressRing, DateNavigator,
+              LaunchScreen
               charts/ TrendChart, Sparkline, LossBars, HeatMap
   screens/    Onboarding, Today, Progress, Trends, Habits, Milestones,
               Body, Log, More, Settings, Privacy, Inbox, StorageError
@@ -405,10 +406,25 @@ not the thing anyone asked for. Two liberties remain, both forced:
   design and would otherwise show as a pale frame inside every icon. The
   corners that trim exposes are filled with the tile's own corner colour, since
   iOS applies its own rounding and a pre-rounded tile shows pale notches.
-- **Android insets the logo to 66%** of the adaptive foreground. The launcher
-  crops the outer third of that layer, which would cut the wordmark in half, so
-  the whole logo is scaled to sit inside the guaranteed-visible zone and
-  survives every mask shape intact.
+- **Android and the splash use the artwork without its tile.** Putting the
+  whole rounded tile on the adaptive foreground drew a rounded square inside
+  the launcher's own shape — a box in a box — and on the splash the tile's
+  edge showed against the background. So the script mattes the artwork
+  (scale, trend line, wordmark) off the tile: alpha is how far each pixel
+  rises above the tile's gradient, the edges are un-mixed so they carry no
+  teal fringe, and the threshold sits above the tile's glossy highlight. The
+  adaptive foreground is that artwork at 60%, inside the zone every mask shape
+  keeps, on the tile's own gradient as the background layer. iOS and the
+  favicon keep the whole tile.
+
+**The loading screen** (`components/LaunchScreen.tsx`) picks up exactly where
+the native splash leaves off — same colour, artwork and size — and holds the
+native splash until it has drawn, so there is no blank frame between them. It
+stays while fonts load and the log is read (at least 1.2 s so it registers
+instead of flickering), then fades out over the app, which has already rendered
+underneath. It respects reduce-motion and gives way to the storage error
+screen. In Expo Go the native splash is Expo Go's own, but this screen still
+shows.
 
 There is no monochrome layer: a themed-icon monochrome asset has to be a
 silhouette, and a full-colour logo with a wordmark has no honest one.
