@@ -10,11 +10,12 @@ import { IBMPlexSans_600SemiBold } from '@expo-google-fonts/ibm-plex-sans/600Sem
 import { IBMPlexSans_700Bold } from '@expo-google-fonts/ibm-plex-sans/700Bold';
 
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
-import { StoreProvider } from './src/data/store';
+import { StoreProvider, useStore } from './src/data/store';
 import { DerivedProvider } from './src/data/derived';
 import { Root } from './src/navigation/Root';
 import { LockGate } from './src/components/LockGate';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { LaunchScreen } from './src/components/LaunchScreen';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -32,7 +33,10 @@ export default function App() {
         <ThemeProvider>
           <StoreProvider>
             <DerivedProvider>
-              <LockGate>{fontsLoaded ? <Root /> : <Splash />}</LockGate>
+              <View style={{ flex: 1 }}>
+                <LockGate>{fontsLoaded ? <Root /> : <Splash />}</LockGate>
+                <Launch fontsLoaded={fontsLoaded} />
+              </View>
             </DerivedProvider>
           </StoreProvider>
         </ThemeProvider>
@@ -45,4 +49,12 @@ export default function App() {
 function Splash() {
   const { colors } = useTheme();
   return <View style={{ flex: 1, backgroundColor: colors.page }} />;
+}
+
+/** The loading screen stays up until the fonts are in and the log has been read. */
+function Launch({ fontsLoaded }: { fontsLoaded: boolean }) {
+  const { hydrated, storageUnreadable } = useStore();
+  // An unreadable store is "ready" too: the error screen underneath has to be
+  // seen, not hidden behind a loader that never finishes.
+  return <LaunchScreen ready={fontsLoaded && (hydrated || storageUnreadable)} />;
 }
