@@ -217,6 +217,16 @@ describe('one-tap meals on the log', () => {
     assert.equal(quick[0].id, 's2', 'the one actually eaten leads');
   });
 
+  it('leaves out what is already logged on the day', () => {
+    const quick = quickMeals([eggs, porridge], [eaten('Eggs on toast')], '2026-09-13');
+    assert.deepEqual(quick.map((m) => m.id), ['s1']);
+  });
+
+  it('still offers it on another day', () => {
+    const quick = quickMeals([eggs, porridge], [eaten('Eggs on toast')], '2026-09-14');
+    assert.equal(quick[0].id, 's2');
+  });
+
   it('offers nothing when nothing is saved', () => {
     assert.deepEqual(quickMeals([], [eaten('Eggs on toast')]), []);
   });

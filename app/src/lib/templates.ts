@@ -155,9 +155,22 @@ export const QUICK_MEAL_COUNT = 3;
 export function quickMeals(
   saved: SavedMeal[],
   meals: MealEntry[],
+  day?: DateKey,
   limit = QUICK_MEAL_COUNT,
 ): SavedMeal[] {
-  return rankSavedMeals(saved, meals).slice(0, Math.max(0, limit));
+  // What is already on the day is not a suggestion — offering this morning's
+  // porridge again at lunch mostly invites a double entry. A second helping
+  // is still one tap away in the sheet.
+  const loggedToday = new Set(
+    day == null
+      ? []
+      : meals
+          .filter((m) => m.logDate === day)
+          .map((m) => `${normaliseName(m.description)}|${m.mealType}`),
+  );
+  return rankSavedMeals(saved, meals)
+    .filter((t) => !loggedToday.has(`${normaliseName(t.description)}|${t.mealType}`))
+    .slice(0, Math.max(0, limit));
 }
 
 /** A template logged on a given day. */
