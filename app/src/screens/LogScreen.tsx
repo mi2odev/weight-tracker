@@ -69,7 +69,7 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
   const workouts = data.workouts.filter((w) => w.logDate === cursor);
   const mTotals = mealTotals(data.meals, cursor);
   const wTotals = workoutTotals(data.workouts, cursor);
-  const quick = quickMeals(data.savedMeals, data.meals);
+  const quick = quickMeals(data.savedMeals, data.meals, cursor);
   const previousDay = addDays(cursor, -1);
   const previousMealCount = data.meals.filter((m) => m.logDate === previousDay).length;
   const previousLabel = previousDay === addDays(todayKey(), -1) ? 'yesterday' : formatShort(previousDay);
