@@ -5,7 +5,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { space } from '../theme/tokens';
 import { Icon } from './Icon';
 import { Meta, Title } from './Type';
-import { useKeyboardHeight } from './keyboard';
+import { useKeyboardInset } from './keyboard';
 
 /**
  * The design is drawn for a 390 pt phone. On a tablet the choice is to stretch
@@ -48,10 +48,10 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const wide = width > MAX_CONTENT_WIDTH;
-  const keyboard = useKeyboardHeight();
+  const keyboard = useKeyboardInset();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.page }}>
+    <View style={{ flex: 1, backgroundColor: colors.page }} onLayout={keyboard.onLayout}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -59,7 +59,7 @@ export function Screen({
           // Room to scroll a focused field clear of the keys. Without it the
           // last fields on Today sit permanently behind the keyboard, with
           // nothing below them to scroll into.
-          paddingBottom: footerHeight + keyboard,
+          paddingBottom: footerHeight + keyboard.inset,
           ...(wide ? { width: MAX_CONTENT_WIDTH, alignSelf: 'center' } : null),
         }}
         keyboardShouldPersistTaps="handled"
@@ -122,7 +122,7 @@ export function Screen({
             wide ? { width: MAX_CONTENT_WIDTH, alignSelf: 'center' } : null,
             // The Save bar is pinned to the bottom, which is exactly where the
             // keyboard arrives. Lift it rather than let the keys bury it.
-            keyboard > 0 ? { marginBottom: keyboard } : null,
+            keyboard.inset > 0 ? { marginBottom: keyboard.inset } : null,
           ]}
         >
           {footer}

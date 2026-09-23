@@ -1,10 +1,10 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { Keyboard, Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space } from '../theme/tokens';
 import { Body, Caption, Title } from './Type';
 import { Icon } from './Icon';
-import { useKeyboardHeight } from './keyboard';
+import { useKeyboardInset } from './keyboard';
 import { PrimaryButton } from './Controls';
 import { Celebration } from '../data/store';
 import { f1 } from '../lib/calc';
@@ -258,15 +258,21 @@ export function Sheet({
 }) {
   const { colors } = useTheme();
   const { height: screenHeight } = useWindowDimensions();
-  const keyboard = useKeyboardHeight();
+  const keyboard = useKeyboardInset();
+  // The space the sheet can use: the backdrop's measured height (already
+  // shrunk if the system made room for the keys), less what they still cover.
+  const room = (keyboard.height || screenHeight) - keyboard.inset;
 
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
       {/* Tapping the dimmed area behind the sheet closes it — the gesture
-          everyone tries before looking for the Close button. */}
+          everyone tries before looking for the Close button. While typing,
+          the same tap only puts the keyboard away: closing would throw away
+          a half-filled form over a tap meant to leave the field. */}
       <Pressable
-        accessibilityLabel="Close"
-        onPress={onClose}
+        accessibilityLabel={keyboard.open ? 'Hide keyboard' : 'Close'}
+        onPress={() => (keyboard.open ? Keyboard.dismiss() : onClose())}
+        onLayout={keyboard.onLayout}
         style={{ flex: 1, backgroundColor: 'rgba(28,28,26,0.45)', justifyContent: 'flex-end' }}
       >
         {/* A second Pressable swallows taps inside the panel, so typing in a
@@ -280,8 +286,8 @@ export function Sheet({
             // Lifted clear of the keys. The panel is bottom-anchored, which
             // is exactly where the keyboard arrives, so without this the
             // fields and the save button sit behind it.
-            marginBottom: keyboard,
-            maxHeight: screenHeight - keyboard - space.xxl,
+            marginBottom: keyboard.inset,
+            maxHeight: room - space.xxl,
           }}
         >
           <View style={{ paddingHorizontal: space.xl, paddingTop: space.xl }}>
