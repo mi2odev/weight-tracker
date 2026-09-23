@@ -304,12 +304,19 @@ export function averageDailyLossKg(
   profile: Profile,
   asOf: DateKey = todayKey(),
 ): number | null {
-  const weighed = weighedEntries(entries).filter((e) => e.logDate <= asOf);
-  if (weighed.length < 2) return null;
-  const days = daysBetween(weighed[0].logDate, weighed[weighed.length - 1].logDate);
+  // Counted from day 0 — the plan's start date and starting weight — to the
+  // latest weigh-in. It used to count days from the *first weigh-in* while
+  // measuring loss from the starting weight, so a first weigh-in a few days
+  // after the start inflated the rate; and it needed two weigh-ins when the
+  // starting weight is already the first point.
+  const weighed = weighedEntries(entries).filter(
+    (e) => e.logDate <= asOf && e.logDate >= profile.startDate,
+  );
+  const last = weighed[weighed.length - 1];
+  if (!last) return null;
+  const days = daysBetween(profile.startDate, last.logDate);
   if (days <= 0) return null;
-  const lost = profile.startWeightKg - weighed[weighed.length - 1].weightKg;
-  return lost / days;
+  return (profile.startWeightKg - last.weightKg) / days;
 }
 
 export function averageWeeklyLossKg(

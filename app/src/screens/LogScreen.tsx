@@ -82,7 +82,7 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <Screen title="Food & training" onBack={onBack}>
-      <DateNavigator cursor={cursor} onChange={setCursor} />
+      <DateNavigator cursor={cursor} firstDay={data.profile.startDate} onChange={setCursor} />
 
       <View style={{ marginTop: space.md }}>
         <SectionHeading title="Weigh-in" />

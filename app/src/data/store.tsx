@@ -244,7 +244,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    */
   const [hydration, setHydration] = useState<HydrationResult | null>(null);
   const [today, setToday] = useState<DateKey>(() => todayKey());
-  const [cursor, setCursor] = useState<DateKey>(() => todayKey());
+  const [cursor, setCursorRaw] = useState<DateKey>(() => todayKey());
+
+  /**
+   * The day on show never sits before the plan's start date (day 0): nothing
+   * before it is counted anywhere, and "Day -1 of 730" is not a day of the
+   * plan. Clamped here so every way of moving the cursor obeys it.
+   */
+  const setCursor = useCallback(
+    (next: DateKey | ((prev: DateKey) => DateKey)) =>
+      setCursorRaw((prev) => {
+        const date = typeof next === 'function' ? next(prev) : next;
+        const start = dataRef.current.profile.startDate;
+        return date < start && start <= todayKey() ? start : date;
+      }),
+    [],
+  );
 
   /**
    * Rolls the day over at Algerian midnight.
@@ -290,6 +305,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   /** Always the latest committed state, readable synchronously. */
   const dataRef = useRef<AppData>(data);
+
+  // Re-clamp when the start date moves (loaded, edited, restored).
+  useEffect(() => {
+    setCursor((c) => c);
+  }, [data.profile.startDate, setCursor]);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingWrite = useRef<AppData | null>(null);
