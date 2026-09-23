@@ -8,7 +8,7 @@ import { Icon, IconName } from '../components/Icon';
 import { Screen } from '../components/Screen';
 import { Body, Caption } from '../components/Type';
 import { InboxItem, InboxKind, InboxTarget, inboxWhen } from '../lib/inbox';
-import { todayKey } from '../lib/date';
+import { useStore } from '../data/store';
 
 const ICONS: Record<InboxKind, IconName> = {
   weigh: 'weight',
@@ -31,7 +31,7 @@ export function InboxScreen({
 }) {
   const { colors } = useTheme();
   const { items, unread, isRead, markRead } = useInbox();
-  const today = todayKey();
+  const { today } = useStore();
 
   const fresh = items.filter((i) => !isRead(i.id));
   const earlier = items.filter((i) => isRead(i.id));

@@ -40,6 +40,7 @@ import {
 } from './types';
 import { emptyData } from './seed';
 import { isAdult } from '../lib/calc';
+import { todayKey } from '../lib/date';
 
 export { CURRENT_SCHEMA_VERSION };
 
@@ -113,7 +114,8 @@ function migrateProfile(raw: unknown, defaults: Profile, notes: string[]): Profi
     return value;
   };
 
-  const thisYear = new Date().getFullYear();
+  // The year on the app's clock (Algerian time), like every other date.
+  const thisYear = Number(todayKey().slice(0, 4));
 
   // Bounds mirror the validation rules in section 3 of the spec.
   return {
