@@ -30,6 +30,7 @@ export function Screen({
   contentStyle,
   footer,
   footerHeight = 0,
+  action,
 }: {
   title: string;
   meta?: string;
@@ -40,6 +41,8 @@ export function Screen({
   footer?: React.ReactNode;
   /** Reserved at the foot of the scroll so `footer` never covers content. */
   footerHeight?: number;
+  /** A button beside the title's meta line — the inbox bell on Today. */
+  action?: React.ReactNode;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -91,7 +94,10 @@ export function Screen({
               {title}
             </Title>
           </View>
-          {!!meta && <Meta numberOfLines={1}>{meta}</Meta>}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+            {!!meta && <Meta numberOfLines={1}>{meta}</Meta>}
+            {action}
+          </View>
         </View>
 
         <View

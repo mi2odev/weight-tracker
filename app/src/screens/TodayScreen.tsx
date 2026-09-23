@@ -12,6 +12,8 @@ import { NumberField, PrimaryButton, Toggle } from '../components/Controls';
 import { HabitTicks } from '../components/HabitTicks';
 import { Icon } from '../components/Icon';
 import { Screen } from '../components/Screen';
+import { InboxBell } from '../components/InboxBell';
+import { useInbox } from '../data/useInbox';
 import { Body, Display, Label } from '../components/Type';
 import {
   dailyChange,
@@ -31,10 +33,17 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 /** 50 pt button + 10 pt padding top and bottom + the 1 pt hairline. */
 const SAVE_BAR_HEIGHT = 71;
 
-export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
+export function TodayScreen({
+  onOpenLog,
+  onOpenInbox,
+}: {
+  onOpenLog: () => void;
+  onOpenInbox: () => void;
+}) {
   const { colors } = useTheme();
   const { data, cursor, setCursor, saveWeighIn, updateEntry, showToast } = useStore();
   const u = useUnits();
+  const { unread } = useInbox();
   const { profile, entries } = data;
 
   const [draft, setDraft] = useState('');
@@ -122,6 +131,7 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
     <Screen
       title={cursor === today ? 'Today' : formatLong(cursor).split(' ')[0]}
       meta={`Day ${dayNumber} of 730`}
+      action={<InboxBell unread={unread} onPress={onOpenInbox} />}
       contentStyle={{ gap: 0 }}
       footerHeight={SAVE_BAR_HEIGHT}
       footer={
