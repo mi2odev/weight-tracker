@@ -32,7 +32,7 @@ import { Screen } from '../components/Screen';
 import { DateNavigator } from '../components/DateNavigator';
 import { Body, Caption } from '../components/Type';
 import { entryFor, mealTotals, workoutTotals } from '../lib/calc';
-import { addDays, formatShort, todayKey } from '../lib/date';
+import { addDays, formatShort } from '../lib/date';
 import { parseDecimalInput } from '../lib/numberInput';
 import {
   matchesQuery,
@@ -47,6 +47,7 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
   const {
     data,
+    today,
     cursor,
     setCursor,
     addMeal,
@@ -75,9 +76,9 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
   const quick = quickMeals(data.savedMeals, data.meals, cursor);
   const previousDay = addDays(cursor, -1);
   const previousMealCount = data.meals.filter((m) => m.logDate === previousDay).length;
-  const previousLabel = previousDay === addDays(todayKey(), -1) ? 'yesterday' : formatShort(previousDay);
+  const previousLabel = previousDay === addDays(today, -1) ? 'yesterday' : formatShort(previousDay);
 
-  const dayLabel = cursor === todayKey() ? 'today' : formatShort(cursor);
+  const dayLabel = cursor === today ? 'today' : formatShort(cursor);
   const dayWeight = entryFor(data.entries, cursor)?.weightKg ?? null;
 
   return (
