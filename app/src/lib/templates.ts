@@ -14,7 +14,7 @@
  * Pure, so the matching is tested on Node.
  */
 
-import { MealEntry, MealType, SavedMeal, SavedWorkout, WorkoutEntry } from '../data/types';
+import { DateKey, MealEntry, MealType, SavedMeal, SavedWorkout, WorkoutEntry } from '../data/types';
 
 /** Trimmed, lower-cased, and collapsed whitespace — how a person compares two names. */
 export function normaliseName(text: string): string {
@@ -141,4 +141,33 @@ export function rankSavedWorkouts(saved: SavedWorkout[], workouts: WorkoutEntry[
   return saved
     .slice()
     .sort((a, b) => count(b) - count(a) || normaliseName(a.session).localeCompare(normaliseName(b.session)));
+}
+
+/** How many saved meals the Log screen offers as one-tap chips. */
+export const QUICK_MEAL_COUNT = 3;
+
+/**
+ * The saved meals worth a one-tap chip: the most-used few.
+ *
+ * Kept short on purpose — a row of every template is the full picker again,
+ * just harder to read. Anything further down is one tap away in the sheet.
+ */
+export function quickMeals(
+  saved: SavedMeal[],
+  meals: MealEntry[],
+  limit = QUICK_MEAL_COUNT,
+): SavedMeal[] {
+  return rankSavedMeals(saved, meals).slice(0, Math.max(0, limit));
+}
+
+/** A template logged on a given day. */
+export function mealFromTemplate(template: SavedMeal, logDate: DateKey, id: string): MealEntry {
+  return {
+    id,
+    logDate,
+    mealType: template.mealType,
+    description: template.description,
+    calories: template.calories,
+    proteinG: template.proteinG,
+  };
 }

@@ -34,6 +34,7 @@ import { entryFor, mealTotals, workoutTotals } from '../lib/calc';
 import { formatShort, todayKey } from '../lib/date';
 import { parseDecimalInput } from '../lib/numberInput';
 import {
+  quickMeals,
   rankSavedMeals,
   rankSavedWorkouts,
   savedMealSummary,
@@ -54,6 +55,7 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
     removeWeighIn,
     saveWeighIn,
     showToast,
+    logSavedMeal,
   } = useStore();
   const u = useUnits();
 
@@ -66,6 +68,7 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
   const workouts = data.workouts.filter((w) => w.logDate === cursor);
   const mTotals = mealTotals(data.meals, cursor);
   const wTotals = workoutTotals(data.workouts, cursor);
+  const quick = quickMeals(data.savedMeals, data.meals);
 
   const dayLabel = cursor === todayKey() ? 'today' : formatShort(cursor);
   const dayWeight = entryFor(data.entries, cursor)?.weightKg ?? null;
@@ -150,6 +153,43 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
               Nothing logged for {dayLabel} yet.
             </Body>
           </Card>
+        )}
+
+        {quick.length > 0 && (
+          <View style={{ gap: 6 }}>
+            <Caption style={{ fontSize: 11.5 }}>Quick add</Caption>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+              {quick.map((template) => (
+                <Pressable
+                  key={template.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add ${template.description}, ${savedMealSummary(template)}`}
+                  onPress={() => logSavedMeal(template.id, cursor)}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    minHeight: MIN_TAP,
+                    maxWidth: '100%',
+                    paddingHorizontal: space.md,
+                    borderRadius: radius.pill,
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    opacity: pressed ? 0.6 : 1,
+                  })}
+                >
+                  <Icon name="plus" size={12} color={colors.accent} />
+                  <Body
+                    style={{ fontFamily: font.semibold, fontSize: 13, flexShrink: 1 }}
+                    color={colors.accent}
+                    numberOfLines={1}
+                  >
+                    {template.description}
+                  </Body>
+                </Pressable>
+              ))}
+            </View>
+          </View>
         )}
 
         <GhostButton label="Add a meal" dashed onPress={() => setMealSheet('new')} />

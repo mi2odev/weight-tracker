@@ -10,6 +10,9 @@ import { describe, it } from 'node:test';
 
 import {
   findSavedMeal,
+  mealFromTemplate,
+  QUICK_MEAL_COUNT,
+  quickMeals,
   findSavedWorkout,
   normaliseName,
   rankSavedMeals,
@@ -191,5 +194,40 @@ describe('ordering the library', () => {
       { id: 'b', logDate: '2026-09-14', type: 'Walk', session: 'Evening loop', durationMin: 25, intensity: 'Low', caloriesBurned: 0 },
     ];
     assert.deepEqual(rankSavedWorkouts([run, loop], workouts).map((w) => w.id), ['w2', 'w1']);
+  });
+});
+
+describe('one-tap meals on the log', () => {
+  const eggs: SavedMeal = { ...porridge, id: 's2', description: 'Eggs on toast' };
+  const soup: SavedMeal = { ...porridge, id: 's3', description: 'Apple soup' };
+  const salad: SavedMeal = { ...porridge, id: 's4', description: 'Bean salad', mealType: 'Lunch' };
+  const eaten = (description: string): MealEntry => ({
+    id: `m-${description}`,
+    logDate: '2026-09-13',
+    mealType: 'Breakfast',
+    description,
+    calories: 0,
+    proteinG: 0,
+  });
+
+  it('offers only the few most used', () => {
+    const quick = quickMeals([soup, eggs, porridge, salad], [eaten('Eggs on toast')]);
+    assert.equal(quick.length, QUICK_MEAL_COUNT);
+    assert.equal(quick[0].id, 's2', 'the one actually eaten leads');
+  });
+
+  it('offers nothing when nothing is saved', () => {
+    assert.deepEqual(quickMeals([], [eaten('Eggs on toast')]), []);
+  });
+
+  it('turns a template back into a logged meal on the chosen day', () => {
+    assert.deepEqual(mealFromTemplate(porridge, '2026-09-20', 'm1'), {
+      id: 'm1',
+      logDate: '2026-09-20',
+      mealType: 'Breakfast',
+      description: 'Porridge and berries',
+      calories: 410,
+      proteinG: 14,
+    });
   });
 });
