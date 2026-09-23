@@ -178,6 +178,27 @@ describe('average loss rate', () => {
     assert.equal(averageWeeklyLossKg(entries, profile, asOf)!.toFixed(1), '0.7');
   });
 
+  it('counts from day 0, not from the first weigh-in', () => {
+    // Started at 157 on day 0 but first weighed on day 10 at 156: 1 kg over
+    // 10 days, not over the 0 days between weigh-ins.
+    const entries = [{ logDate: addDays(START, 10), weightKg: 156 }];
+    assert.equal(averageDailyLossKg(entries, profile, addDays(START, 10))!.toFixed(2), '0.10');
+    const later = [...entries, { logDate: addDays(START, 20), weightKg: 155 }];
+    assert.equal(averageDailyLossKg(later, profile, addDays(START, 20))!.toFixed(2), '0.10', '2 kg over 20 days');
+  });
+
+  it('ignores weigh-ins from before the plan started', () => {
+    const entries = [
+      { logDate: addDays(START, -5), weightKg: 170 },
+      { logDate: addDays(START, 7), weightKg: 156.3 },
+    ];
+    assert.equal(averageDailyLossKg(entries, profile, addDays(START, 7))!.toFixed(2), '0.10');
+  });
+
+  it('has no rate on day 0 itself', () => {
+    assert.equal(averageDailyLossKg([{ logDate: START, weightKg: 156 }], profile, START), null);
+  });
+
   it('reports the journey average even when the recent trend differs', () => {
     // Fast for a fortnight, then a plateau: the average stays above the trend.
     const fast = steadyLog(14, 157, 0.2);

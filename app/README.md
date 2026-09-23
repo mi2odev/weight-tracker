@@ -15,7 +15,7 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 340 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 343 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing,
                    #             templates, reminder rules, inbox, weigh-in check
 ```
@@ -83,7 +83,9 @@ This also satisfies the spec's own tone rule and the accessibility requirement
 that colour is never the only signal.
 
 **Average rate vs. 14-day trend.** These are two different numbers and the app
-uses each where the design does. The 14-day trend (`trendPerDay`) decides
+uses each where the design does. The journey average is measured from day 0 —
+the start date and starting weight — to the latest weigh-in, and ignores
+weigh-ins from before the plan began. The 14-day trend (`trendPerDay`) decides
 *whether* a projection is shown at all — flat or upward means a dash, never an
 extrapolation. The journey average (`averageDailyLossKg`) then *sizes* it, and
 is what the "Avg weekly loss" card and the loss-rate insight report. That is
@@ -154,7 +156,9 @@ Typing on the keypad replaces the shown weight; "Start from …" is the way to
 adjust the last one.
 
 **Days are reachable from where you are.** The same date navigator heads Today
-and the food log (tap the date to jump back to today), and each day in the
+and the food log (tap the date to jump back to today). It stops at the plan's
+start date — day 0 — since nothing before it is counted; the store clamps the
+cursor there too, so no route leads to "Day -1 of 730". Each day in the
 Habits heat map opens that day on Today.
 
 **The day starts at 00:00 Algerian time.** `lib/date.ts` reads "today", reminder

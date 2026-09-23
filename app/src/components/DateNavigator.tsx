@@ -11,19 +11,24 @@ import { Body } from './Type';
  * ‹ Wednesday 23 September ›
  *
  * Shared by Today and the food log so both move through days the same way.
- * Never steps past today — there is nothing to log in the future. When the
+ * Never steps past today — there is nothing to log in the future — nor back
+ * before the plan's start date (day 0), where nothing is counted. When the
  * day shown is not today, tapping the date jumps straight back.
  */
 export function DateNavigator({
   cursor,
   onChange,
+  firstDay,
 }: {
   cursor: DateKey;
   onChange: (date: DateKey) => void;
+  /** The plan's start date — the earliest day there is to show. */
+  firstDay: DateKey;
 }) {
   const { colors } = useTheme();
   const today = todayKey();
   const atToday = cursor >= today;
+  const atStart = cursor <= firstDay;
 
   return (
     <View
@@ -42,10 +47,12 @@ export function DateNavigator({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Previous day"
+        accessibilityState={{ disabled: atStart }}
+        disabled={atStart}
         onPress={() => onChange(addDays(cursor, -1))}
         style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
       >
-        <Icon name="chevronLeft" size={15} color={colors.muted} strokeWidth={2} />
+        <Icon name="chevronLeft" size={15} color={atStart ? colors.disabled : colors.muted} strokeWidth={2} />
       </Pressable>
 
       <Pressable

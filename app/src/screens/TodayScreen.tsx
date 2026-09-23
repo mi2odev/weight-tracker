@@ -195,6 +195,7 @@ export function TodayScreen({
       <View style={{ marginTop: space.md }}>
         <DateNavigator
           cursor={cursor}
+          firstDay={profile.startDate}
           onChange={(date) => {
             setCursor(date);
             setDraft('');
