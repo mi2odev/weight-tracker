@@ -159,6 +159,30 @@ numbers on a repeated meal shift a little, and the user should get to look
 before it lands in their day. Removing is a separate small target, so a mis-tap
 costs a fill rather than a deletion, and it is undoable.
 
+For the meal that really is identical every day there are two faster paths on
+the Log screen, both undoable from the toast:
+
+- **Quick add** chips for the three most-used saved meals log one on the
+  selected day with a single tap. Meals already on that day are left out, so
+  breakfast is not offered again at lunch.
+- **Copy N meals from yesterday** appears in the empty state when the day
+  before has meals. The copy is one batch with one Undo; the source day is not
+  touched.
+
+Water works the same way on Today: +250 ml / +500 ml (+8 / +16 fl oz in
+imperial) sit next to the Water field and add to the day's total, rounded to
+the millilitre so twelve glasses read 3 L rather than 2.9999999.
+
+## Trends arithmetic
+
+- A month's "per week" loss is change over **elapsed** time — the days between
+  its first and last weigh-in — not over the number of days logged. The old
+  version turned two weigh-ins a month apart into "9.8 kg a week". A month with
+  one weigh-in has no rate.
+- The current week is graded against the days that have happened
+  (`daysElapsed`), so day one reads "Logged 1/1", not "1/7", and its range is
+  marked "in progress".
+
 ## Backup, restore and import
 
 Three different jobs, deliberately not one feature:
