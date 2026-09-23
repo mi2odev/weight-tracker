@@ -4,6 +4,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { font, space } from '../theme/tokens';
 import { Icon, IconName } from './Icon';
 import { MAX_CONTENT_WIDTH } from './Screen';
+import { useKeyboard } from './keyboard';
 import { Body } from './Type';
 
 export type TabKey = 'today' | 'progress' | 'trends' | 'habits' | 'more';
@@ -20,6 +21,11 @@ export function TabBar({ active, onChange }: { active: TabKey; onChange: (t: Tab
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const keyboard = useKeyboard();
+
+  // Out of the way while typing: above the keys it only takes room, and its
+  // navigation-bar padding showed as an empty band between app and keyboard.
+  if (keyboard.open) return null;
 
   return (
     <View

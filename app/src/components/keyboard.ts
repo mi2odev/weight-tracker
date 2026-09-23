@@ -1,67 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardEvent, LayoutChangeEvent, Platform } from 'react-native';
-
-import { keyboardOverlap } from '../lib/keyboardOverlap';
+import { useEffect, useState } from 'react';
+import { Keyboard, KeyboardEvent, Platform } from 'react-native';
 
 /**
- * How much of a container the software keyboard is actually covering.
+ * The software keyboard: whether it is up, and how much room the app has to
+ * make for it itself.
  *
- * Not simply the keyboard's height. On Android the system often shrinks the
- * window (or a modal's window) to make room for the keys itself, and on iOS
- * it never does. Adding the full keyboard height on a phone that had already
- * shrunk the window lifted things twice — a meal sheet ended up pushed off
- * the top of the screen with a gap of dimmed backdrop above the keys.
+ * Android makes the room: the window (and a modal's window) is resized to end
+ * at the top of the keys — `softwareKeyboardLayoutMode: "resize"` in
+ * app.json, and what Expo Go does too. Adding the keyboard's height on top of
+ * that lifted things twice, leaving a band of empty space between the app
+ * and the keys. So on Android the inset is 0 and the resize does the work.
  *
- * So the container reports its height through `onLayout`: the tallest height
- * seen with the keyboard down is its full size, and however much it has
- * shrunk since is room the system already made. Only the rest needs adding.
- *
- * iOS gets `willShow`/`willHide`, which fire with the animation. Android only
- * has `did*`, so the change lands a frame after the keys appear.
+ * iOS never resizes the window, so there the inset is the keyboard's height.
+ * iOS also gets `willShow`/`willHide`, which fire with the animation; Android
+ * only has `did*`.
  */
-export function useKeyboardInset(): {
-  /** Extra room to leave at the foot of the container. */
-  inset: number;
-  /** True while the keyboard is up. */
-  open: boolean;
-  /** The container's current height, 0 before its first layout. */
-  height: number;
-  /** Attach to the container that spans the space the keyboard could cover. */
-  onLayout: (event: LayoutChangeEvent) => void;
-} {
-  const [keyboard, setKeyboard] = useState(0);
+export function useKeyboard(): { open: boolean; inset: number } {
   const [height, setHeight] = useState(0);
-  const fullHeight = useRef(0);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const shown = Keyboard.addListener(showEvent, (event: KeyboardEvent) => {
-      setKeyboard(event.endCoordinates?.height ?? 0);
+      setHeight(event.endCoordinates?.height ?? 0);
     });
-    const hidden = Keyboard.addListener(hideEvent, () => setKeyboard(0));
+    const hidden = Keyboard.addListener(hideEvent, () => setHeight(0));
     return () => {
       shown.remove();
       hidden.remove();
     };
   }, []);
 
-  const onLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      const h = event.nativeEvent.layout.height;
-      // With the keys down, whatever height we have is the full one (this
-      // also follows rotation and split screen). Asked of the keyboard
-      // directly: the shrink can arrive a frame before the show event.
-      if (!Keyboard.isVisible() || h > fullHeight.current) fullHeight.current = h;
-      setHeight(h);
-    },
-    [],
-  );
-
-  return {
-    inset: keyboardOverlap(keyboard, fullHeight.current, height),
-    open: keyboard > 0,
-    height,
-    onLayout,
-  };
+  return { open: height > 0, inset: Platform.OS === 'ios' ? height : 0 };
 }
