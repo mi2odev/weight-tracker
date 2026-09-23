@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { isPartialNumber, parseDecimalInput } from './numberInput';
+import { isPartialNumber, parseDecimalInput, readFieldEntry } from './numberInput';
 
 describe('reading a number out of a field', () => {
   it('reads a plain number', () => {
@@ -68,5 +68,39 @@ describe('text that is still being typed', () => {
     assert.equal(isPartialNumber('2.5.5'), false);
     assert.equal(isPartialNumber('abc'), false);
     assert.equal(isPartialNumber('2a'), false);
+  });
+});
+
+describe('adding to what is already there', () => {
+  it('adds "+12" to 10 to make 22', () => {
+    assert.deepEqual(readFieldEntry('+12', 10), { kind: 'value', value: 22 });
+  });
+
+  it('adds to an empty field as if it were zero', () => {
+    assert.deepEqual(readFieldEntry('+450', null), { kind: 'value', value: 450 });
+  });
+
+  it('reads grouped and decimal amounts', () => {
+    assert.deepEqual(readFieldEntry('+1,250', 3000), { kind: 'value', value: 4250 });
+    assert.deepEqual(readFieldEntry('+ 12.5', 20), { kind: 'value', value: 32.5 });
+  });
+
+  it('takes some off with a minus, never below zero', () => {
+    assert.deepEqual(readFieldEntry('-5', 22), { kind: 'value', value: 17 });
+    assert.deepEqual(readFieldEntry('−50', 22), { kind: 'value', value: 0 });
+  });
+
+  it('waits while only the sign has been typed', () => {
+    assert.deepEqual(readFieldEntry('+', 10), { kind: 'pending' });
+    assert.deepEqual(readFieldEntry('+.', 10), { kind: 'pending' });
+  });
+
+  it('keeps a plain number meaning itself', () => {
+    assert.deepEqual(readFieldEntry('12', 10), { kind: 'value', value: 12 });
+    assert.deepEqual(readFieldEntry('', 10), { kind: 'value', value: null });
+  });
+
+  it('does not grow a float tail', () => {
+    assert.deepEqual(readFieldEntry('+0.2', 0.1), { kind: 'value', value: 0.3 });
   });
 });
