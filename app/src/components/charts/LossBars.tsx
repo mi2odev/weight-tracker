@@ -19,13 +19,25 @@ export interface Bar {
  * gaining periods are neutral grey. A gain is never red — the amber-red in
  * this palette belongs to missed habits alone.
  */
-export function LossBars({ bars }: { bars: Bar[] }) {
+export function LossBars({
+  bars,
+  format = (kg) => kg.toFixed(1),
+  unit = 'kg',
+  scaleFloor = 0.6,
+}: {
+  bars: Bar[];
+  /** Kilograms → the number printed on a bar, in the user's unit. */
+  format?: (kg: number) => string;
+  unit?: string;
+  /** The smallest full-height value, so a quiet period doesn't draw as a cliff. */
+  scaleFloor?: number;
+}) {
   const { colors } = useTheme();
-  const max = Math.max(0.6, ...bars.map((b) => Math.abs(b.value ?? 0)));
+  const max = Math.max(scaleFloor, ...bars.map((b) => Math.abs(b.value ?? 0)));
 
   const summary = bars
     .filter((b) => b.value != null)
-    .map((b) => `${b.label}: ${(b.value as number) > 0 ? 'lost' : 'gained'} ${Math.abs(b.value as number).toFixed(1)} kg`)
+    .map((b) => `${b.label}: ${(b.value as number) > 0 ? 'lost' : 'gained'} ${format(Math.abs(b.value as number))} ${unit}`)
     .join(', ');
 
   return (
@@ -45,7 +57,7 @@ export function LossBars({ bars }: { bars: Bar[] }) {
             style={{ flex: 1, maxWidth: 52, alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}
           >
             <Caption style={[{ fontSize: 10, fontFamily: font.semibold }, tnum]}>
-              {bar.value == null ? '—' : `${isLoss ? '' : value < -0.05 ? '+' : ''}${Math.abs(value).toFixed(1)}`}
+              {bar.value == null ? '—' : `${isLoss ? '' : value < -0.05 ? '+' : ''}${format(Math.abs(value))}`}
             </Caption>
             <View
               style={{

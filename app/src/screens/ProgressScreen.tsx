@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
@@ -5,13 +6,25 @@ import { font, radius, space, tnum, type } from '../theme/tokens';
 import { useStore } from '../data/store';
 import { useDerived } from '../data/derived';
 import { Card, StatCard, StatGrid } from '../components/Card';
-import { EmptyState } from '../components/Controls';
+import { EmptyState, SectionHeading } from '../components/Controls';
 import { Icon, IconName } from '../components/Icon';
 import { Screen } from '../components/Screen';
 import { Sparkline } from '../components/charts/Sparkline';
 import { TrendChart } from '../components/charts/TrendChart';
+import { LossBars } from '../components/charts/LossBars';
+import { BmiScale, JourneyTrack, TargetMeter } from '../components/charts/ProgressVisuals';
 import { Body, Caption, Hero, Label, Stat } from '../components/Type';
-import { dailyChange } from '../lib/calc';
+import { bmi, dailyChange, healthyWeightRange, isAdult } from '../lib/calc';
+import {
+  lastSevenDays,
+  personalRecords,
+  planPosition,
+  TrackedField,
+  WeekdayChange,
+  weekdayPattern,
+} from '../lib/progressStats';
+import { UnitFormatter } from '../lib/units';
+import { Profile } from '../data/types';
 import { chartIsReady, Insight } from '../lib/insights';
 import { formatMedium, formatShort } from '../lib/date';
 
@@ -34,6 +47,14 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
 
   const sinceYesterday = dailyChange(data.entries, profile, today);
   const hasChart = chartIsReady(data.entries, today);
+
+  const plan = planPosition(profile, d.currentKg, today);
+  const pattern = useMemo(() => weekdayPattern(data.entries, today), [data.entries, today]);
+  const rhythm = describeRhythm(pattern, u);
+  const week = useMemo(() => lastSevenDays(data.entries, today), [data.entries, today]);
+  const records = useMemo(() => personalRecords(data.entries, profile, today), [data.entries, profile, today]);
+  const startBmi = bmi(profile.startWeightKg, profile.heightCm);
+  const healthy = healthyWeightRange(profile.heightCm);
 
   return (
     <Screen title="Progress" meta={`Week ${d.weekNumber} · ${formatMedium(today)}`}>
@@ -157,32 +178,29 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           </Caption>
         </Card>
       ) : (
-      <Card style={{ paddingHorizontal: 13, paddingTop: space.md, paddingBottom: 13 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
-          <Label>Goal completion</Label>
-          <Caption
-            style={[{ fontSize: 12, fontFamily: font.semibold }, tnum]}
-            color={d.completionPct > 0 ? colors.greenText : colors.muted}
-          >
-            {Math.round(d.completionPct)}% · {u.weightValue(Math.max(0, d.lostKg))} of{' '}
-            {u.weight(profile.startWeightKg - profile.goalWeightKg)}
-          </Caption>
-        </View>
-        <View
-          accessibilityRole="progressbar"
-          accessibilityValue={{ min: 0, max: 100, now: Math.round(d.completionPct) }}
-          style={{ height: 8, borderRadius: radius.pill, backgroundColor: colors.rail, marginTop: 9, overflow: 'hidden' }}
-        >
-          <View
-            style={{
-              height: '100%',
-              width: `${Math.max(d.completionPct > 0 ? 1.5 : 0, d.completionPct)}%`,
-              borderRadius: radius.pill,
-              backgroundColor: colors.green,
-            }}
-          />
-        </View>
-      </Card>
+        <Card hero style={{ paddingHorizontal: 18, paddingTop: space.lg, paddingBottom: space.lg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
+            <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>Your journey</Body>
+            <Caption
+              style={[{ fontSize: 12, fontFamily: font.semibold }, tnum]}
+              color={d.completionPct > 0 ? colors.greenText : colors.muted}
+            >
+              {Math.round(d.completionPct)}% · {u.weightValue(Math.max(0, d.lostKg))} of{' '}
+              {u.weight(profile.startWeightKg - profile.goalWeightKg)}
+            </Caption>
+          </View>
+          <View style={{ marginTop: space.md }}>
+            <JourneyTrack
+              startKg={profile.startWeightKg}
+              goalKg={profile.goalWeightKg}
+              currentKg={d.currentKg}
+              plannedKg={plan.plannedKg}
+              aheadKg={plan.aheadKg}
+              milestonesKg={d.milestones.map((m) => m.targetKg)}
+              u={u}
+            />
+          </View>
+        </Card>
       )}
 
       {/* ── the trend chart ─────────────────────────────────────────────── */}
@@ -199,6 +217,93 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
 
       {/* ── projections ─────────────────────────────────────────────────── */}
       {d.isCountdown && <ProjectionCard />}
+
+      {/* ── patterns: how each weekday tends to move ────────────────────── */}
+      <View style={{ marginTop: space.lg }}>
+        <SectionHeading title="Weekly rhythm" trailing="Last 8 weeks" />
+      </View>
+      <Card hero style={{ paddingHorizontal: 18, paddingTop: space.lg, paddingBottom: 14 }}>
+        <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>Average overnight change by weekday</Body>
+        <View style={{ flexDirection: 'row', gap: space.md, marginTop: 6 }}>
+          <Swatch color={colors.green} label="Drop" />
+          <Swatch color={colors.neutral} label="Rise (+)" />
+        </View>
+        {rhythm.ready ? (
+          <>
+            <View style={{ marginTop: space.lg }}>
+              <LossBars
+                bars={pattern.map((p, i) => ({ label: WEEKDAYS[i], value: p.avgKg == null ? null : -p.avgKg }))}
+                format={(kg) => u.weightValue(kg, 2)}
+                unit={u.labels.weight}
+                scaleFloor={0.2}
+              />
+            </View>
+            <Caption style={{ fontSize: 12, lineHeight: 17, marginTop: space.md }}>{rhythm.text}</Caption>
+          </>
+        ) : (
+          <Caption style={{ fontSize: 12.5, lineHeight: 18, marginTop: space.sm }}>
+            Weigh in on back-to-back days for a couple of weeks and this shows which days tend to run up or down —
+            weekends often do.
+          </Caption>
+        )}
+      </Card>
+
+      {/* ── the last seven days against targets ─────────────────────────── */}
+      <View style={{ marginTop: space.lg }}>
+        <SectionHeading title="Last 7 days" trailing="Daily average" />
+      </View>
+      <Card hero style={{ paddingHorizontal: 18, paddingVertical: space.lg, gap: space.lg }}>
+        {week.map((f) => (
+          <TargetMeter key={f.field} {...METERS[f.field](profile, u)} value={f.avg} days={f.days} />
+        ))}
+      </Card>
+
+      {/* ── BMI on the WHO scale ────────────────────────────────────────── */}
+      <View style={{ marginTop: space.lg }}>
+        <SectionHeading title="Body mass index" trailing={d.bmiBand} />
+      </View>
+      <Card hero style={{ paddingHorizontal: 18, paddingVertical: space.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.sm }}>
+          <Stat>{d.bmi.toFixed(1)}</Stat>
+          <Caption style={{ fontSize: 12 }}>
+            {startBmi - d.bmi > 0.05 ? `down ${(startBmi - d.bmi).toFixed(1)} from ${startBmi.toFixed(1)}` : 'BMI'}
+          </Caption>
+        </View>
+        <View style={{ marginTop: space.md }}>
+          <BmiScale current={d.bmi} start={startBmi} />
+        </View>
+        <Caption style={{ fontSize: 12, lineHeight: 17, marginTop: space.md }}>
+          Healthy range for {u.height(profile.heightCm)}: {u.weightValue(healthy.lowKg)}–{u.weight(healthy.highKg)}. BMI
+          is a population measure — it doesn't see muscle, so treat it as one signal among several.
+        </Caption>
+      </Card>
+
+      {/* ── records ─────────────────────────────────────────────────────── */}
+      <View style={{ marginTop: space.lg }}>
+        <SectionHeading title="Records" />
+      </View>
+      <StatGrid>
+        <StatCard
+          label="Lowest weight"
+          value={records.lowest ? u.weightValue(records.lowest.kg) : '—'}
+          unit={records.lowest ? u.labels.weight : undefined}
+          sub={records.lowest ? formatShort(records.lowest.date) : 'No weigh-ins yet'}
+        />
+        <StatCard
+          label="Best week"
+          value={records.bestWeek ? u.weightValue(records.bestWeek.lostKg) : '—'}
+          unit={records.bestWeek ? u.labels.weight : undefined}
+          sub={records.bestWeek ? `Week ${records.bestWeek.index}` : 'Needs a week that went down'}
+          valueColor={records.bestWeek ? colors.greenText : undefined}
+        />
+        <StatCard label="Longest streak" value={String(records.longestStreak)} unit="d" sub="Days weighed in a row" />
+        <StatCard
+          label="Days weighed"
+          value={String(records.weighedDays)}
+          unit={`/ ${records.planDays}`}
+          sub={`${records.planDays ? Math.round((records.weighedDays / records.planDays) * 100) : 0}% of plan days`}
+        />
+      </StatGrid>
 
       {/* ── insight messages ────────────────────────────────────────────── */}
       <View style={{ marginTop: space.md, paddingHorizontal: 2 }}>
@@ -358,5 +463,59 @@ function ProjectionCard() {
         </View>
       )}
     </Card>
+  );
+}
+
+const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const WEEKDAY_NAMES = ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays'];
+
+/** The weekday chart's one-line reading: which day drops most, which rises most. */
+function describeRhythm(pattern: WeekdayChange[], u: UnitFormatter): { ready: boolean; text: string } {
+  const known = pattern.map((p, i) => ({ ...p, i })).filter((p) => p.avgKg != null) as (WeekdayChange & {
+    avgKg: number;
+    i: number;
+  })[];
+  if (known.length < 4) return { ready: false, text: '' };
+  const down = known.reduce((a, b) => (b.avgKg < a.avgKg ? b : a));
+  const up = known.reduce((a, b) => (b.avgKg > a.avgKg ? b : a));
+  const parts: string[] = [];
+  // Two decimals, the same as the bars, so the sentence and the chart agree.
+  const amount = (kg: number) => `${u.weightValue(Math.abs(kg), 2)} ${u.labels.weight}`;
+  if (down.avgKg < -0.005) parts.push(`${WEEKDAY_NAMES[down.i]} drop the most (−${amount(down.avgKg)})`);
+  if (up.avgKg > 0.005) {
+    const weekend = up.i === 0 || up.i === 6;
+    parts.push(
+      `${WEEKDAY_NAMES[up.i]} rise the most (+${amount(up.avgKg)})${weekend ? ' — a common weekend effect, mostly water and salt' : ''}`,
+    );
+  }
+  return {
+    ready: true,
+    text: parts.length ? `${parts.join('; ')}.` : 'No weekday stands out — a steady rhythm.',
+  };
+}
+
+/** How each tracked field reads against its target. */
+const METERS: Record<
+  TrackedField,
+  (p: Profile, u: UnitFormatter) => { label: string; target: number; display: (v: number) => string; over?: 'good' | 'limit' }
+> = {
+  calories: (p) => ({
+    label: 'Calories',
+    target: isAdult(p) ? p.targetCalories : 0,
+    display: (v) => `${Math.round(v).toLocaleString('en-GB')} kcal`,
+    over: 'limit',
+  }),
+  proteinG: (p) => ({ label: 'Protein', target: p.targetProteinG, display: (v) => `${Math.round(v)} g` }),
+  waterL: (p, u) => ({ label: 'Water', target: p.targetWaterL, display: (v) => u.volume(v) }),
+  steps: (p) => ({ label: 'Steps', target: p.targetSteps, display: (v) => Math.round(v).toLocaleString('en-GB') }),
+  sleepH: (p) => ({ label: 'Sleep', target: p.targetSleepH, display: (v) => `${v.toFixed(1)} h` }),
+};
+
+function Swatch({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: color }} />
+      <Caption style={{ fontSize: 11 }}>{label}</Caption>
+    </View>
   );
 }

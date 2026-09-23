@@ -111,7 +111,7 @@ export function TrendsScreen() {
               {u.units === 'imperial' ? 'Pounds' : 'Kilos'} lost per {mode.toLowerCase()}
             </Body>
             <View style={{ marginTop: space.lg }}>
-              <LossBars bars={bars} />
+              <LossBars bars={bars} format={(kg) => u.weightValue(kg)} unit={u.labels.weight} />
             </View>
           </Card>
 
