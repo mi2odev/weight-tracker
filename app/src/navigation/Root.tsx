@@ -7,6 +7,7 @@ import { useStore } from '../data/store';
 import { TabBar, TabKey } from '../components/TabBar';
 import { CelebrationModal, ConfirmDialog, Toast } from '../components/Overlays';
 import { shouldOfferAdulthood } from '../lib/calc';
+import { InboxTarget } from '../lib/inbox';
 import { HOME, Route, SubScreen } from './routes';
 
 import { TodayScreen } from '../screens/TodayScreen';
@@ -20,6 +21,7 @@ import { LogScreen } from '../screens/LogScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { PrivacyScreen } from '../screens/PrivacyScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { InboxScreen } from '../screens/InboxScreen';
 import { StorageErrorScreen } from '../screens/StorageErrorScreen';
 
 /**
@@ -95,7 +97,7 @@ export function Root() {
 
       <View style={{ flex: 1 }}>
         {route.kind === 'tab' && route.tab === 'today' && (
-          <TodayScreen onOpenLog={() => goSub('log', 'today')} />
+          <TodayScreen onOpenLog={() => goSub('log', 'today')} onOpenInbox={() => goSub('inbox', 'today')} />
         )}
         {route.kind === 'tab' && route.tab === 'progress' && (
           <ProgressScreen onOpenMilestones={() => goSub('milestones', 'progress')} />
@@ -113,6 +115,17 @@ export function Root() {
           <SettingsScreen onBack={back} onOpenPrivacy={() => goSub('privacy', activeTab)} />
         )}
         {route.kind === 'sub' && route.screen === 'privacy' && <PrivacyScreen onBack={back} />}
+        {route.kind === 'sub' && route.screen === 'inbox' && (
+          <InboxScreen
+            onBack={back}
+            onOpen={(target: InboxTarget) =>
+              target === 'today' || target === 'trends'
+                ? goTab(target)
+                : goSub(target, activeTab)
+            }
+            onOpenSettings={() => goSub('settings', activeTab)}
+          />
+        )}
       </View>
 
       <TabBar active={activeTab} onChange={goTab} />
