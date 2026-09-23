@@ -34,6 +34,12 @@ import {
   Sex,
   Units,
   WATER_INTERVALS,
+  CustomReminder,
+  PROGRESS_PERIODS,
+  PROGRESS_SECTIONS,
+  ProgressLayout,
+  ProgressPeriod,
+  ProgressSection,
   WORKOUT_TYPES,
   WeighIn,
   WorkoutEntry,
@@ -188,7 +194,60 @@ function migrateNotifications(raw: unknown, defaults: NotificationSettings): Not
     eveningMinutes: minuteOfDay(src.eveningMinutes, defaults.eveningMinutes),
     ...waterWindow(src, defaults),
     waterOnlyBehind: bool(src.waterOnlyBehind, defaults.waterOnlyBehind),
+    weighDays: weekdays(src.weighDays, defaults.weighDays),
+    eveningDays: weekdays(src.eveningDays, defaults.eveningDays),
+    waterDays: weekdays(src.waterDays, defaults.waterDays),
+    custom: migrateCustomReminders(src.custom),
   };
+}
+
+/** A set of weekdays, Monday = 0: whole numbers 0–6, unique, in order. */
+function weekdays(v: unknown, fallback: number[]): number[] {
+  if (!Array.isArray(v)) return [...fallback];
+  return Array.from(new Set(v.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))).sort();
+}
+
+/** At most this many user-written reminders — a list, not a second calendar. */
+export const MAX_CUSTOM_REMINDERS = 12;
+
+function migrateCustomReminders(raw: unknown): CustomReminder[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CustomReminder[] = [];
+  for (const r of raw) {
+    if (!isObject(r) || typeof r.id !== 'string' || !r.id) continue;
+    const label = text(r.label, 60)?.trim();
+    const minutes = numberIn(r.minutes, 0, 1439);
+    if (!label || minutes == null) continue;
+    out.push({
+      id: r.id,
+      label,
+      minutes: Math.round(minutes),
+      days: weekdays(r.days, [0, 1, 2, 3, 4, 5, 6]),
+      enabled: bool(r.enabled, true),
+    });
+  }
+  return out.slice(0, MAX_CUSTOM_REMINDERS);
+}
+
+/**
+ * v8: every known section exactly once, in the saved order, with any the
+ * saved order lacks (added in a later version) at the end; hidden ones only
+ * from the known set.
+ */
+function migrateProgressLayout(raw: unknown, defaults: ProgressLayout): ProgressLayout {
+  const src = isObject(raw) ? raw : {};
+  const known = new Set<string>(PROGRESS_SECTIONS);
+  const saved = Array.isArray(src.order)
+    ? Array.from(new Set(src.order.filter((k): k is ProgressSection => typeof k === 'string' && known.has(k))))
+    : [];
+  const order = [...saved, ...PROGRESS_SECTIONS.filter((k) => !saved.includes(k))];
+  const hidden = Array.isArray(src.hidden)
+    ? Array.from(new Set(src.hidden.filter((k): k is ProgressSection => typeof k === 'string' && known.has(k))))
+    : [...defaults.hidden];
+  const period = (PROGRESS_PERIODS as number[]).includes(src.period as number)
+    ? (src.period as ProgressPeriod)
+    : defaults.period;
+  return { order, hidden, period };
 }
 
 /** v7: interval from the allowed list; a window that ends after it starts. */
@@ -468,6 +527,7 @@ export function migrate(raw: unknown): MigrationResult {
     diagnostics: migrateDiagnostics(raw.diagnostics, defaults.diagnostics),
     adulthoodNoticed: bool(raw.adulthoodNoticed, defaults.adulthoodNoticed),
     inboxRead: migrateInboxRead(raw.inboxRead),
+    progressLayout: migrateProgressLayout(raw.progressLayout, defaults.progressLayout),
     onboarded: bool(raw.onboarded, defaults.onboarded),
   };
 

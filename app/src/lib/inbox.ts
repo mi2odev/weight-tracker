@@ -18,10 +18,10 @@
 import { AppData, DateKey } from '../data/types';
 import { entryFor, habitTicks, habitsMetCount, weeklyRollups, weighInStreaks } from './calc';
 import { addDays, dayKeyAt, daysBetween, minuteOfDayAt } from './date';
-import { waterCheckTimes, waterDueBy, waterReminderDue } from './reminderRules';
+import { minutesLabel, runsOn, waterCheckTimes, waterDueBy, waterReminderDue } from './reminderRules';
 import { formatterFor } from './units';
 
-export type InboxKind = 'weigh' | 'water' | 'evening' | 'milestone' | 'week' | 'streak' | 'measure';
+export type InboxKind = 'weigh' | 'water' | 'evening' | 'milestone' | 'week' | 'streak' | 'measure' | 'custom';
 
 /** Where tapping an item takes you. */
 export type InboxTarget = 'today' | 'log' | 'milestones' | 'trends' | 'body';
@@ -59,7 +59,7 @@ export function inboxItems(data: AppData, now: Date = new Date()): InboxItem[] {
 
   // ── today's to-dos ─────────────────────────────────────────────────────────
 
-  if (n.morningWeighIn && clock >= n.morningMinutes && entry?.weightKg == null) {
+  if (n.morningWeighIn && runsOn(n.weighDays, today) && clock >= n.morningMinutes && entry?.weightKg == null) {
     out.push({
       id: `weigh-${today}`,
       kind: 'weigh',
@@ -70,7 +70,7 @@ export function inboxItems(data: AppData, now: Date = new Date()): InboxItem[] {
     });
   }
 
-  if (n.water && profile.targetWaterL > 0) {
+  if (n.water && runsOn(n.waterDays, today) && profile.targetWaterL > 0) {
     // Only the latest reminder time that has passed — a stack of hourly
     // water nudges would be nagging.
     const passed = waterCheckTimes(n).filter((m) => clock >= m);
@@ -90,7 +90,7 @@ export function inboxItems(data: AppData, now: Date = new Date()): InboxItem[] {
     }
   }
 
-  if (n.eveningLog && clock >= n.eveningMinutes) {
+  if (n.eveningLog && runsOn(n.eveningDays, today) && clock >= n.eveningMinutes) {
     const met = habitsMetCount(habitTicks(entry, profile, today, today));
     if (met < 3) {
       out.push({
@@ -102,6 +102,19 @@ export function inboxItems(data: AppData, now: Date = new Date()): InboxItem[] {
         target: 'today',
       });
     }
+  }
+
+  // The user's own reminders, once their time has come today.
+  for (const reminder of n.custom) {
+    if (!reminder.enabled || !runsOn(reminder.days, today) || clock < reminder.minutes) continue;
+    out.push({
+      id: `custom-${reminder.id}-${today}`,
+      kind: 'custom',
+      title: reminder.label,
+      body: `Your ${minutesLabel(reminder.minutes)} reminder.`,
+      date: today,
+      target: 'today',
+    });
   }
 
   // ── things that happened ───────────────────────────────────────────────────

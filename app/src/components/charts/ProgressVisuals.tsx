@@ -238,6 +238,7 @@ export function TargetMeter({
   target,
   display,
   days,
+  outOf = 7,
   over = 'good',
 }: {
   label: string;
@@ -246,6 +247,8 @@ export function TargetMeter({
   /** Formats a value in this row's unit. */
   display: (v: number) => string;
   days: number;
+  /** Days in the period the average covers. */
+  outOf?: number;
   /** Whether going past the target is the point (steps) or a limit (calories). */
   over?: 'good' | 'limit';
 }) {
@@ -258,7 +261,7 @@ export function TargetMeter({
       accessibilityLabel={
         value == null
           ? `${label}: nothing logged in the last 7 days`
-          : `${label}: average ${display(value)} against a target of ${display(target)}, ${days} of 7 days logged`
+          : `${label}: average ${display(value)} against a target of ${display(target)}, ${days} of ${outOf} days logged`
       }
       style={{ gap: 5 }}
     >
@@ -281,8 +284,8 @@ export function TargetMeter({
       </View>
       <Caption style={{ fontSize: 10.5 }}>
         {value == null
-          ? 'Nothing logged this week'
-          : `${days} of 7 days logged${
+          ? 'Nothing logged in this period'
+          : `${days} of ${outOf} days logged${
               reached ? (over === 'good' ? ' · target met' : ` · ${Math.round((share - 1) * 100)}% over target`) : ''
             }`}
       </Caption>

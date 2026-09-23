@@ -158,3 +158,19 @@ describe('ids and ordering', () => {
     assert.equal(inboxWhen(addDays(DAY, -4), DAY), '4 days ago');
   });
 });
+
+describe('custom reminders and days', () => {
+  it('shows the user\'s own reminder once its time has come', () => {
+    const d = data();
+    d.notifications.custom = [{ id: 'v', label: 'Vitamins', minutes: 8 * 60, days: [0, 1, 2, 3, 4, 5, 6], enabled: true }];
+    assert.ok(!kinds(d, at(7, 59)).includes('custom'));
+    const item = inboxItems(d, at(8)).find((i) => i.kind === 'custom');
+    assert.equal(item?.title, 'Vitamins');
+  });
+
+  it('leaves out the weigh-in nudge on a day it is switched off', () => {
+    const d = data();
+    d.notifications.weighDays = [];
+    assert.ok(!kinds(d, at(9)).includes('weigh'));
+  });
+});

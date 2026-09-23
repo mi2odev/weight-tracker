@@ -107,7 +107,8 @@ export async function syncReminders(data: AppData): Promise<void> {
     data.notifications.morningWeighIn ||
     data.notifications.eveningLog ||
     data.notifications.weeklySummary ||
-    data.notifications.water;
+    data.notifications.water ||
+    data.notifications.custom.some((r) => r.enabled);
 
   const Notifications = api();
   if (!Notifications) return;

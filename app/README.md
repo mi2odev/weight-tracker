@@ -15,7 +15,7 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 363 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 377 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing,
                    #             templates, reminder rules, inbox, weigh-in check
 ```
@@ -182,6 +182,19 @@ best week, longest streak, days weighed). The figures are `lib/progressStats.ts`
 tested. Charts stay in the app palette; where two markers share a track they
 differ by shape (filled / hollow) rather than a second colour, because teal and
 green are too close to separate as two series, and every bar carries its value.
+
+**Yours to arrange.** The Progress page is built from named sections — stats,
+journey, trend, projections, period, weekly rhythm, targets, BMI, records,
+insights, next milestone — and *Customise this page* shows, hides and reorders
+them. A period switch (7 / 30 / 90 days / all) drives the period summary
+(change, rate per week, lowest, days weighed), the targets meters and the
+weekly-rhythm window. The layout and period are saved (`progressLayout`, schema
+v8; unknown sections are dropped and new ones appended on load).
+
+Reminders are just as adjustable: the weigh-in, evening and water reminders each
+run on the weekdays you pick, and *Your reminders* holds up to twelve of your own
+("Take vitamins, 08:15, every day"), delivered to the phone and the inbox alike.
+Everything pending is capped at 60, soonest first, under iOS's limit of 64.
 
 **Red is for missed habits, and for one button.** The style frame reserves
 amber-red for a missed habit, never a weight gain, and that still holds for

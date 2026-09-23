@@ -18,6 +18,7 @@ const ICONS: Record<InboxKind, IconName> = {
   week: 'bars',
   streak: 'rate',
   measure: 'ruler',
+  custom: 'bell',
 };
 
 export function InboxScreen({

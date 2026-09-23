@@ -6,7 +6,7 @@
  */
 
 import { DateKey, Profile, WeighIn } from '../data/types';
-import { PLAN_DAYS, weeklyRollups, weighedEntries, weighInStreaks } from './calc';
+import { isLogged, PLAN_DAYS, weeklyRollups, weighedEntries, weighInStreaks } from './calc';
 import { addDays, daysBetween, weekdayIndex } from './date';
 
 // ── against the plan ─────────────────────────────────────────────────────────
@@ -73,8 +73,14 @@ export interface FieldAverage {
   days: number;
 }
 
-export function lastSevenDays(entries: WeighIn[], asOf: DateKey): FieldAverage[] {
-  const from = addDays(asOf, -6);
+/** Days a period covers: `days`, or from the start date when `days` is 0 (all). */
+export function periodStart(profile: Profile, asOf: DateKey, days: number): DateKey {
+  const from = days > 0 ? addDays(asOf, -(days - 1)) : profile.startDate;
+  return from < profile.startDate ? profile.startDate : from;
+}
+
+/** Daily averages of the tracked fields over the last `days` days (7 by default). */
+export function lastSevenDays(entries: WeighIn[], asOf: DateKey, from: DateKey = addDays(asOf, -6)): FieldAverage[] {
   const week = entries.filter((e) => e.logDate >= from && e.logDate <= asOf);
   const fields: TrackedField[] = ['calories', 'proteinG', 'waterL', 'steps', 'sleepH'];
   return fields.map((field) => {
@@ -85,6 +91,43 @@ export function lastSevenDays(entries: WeighIn[], asOf: DateKey): FieldAverage[]
       days: values.length,
     };
   });
+}
+
+// ── a chosen period ─────────────────────────────────────────────────────────
+
+export interface PeriodSummary {
+  from: DateKey;
+  /** Calendar days in the period so far. */
+  days: number;
+  /** Last weigh-in minus first, inside the period; negative is a loss. */
+  changeKg: number | null;
+  /** That change per week, once the weigh-ins span a week or more. */
+  perWeekKg: number | null;
+  lowest: { kg: number; date: DateKey } | null;
+  weighedDays: number;
+  loggedDays: number;
+}
+
+export function periodSummary(entries: WeighIn[], profile: Profile, asOf: DateKey, days: number): PeriodSummary {
+  const from = periodStart(profile, asOf, days);
+  const inside = entries.filter((e) => e.logDate >= from && e.logDate <= asOf);
+  const weighed = weighedEntries(inside);
+  const first = weighed[0];
+  const last = weighed[weighed.length - 1];
+  const span = first && last ? daysBetween(first.logDate, last.logDate) : 0;
+  const changeKg = first && last && span > 0 ? last.weightKg - first.weightKg : null;
+  return {
+    from,
+    days: Math.max(0, daysBetween(from, asOf) + 1),
+    changeKg,
+    perWeekKg: changeKg != null && span >= 7 ? (changeKg / span) * 7 : null,
+    lowest: weighed.reduce<{ kg: number; date: DateKey } | null>(
+      (best, e) => (best == null || e.weightKg < best.kg ? { kg: e.weightKg, date: e.logDate } : best),
+      null,
+    ),
+    weighedDays: weighed.length,
+    loggedDays: inside.filter((e) => isLogged(e)).length,
+  };
 }
 
 // ── records ──────────────────────────────────────────────────────────────────

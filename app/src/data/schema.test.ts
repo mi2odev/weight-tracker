@@ -421,3 +421,43 @@ describe('v7 — water reminder interval and window', () => {
     assert.deepEqual([n.waterEveryMinutes, n.waterStartMinutes, n.waterEndMinutes], [120, 540, 1260]);
   });
 });
+
+describe('v8 — reminder days, custom reminders, progress layout', () => {
+  it('fills defaults on an older payload', () => {
+    const r = migrate(v1Payload()).data;
+    assert.deepEqual(r.notifications.weighDays, [0, 1, 2, 3, 4, 5, 6]);
+    assert.deepEqual(r.notifications.custom, []);
+    assert.equal(r.progressLayout.order.length, 11);
+    assert.equal(r.progressLayout.period, 30);
+  });
+
+  it('cleans weekdays and drops custom reminders it cannot use', () => {
+    const r = migrate(
+      v1Payload({
+        notifications: {
+          waterDays: [6, 1, 1, 9, 'x'],
+          custom: [
+            { id: 'a', label: ' Vitamins ', minutes: 480, days: [0, 2] },
+            { id: 'b', label: '', minutes: 480 },
+            { id: 'c', label: 'Bad time', minutes: 5000 },
+            'nope',
+          ],
+        },
+      }),
+    ).data.notifications;
+    assert.deepEqual(r.waterDays, [1, 6]);
+    assert.equal(r.custom.length, 1);
+    assert.equal(r.custom[0].label, 'Vitamins');
+    assert.equal(r.custom[0].enabled, true);
+  });
+
+  it('keeps a saved section order, appends sections it lacks, and drops unknown ones', () => {
+    const layout = migrate(
+      v1Payload({ progressLayout: { order: ['records', 'stats', 'bogus', 'records'], hidden: ['bmi', 'nope'], period: 7 } }),
+    ).data.progressLayout;
+    assert.deepEqual(layout.order.slice(0, 2), ['records', 'stats']);
+    assert.equal(layout.order.length, 11);
+    assert.deepEqual(layout.hidden, ['bmi']);
+    assert.equal(layout.period, 7);
+  });
+});

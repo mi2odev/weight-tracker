@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { Fragment, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
@@ -6,7 +6,8 @@ import { font, radius, space, tnum, type } from '../theme/tokens';
 import { useStore } from '../data/store';
 import { useDerived } from '../data/derived';
 import { Card, StatCard, StatGrid } from '../components/Card';
-import { EmptyState, SectionHeading } from '../components/Controls';
+import { EmptyState, GhostButton, SectionHeading, Segmented, Toggle } from '../components/Controls';
+import { Sheet } from '../components/Overlays';
 import { Icon, IconName } from '../components/Icon';
 import { Screen } from '../components/Screen';
 import { Sparkline } from '../components/charts/Sparkline';
@@ -17,6 +18,7 @@ import { Body, Caption, Hero, Label, Stat } from '../components/Type';
 import { bmi, dailyChange, healthyWeightRange, isAdult } from '../lib/calc';
 import {
   lastSevenDays,
+  periodSummary,
   personalRecords,
   planPosition,
   TrackedField,
@@ -24,7 +26,7 @@ import {
   weekdayPattern,
 } from '../lib/progressStats';
 import { UnitFormatter } from '../lib/units';
-import { Profile } from '../data/types';
+import { Profile, PROGRESS_PERIODS, PROGRESS_SECTIONS, ProgressSection } from '../data/types';
 import { chartIsReady, Insight } from '../lib/insights';
 import { formatMedium, formatShort } from '../lib/date';
 
@@ -41,7 +43,7 @@ const INSIGHT_ICONS: Record<Insight['icon'], IconName> = {
 
 export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => void }) {
   const { colors } = useTheme();
-  const { data } = useStore();
+  const { data, setProgressLayout } = useStore();
   const d = useDerived();
   const { u, profile, today } = d;
 
@@ -49,52 +51,27 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
   const hasChart = chartIsReady(data.entries, today);
 
   const plan = planPosition(profile, d.currentKg, today);
-  const pattern = useMemo(() => weekdayPattern(data.entries, today), [data.entries, today]);
+  const layout = data.progressLayout;
+  const [customising, setCustomising] = useState(false);
+  const periodDays = layout.period;
+  const periodLabel = periodDays ? `Last ${periodDays} days` : 'Whole plan';
+  const period = useMemo(
+    () => periodSummary(data.entries, profile, today, periodDays),
+    [data.entries, profile, today, periodDays],
+  );
+  // The weekday pattern needs a few weeks to mean anything, so a short
+  // period still reads at least four.
+  const rhythmWeeks = Math.max(4, Math.ceil(period.days / 7));
+  const pattern = useMemo(() => weekdayPattern(data.entries, today, rhythmWeeks), [data.entries, today, rhythmWeeks]);
   const rhythm = describeRhythm(pattern, u);
-  const week = useMemo(() => lastSevenDays(data.entries, today), [data.entries, today]);
+  const week = useMemo(() => lastSevenDays(data.entries, today, period.from), [data.entries, today, period.from]);
   const records = useMemo(() => personalRecords(data.entries, profile, today), [data.entries, profile, today]);
   const startBmi = bmi(profile.startWeightKg, profile.heightCm);
   const healthy = healthyWeightRange(profile.heightCm);
 
-  return (
-    <Screen title="Progress" meta={`Week ${d.weekNumber} · ${formatMedium(today)}`}>
-      {/* ── hero ────────────────────────────────────────────────────────── */}
-      <Card
-        hero
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          gap: space.md,
-          paddingHorizontal: 18,
-          paddingVertical: space.lg,
-        }}
-      >
-        <View style={{ flexShrink: 1 }}>
-          <Label style={type.eyebrow}>Current weight</Label>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 2 }}>
-            <Hero>{u.weightValue(d.currentKg)}</Hero>
-            <Body style={{ fontFamily: font.medium, fontSize: 18 }} color={colors.muted}>
-              {u.labels.weight}
-            </Body>
-          </View>
-          <Body
-            style={{ fontFamily: font.medium, fontSize: 14 }}
-            color={sinceYesterday != null && sinceYesterday < -0.05 ? colors.greenText : colors.muted}
-          >
-            {sinceYesterday == null
-              ? d.weighed.length
-                ? `Last weighed ${formatShort(d.weighed[d.weighed.length - 1].logDate)}`
-                : 'Nothing logged yet'
-              : `${u.weightDelta(sinceYesterday)} since yesterday`}
-          </Body>
-        </View>
-
-        <View style={{ marginBottom: space.xs }}>
-          <Sparkline values={d.weighed.slice(-14).map((e) => e.weightKg)} />
-        </View>
-      </Card>
-
+  const sections: Record<ProgressSection, React.ReactNode> = {
+    stats: (
+    <>
       {/* ── the six stats ───────────────────────────────────────────────── */}
       <StatGrid>
         <StatCard
@@ -155,7 +132,10 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           sub={`${d.streaks.current}-day weigh-in streak`}
         />
       </StatGrid>
-
+    </>
+    ),
+    journey: (
+    <>
       {/* ── goal completion, or the maintenance band ────────────────────── */}
       {!d.isCountdown ? (
         <Card style={{ paddingHorizontal: 13, paddingTop: space.md, paddingBottom: 13, gap: 6 }}>
@@ -202,7 +182,10 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           </View>
         </Card>
       )}
-
+    </>
+    ),
+    trend: (
+    <>
       {/* ── the trend chart ─────────────────────────────────────────────── */}
       <Card hero style={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: space.md }}>
         {hasChart ? (
@@ -214,13 +197,19 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           />
         )}
       </Card>
-
+    </>
+    ),
+    projections: (
+    <>
       {/* ── projections ─────────────────────────────────────────────────── */}
       {d.isCountdown && <ProjectionCard />}
-
+    </>
+    ),
+    rhythm: (
+    <>
       {/* ── patterns: how each weekday tends to move ────────────────────── */}
       <View style={{ marginTop: space.lg }}>
-        <SectionHeading title="Weekly rhythm" trailing="Last 8 weeks" />
+        <SectionHeading title="Weekly rhythm" trailing={`Last ${rhythmWeeks} weeks`} />
       </View>
       <Card hero style={{ paddingHorizontal: 18, paddingTop: space.lg, paddingBottom: 14 }}>
         <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>Average overnight change by weekday</Body>
@@ -247,17 +236,23 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           </Caption>
         )}
       </Card>
-
+    </>
+    ),
+    week: (
+    <>
       {/* ── the last seven days against targets ─────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
-        <SectionHeading title="Last 7 days" trailing="Daily average" />
+        <SectionHeading title="Against targets" trailing={`${periodLabel} · daily average`} />
       </View>
       <Card hero style={{ paddingHorizontal: 18, paddingVertical: space.lg, gap: space.lg }}>
         {week.map((f) => (
-          <TargetMeter key={f.field} {...METERS[f.field](profile, u)} value={f.avg} days={f.days} />
+          <TargetMeter key={f.field} {...METERS[f.field](profile, u)} value={f.avg} days={f.days} outOf={period.days} />
         ))}
       </Card>
-
+    </>
+    ),
+    bmi: (
+    <>
       {/* ── BMI on the WHO scale ────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
         <SectionHeading title="Body mass index" trailing={d.bmiBand} />
@@ -277,7 +272,10 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           is a population measure — it doesn't see muscle, so treat it as one signal among several.
         </Caption>
       </Card>
-
+    </>
+    ),
+    records: (
+    <>
       {/* ── records ─────────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
         <SectionHeading title="Records" />
@@ -304,7 +302,10 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           sub={`${records.planDays ? Math.round((records.weighedDays / records.planDays) * 100) : 0}% of plan days`}
         />
       </StatGrid>
-
+    </>
+    ),
+    insights: (
+    <>
       {/* ── insight messages ────────────────────────────────────────────── */}
       <View style={{ marginTop: space.md, paddingHorizontal: 2 }}>
         {d.insights.map((insight, i) => {
@@ -357,7 +358,10 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           );
         })}
       </View>
-
+    </>
+    ),
+    milestone: (
+    <>
       {/* ── next milestone ──────────────────────────────────────────────── */}
       {d.isCountdown && (
       <Pressable
@@ -382,6 +386,105 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
         <Icon name="chevronRight" size={13} color={colors.accent} />
       </Pressable>
       )}
+    </>
+    ),
+    period: (
+      <>
+        {/* ── a chosen period ───────────────────────────────────────────── */}
+        <View style={{ marginTop: space.lg }}>
+          <SectionHeading title="Period" trailing={periodLabel} />
+        </View>
+        <Segmented
+          options={PERIOD_OPTIONS}
+          value={PERIOD_OPTIONS[PROGRESS_PERIODS.indexOf(layout.period)]}
+          onChange={(label) => setProgressLayout({ period: PROGRESS_PERIODS[PERIOD_OPTIONS.indexOf(label)] })}
+        />
+        <StatGrid>
+          <StatCard
+            label="Change"
+            value={period.changeKg == null ? '—' : u.weightValue(Math.abs(period.changeKg))}
+            unit={period.changeKg == null ? undefined : u.labels.weight}
+            sub={
+              period.changeKg == null
+                ? 'Needs two weigh-ins'
+                : Math.abs(period.changeKg) < 0.05
+                  ? 'Held steady'
+                  : period.changeKg < 0
+                    ? '↓ down'
+                    : '↑ up'
+            }
+            valueColor={period.changeKg != null && period.changeKg < -0.05 ? colors.greenText : undefined}
+          />
+          <StatCard
+            label="Per week"
+            value={period.perWeekKg == null ? '—' : u.weightValue(Math.abs(period.perWeekKg))}
+            unit={period.perWeekKg == null ? undefined : u.labels.weight}
+            sub={period.perWeekKg == null ? 'Needs a week of weigh-ins' : period.perWeekKg < 0 ? '↓ average loss' : '↑ average gain'}
+          />
+          <StatCard
+            label="Lowest"
+            value={period.lowest ? u.weightValue(period.lowest.kg) : '—'}
+            unit={period.lowest ? u.labels.weight : undefined}
+            sub={period.lowest ? formatShort(period.lowest.date) : 'No weigh-ins yet'}
+          />
+          <StatCard
+            label="Weighed"
+            value={String(period.weighedDays)}
+            unit={`/ ${period.days}`}
+            sub={`${period.loggedDays} days with anything logged`}
+          />
+        </StatGrid>
+      </>
+    ),
+  };
+
+  return (
+    <Screen title="Progress" meta={`Week ${d.weekNumber} · ${formatMedium(today)}`}>
+      {/* ── hero ────────────────────────────────────────────────────────── */}
+      <Card
+        hero
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          gap: space.md,
+          paddingHorizontal: 18,
+          paddingVertical: space.lg,
+        }}
+      >
+        <View style={{ flexShrink: 1 }}>
+          <Label style={type.eyebrow}>Current weight</Label>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 2 }}>
+            <Hero>{u.weightValue(d.currentKg)}</Hero>
+            <Body style={{ fontFamily: font.medium, fontSize: 18 }} color={colors.muted}>
+              {u.labels.weight}
+            </Body>
+          </View>
+          <Body
+            style={{ fontFamily: font.medium, fontSize: 14 }}
+            color={sinceYesterday != null && sinceYesterday < -0.05 ? colors.greenText : colors.muted}
+          >
+            {sinceYesterday == null
+              ? d.weighed.length
+                ? `Last weighed ${formatShort(d.weighed[d.weighed.length - 1].logDate)}`
+                : 'Nothing logged yet'
+              : `${u.weightDelta(sinceYesterday)} since yesterday`}
+          </Body>
+        </View>
+
+        <View style={{ marginBottom: space.xs }}>
+          <Sparkline values={d.weighed.slice(-14).map((e) => e.weightKg)} />
+        </View>
+      </Card>
+
+      {layout.order
+        .filter((key) => !layout.hidden.includes(key))
+        .map((key) => (
+          <Fragment key={key}>{sections[key]}</Fragment>
+        ))}
+
+      <GhostButton label="Customise this page" tone="muted" style={{ marginTop: space.lg }} onPress={() => setCustomising(true)} />
+      <LayoutSheet visible={customising} onClose={() => setCustomising(false)} />
     </Screen>
   );
 }
@@ -517,5 +620,119 @@ function Swatch({ color, label }: { color: string; label: string }) {
       <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: color }} />
       <Caption style={{ fontSize: 11 }}>{label}</Caption>
     </View>
+  );
+}
+
+const PERIOD_OPTIONS = ['7 days', '30 days', '90 days', 'All'] as const;
+
+const SECTION_NAMES: Record<ProgressSection, string> = {
+  stats: 'Headline stats',
+  journey: 'Your journey',
+  trend: 'Weight trend chart',
+  projections: 'If this pace holds',
+  period: 'Period summary',
+  rhythm: 'Weekly rhythm',
+  week: 'Against targets',
+  bmi: 'Body mass index',
+  records: 'Records',
+  insights: 'Insights',
+  milestone: 'Next milestone',
+};
+
+/** Show, hide and reorder the page's sections. Saved with the rest of the data. */
+function LayoutSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { colors } = useTheme();
+  const { data, setProgressLayout } = useStore();
+  const { order, hidden } = data.progressLayout;
+
+  const move = (index: number, by: number) => {
+    const next = order.slice();
+    const target = index + by;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    setProgressLayout({ order: next });
+  };
+
+  return (
+    <Sheet visible={visible} title="Customise Progress" onClose={onClose}>
+      <Caption style={{ fontSize: 12, lineHeight: 17 }}>
+        Switch sections on or off and move them up or down. The current-weight card always stays on top.
+      </Caption>
+      {order.map((key, i) => {
+        const shown = !hidden.includes(key);
+        return (
+          <View
+            key={key}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space.sm,
+              paddingVertical: 6,
+              borderBottomWidth: i === order.length - 1 ? 0 : 1,
+              borderBottomColor: colors.line,
+            }}
+          >
+            <Body style={{ flex: 1, fontFamily: font.semibold, fontSize: 14 }} color={shown ? colors.text : colors.disabled}>
+              {SECTION_NAMES[key]}
+            </Body>
+            <MoveButton icon="up" label={`Move ${SECTION_NAMES[key]} up`} disabled={i === 0} onPress={() => move(i, -1)} />
+            <MoveButton
+              icon="down"
+              label={`Move ${SECTION_NAMES[key]} down`}
+              disabled={i === order.length - 1}
+              onPress={() => move(i, 1)}
+            />
+            <Toggle
+              value={shown}
+              accessibilityLabel={`Show ${SECTION_NAMES[key]}`}
+              onChange={(show) =>
+                setProgressLayout({ hidden: show ? hidden.filter((k) => k !== key) : [...hidden, key] })
+              }
+            />
+          </View>
+        );
+      })}
+      <GhostButton
+        label="Reset to the default layout"
+        tone="muted"
+        onPress={() => setProgressLayout({ order: [...PROGRESS_SECTIONS], hidden: [] })}
+      />
+    </Sheet>
+  );
+}
+
+
+function MoveButton({
+  icon,
+  label,
+  disabled,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      hitSlop={4}
+      style={({ pressed }) => ({
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: pressed ? colors.line : colors.tint,
+        opacity: disabled ? 0.35 : 1,
+      })}
+    >
+      <Icon name={icon} size={14} color={colors.accent} strokeWidth={2} />
+    </Pressable>
   );
 }

@@ -225,9 +225,63 @@ export interface NotificationSettings {
   waterEndMinutes: number;
   /** Skip a reminder when the day is already on pace for the target. */
   waterOnlyBehind: boolean;
+  /** Weekdays each timed reminder runs on, Monday = 0. All seven by default. */
+  weighDays: number[];
+  eveningDays: number[];
+  waterDays: number[];
+  /** Reminders the user wrote themselves — "Vitamins, 08:00, every day". */
+  custom: CustomReminder[];
   /** Minutes after midnight — 420 is 07:00. */
   morningMinutes: number;
   eveningMinutes: number;
+}
+
+export interface CustomReminder {
+  id: string;
+  label: string;
+  /** Minutes after midnight, Algerian time. */
+  minutes: number;
+  /** Weekdays it runs on, Monday = 0. */
+  days: number[];
+  enabled: boolean;
+}
+
+/** The sections of the Progress page, which the user can reorder and hide. */
+export type ProgressSection =
+  | 'stats'
+  | 'journey'
+  | 'trend'
+  | 'projections'
+  | 'period'
+  | 'rhythm'
+  | 'week'
+  | 'bmi'
+  | 'records'
+  | 'insights'
+  | 'milestone';
+
+export const PROGRESS_SECTIONS: ProgressSection[] = [
+  'stats',
+  'journey',
+  'trend',
+  'projections',
+  'period',
+  'rhythm',
+  'week',
+  'bmi',
+  'records',
+  'insights',
+  'milestone',
+];
+
+/** Days the Progress page summarises; 0 means the whole plan. */
+export type ProgressPeriod = 7 | 30 | 90 | 0;
+export const PROGRESS_PERIODS: ProgressPeriod[] = [7, 30, 90, 0];
+
+export interface ProgressLayout {
+  order: ProgressSection[];
+  hidden: ProgressSection[];
+  period: ProgressPeriod;
 }
 
 /**
@@ -243,6 +297,8 @@ export interface NotificationSettings {
  *     been shown.
  * 5 — adds `savedMeals` and `savedWorkouts`: reusable templates, so a meal
  *     eaten every morning is typed once rather than every day.
+ * 8 — reminders get weekdays and user-written ones; the Progress page gets
+ *     a saved layout (section order, hidden sections, period).
  * 7 — water reminders repeat at a chosen interval inside a chosen window.
  * 6 — reminder times become settings, a water reminder joins them, and
  *     `inboxRead` records which in-app notifications have been opened.
@@ -250,7 +306,7 @@ export interface NotificationSettings {
  * Lives here rather than in `schema.ts` so `seed.ts` can stamp it without the
  * two files importing each other.
  */
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 8;
 
 export interface AppData {
   /** The shape version this payload was written at. See `data/schema.ts`. */
@@ -283,6 +339,7 @@ export interface AppData {
   adulthoodNoticed: boolean;
   /** Ids of in-app notifications already opened. See `lib/inbox.ts`. */
   inboxRead: string[];
+  progressLayout: ProgressLayout;
   onboarded: boolean;
 }
 
