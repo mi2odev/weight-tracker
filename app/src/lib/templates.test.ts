@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  copyMeals,
   findSavedMeal,
   mealFromTemplate,
   QUICK_MEAL_COUNT,
@@ -229,5 +230,46 @@ describe('one-tap meals on the log', () => {
       calories: 410,
       proteinG: 14,
     });
+  });
+});
+
+describe('copying a day of meals', () => {
+  const day = (id: string, logDate: string, description: string): MealEntry => ({
+    id,
+    logDate,
+    mealType: 'Breakfast',
+    description,
+    calories: 300,
+    proteinG: 20,
+  });
+  const log = [
+    day('a', '2026-09-22', 'Porridge'),
+    day('b', '2026-09-21', 'Toast'),
+    day('c', '2026-09-22', 'Soup'),
+  ];
+
+  it('copies only that day, in order, onto the new day', () => {
+    const copied = copyMeals(log, '2026-09-22', '2026-09-23', (i) => `n${i}`);
+    assert.deepEqual(copied.map((m) => [m.id, m.logDate, m.description]), [
+      ['n0', '2026-09-23', 'Porridge'],
+      ['n1', '2026-09-23', 'Soup'],
+    ]);
+  });
+
+  it('keeps the figures', () => {
+    const [first] = copyMeals(log, '2026-09-22', '2026-09-23', (i) => `n${i}`);
+    assert.equal(first.calories, 300);
+    assert.equal(first.proteinG, 20);
+  });
+
+  it('leaves the source rows untouched', () => {
+    copyMeals(log, '2026-09-22', '2026-09-23', (i) => `n${i}`);
+    assert.equal(log[0].id, 'a');
+    assert.equal(log[0].logDate, '2026-09-22');
+  });
+
+  it('copies nothing from an empty day or onto itself', () => {
+    assert.deepEqual(copyMeals(log, '2026-09-01', '2026-09-23', (i) => `n${i}`), []);
+    assert.deepEqual(copyMeals(log, '2026-09-22', '2026-09-22', (i) => `n${i}`), []);
   });
 });

@@ -50,6 +50,7 @@ import {
 } from '../lib/photos';
 import { todayKey } from '../lib/date';
 import {
+  copyMeals,
   mealFromTemplate,
   templateFromMeal,
   templateFromWorkout,
@@ -138,6 +139,8 @@ interface StoreValue {
   removeSavedWorkout: (id: string) => void;
   /** Logs a saved meal on a day in one tap, with an Undo for the stray tap. */
   logSavedMeal: (templateId: string, logDate: DateKey) => void;
+  /** Copies every meal from one day onto another, undoable as a batch. */
+  copyMealsFromDay: (from: DateKey, to: DateKey) => void;
   addMeasurement: (m: Omit<Measurement, 'id'>) => void;
   updateMeasurement: (id: string, patch: Partial<Omit<Measurement, 'id'>>) => void;
   /** Deletes a measurement set. Its photo file outlives the undo window. */
@@ -724,6 +727,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [commit, update, showToast],
   );
 
+  const copyMealsFromDay = useCallback<StoreValue['copyMealsFromDay']>(
+    (from, to) => {
+      const prev = dataRef.current;
+      const stamp = Date.now();
+      const copied = copyMeals(prev.meals, from, to, (i) => `meal-${stamp}-${prev.meals.length + i}`);
+      if (!copied.length) return;
+
+      const next: AppData = { ...prev, meals: prev.meals.concat(copied) };
+      commit({ ...next, entries: applyLogRollup(next, to) });
+
+      const ids = new Set(copied.map((m) => m.id));
+      showToast(copied.length === 1 ? 'Copied 1 meal' : `Copied ${copied.length} meals`, {
+        label: 'Undo',
+        run: () =>
+          update((current) => {
+            const restored: AppData = { ...current, meals: current.meals.filter((m) => !ids.has(m.id)) };
+            return { ...restored, entries: applyLogRollup(restored, to) };
+          }),
+      });
+    },
+    [commit, update, showToast],
+  );
+
   const removeMeal = useCallback<StoreValue['removeMeal']>(
     (id) => {
       const prev = dataRef.current;
@@ -1193,6 +1219,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       removeSavedMeal,
       removeSavedWorkout,
       logSavedMeal,
+      copyMealsFromDay,
       addMeasurement,
       updateMeasurement,
       removeMeasurement,
@@ -1238,6 +1265,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       removeSavedMeal,
       removeSavedWorkout,
       logSavedMeal,
+      copyMealsFromDay,
       addMeasurement,
       updateMeasurement,
       removeMeasurement,

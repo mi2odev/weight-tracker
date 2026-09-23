@@ -31,7 +31,7 @@ import { Sheet } from '../components/Overlays';
 import { Screen } from '../components/Screen';
 import { Body, Caption } from '../components/Type';
 import { entryFor, mealTotals, workoutTotals } from '../lib/calc';
-import { formatShort, todayKey } from '../lib/date';
+import { addDays, formatShort, todayKey } from '../lib/date';
 import { parseDecimalInput } from '../lib/numberInput';
 import {
   quickMeals,
@@ -56,6 +56,7 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
     saveWeighIn,
     showToast,
     logSavedMeal,
+    copyMealsFromDay,
   } = useStore();
   const u = useUnits();
 
@@ -69,6 +70,9 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
   const mTotals = mealTotals(data.meals, cursor);
   const wTotals = workoutTotals(data.workouts, cursor);
   const quick = quickMeals(data.savedMeals, data.meals);
+  const previousDay = addDays(cursor, -1);
+  const previousMealCount = data.meals.filter((m) => m.logDate === previousDay).length;
+  const previousLabel = previousDay === addDays(todayKey(), -1) ? 'yesterday' : formatShort(previousDay);
 
   const dayLabel = cursor === todayKey() ? 'today' : formatShort(cursor);
   const dayWeight = entryFor(data.entries, cursor)?.weightKg ?? null;
@@ -152,6 +156,23 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
             <Body style={{ fontSize: 13.5 }} color={colors.muted}>
               Nothing logged for {dayLabel} yet.
             </Body>
+            {previousMealCount > 0 && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => copyMealsFromDay(previousDay, cursor)}
+                style={({ pressed }) => ({
+                  marginTop: space.sm,
+                  minHeight: MIN_TAP,
+                  paddingHorizontal: space.lg,
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Body style={{ fontFamily: font.semibold, fontSize: 14 }} color={colors.accent}>
+                  Copy {previousMealCount === 1 ? '1 meal' : `${previousMealCount} meals`} from {previousLabel}
+                </Body>
+              </Pressable>
+            )}
           </Card>
         )}
 
