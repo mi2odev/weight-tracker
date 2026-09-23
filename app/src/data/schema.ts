@@ -180,7 +180,24 @@ function migrateNotifications(raw: unknown, defaults: NotificationSettings): Not
     eveningLog: bool(src.eveningLog, defaults.eveningLog),
     weeklySummary: bool(src.weeklySummary, defaults.weeklySummary),
     milestoneReached: bool(src.milestoneReached, defaults.milestoneReached),
+    water: bool(src.water, defaults.water),
+    morningMinutes: minuteOfDay(src.morningMinutes, defaults.morningMinutes),
+    eveningMinutes: minuteOfDay(src.eveningMinutes, defaults.eveningMinutes),
   };
+}
+
+/** A whole minute of the day, 00:00 – 23:59. */
+function minuteOfDay(v: unknown, fallback: number): number {
+  const n = numberIn(v, 0, 1439);
+  return n == null ? fallback : Math.round(n);
+}
+
+/** Read ids: strings only, de-duplicated, and capped so it cannot grow forever. */
+export const INBOX_READ_CAP = 300;
+function migrateInboxRead(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = Array.from(new Set(raw.filter((v): v is string => typeof v === 'string' && v.length > 0)));
+  return ids.slice(-INBOX_READ_CAP);
 }
 
 // ── log rows ─────────────────────────────────────────────────────────────────
@@ -433,6 +450,7 @@ export function migrate(raw: unknown): MigrationResult {
     lock: migrateLock(raw.lock, defaults.lock),
     diagnostics: migrateDiagnostics(raw.diagnostics, defaults.diagnostics),
     adulthoodNoticed: bool(raw.adulthoodNoticed, defaults.adulthoodNoticed),
+    inboxRead: migrateInboxRead(raw.inboxRead),
     onboarded: bool(raw.onboarded, defaults.onboarded),
   };
 

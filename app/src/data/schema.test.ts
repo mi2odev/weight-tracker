@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { CURRENT_SCHEMA_VERSION, describeData, hasAnyData, isDateKey, migrate } from './schema';
+import { CURRENT_SCHEMA_VERSION, describeData, hasAnyData, INBOX_READ_CAP, isDateKey, migrate } from './schema';
 import { emptyData } from './seed';
 import { NO_CALORIE_TARGET } from './types';
 import { currentAge } from '../lib/calc';
@@ -369,5 +369,31 @@ describe('v5 — saved meals and workouts', () => {
 
   it('ignores a savedMeals that is not a list at all', () => {
     assert.deepEqual(migrate(v1Payload({ savedMeals: 'nope' })).data.savedMeals, []);
+  });
+});
+
+describe('v6 — reminder times, water reminder, inbox', () => {
+  it('fills the new settings on an older payload', () => {
+    const result = migrate(v1Payload());
+    assert.equal(result.data.notifications.water, true);
+    assert.equal(result.data.notifications.morningMinutes, 7 * 60);
+    assert.equal(result.data.notifications.eveningMinutes, 21 * 60);
+    assert.deepEqual(result.data.inboxRead, []);
+  });
+
+  it('keeps a chosen time and rejects one outside the day', () => {
+    const kept = migrate(v1Payload({ notifications: { morningMinutes: 390 } }));
+    assert.equal(kept.data.notifications.morningMinutes, 390);
+    const bad = migrate(v1Payload({ notifications: { morningMinutes: 5000, eveningMinutes: 'late' } }));
+    assert.equal(bad.data.notifications.morningMinutes, 7 * 60);
+    assert.equal(bad.data.notifications.eveningMinutes, 21 * 60);
+  });
+
+  it('keeps read ids as unique strings, newest last, within the cap', () => {
+    const many = Array.from({ length: INBOX_READ_CAP + 20 }, (_, i) => `n${i}`);
+    const result = migrate(v1Payload({ inboxRead: ['a', 'a', 3, null, ...many] }));
+    assert.equal(result.data.inboxRead.length, INBOX_READ_CAP);
+    assert.equal(result.data.inboxRead[result.data.inboxRead.length - 1], `n${INBOX_READ_CAP + 19}`);
+    assert.ok(result.data.inboxRead.every((id) => typeof id === 'string'));
   });
 });

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
-import { font, space } from '../theme/tokens';
+import { font, radius, space } from '../theme/tokens';
 import { CsvImportPreview, RestorePreview, useStore } from '../data/store';
 import { useDerived } from '../data/derived';
 import { describeData, hasAnyData } from '../data/schema';
@@ -13,7 +13,8 @@ import {
   GOAL_TYPES,
   GoalType,
   LockSettings,
-  NotificationSettings,
+  ReminderTime,
+  ReminderToggle,
   Sex,
   Units,
 } from '../data/types';
@@ -40,7 +41,8 @@ import { formatMedium } from '../lib/date';
 import { ConflictChoice } from '../lib/backup';
 import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
 import { formatBytes, totalPhotoBytes } from '../lib/photos';
-import { remindersSupported } from '../lib/notifications';
+import { remindersSupported, sendTestReminder } from '../lib/notifications';
+import { minutesLabel, shiftMinutes } from '../lib/reminderRules';
 import { parseDecimalInput } from '../lib/numberInput';
 
 /** How many measurements still have a photo file behind them. */
@@ -64,11 +66,12 @@ function photosIn(photos: Record<string, string>): string {
   return ` and ${count} ${count === 1 ? 'photo' : 'photos'}`;
 }
 
-const REMINDERS: { key: keyof NotificationSettings; label: string; sub: string }[] = [
-  { key: 'morningWeighIn', label: 'Morning weigh-in', sub: '07:00 · skipped if already logged' },
-  { key: 'eveningLog', label: 'Evening log nudge', sub: '21:00 · only if under 3 habits ticked' },
+const REMINDERS: { key: ReminderToggle; label: string; sub: string; time?: ReminderTime }[] = [
+  { key: 'morningWeighIn', label: 'Morning weigh-in', sub: 'Skipped once you have weighed in', time: 'morningMinutes' },
+  { key: 'eveningLog', label: 'Evening check-in', sub: 'Only if under 3 habits are ticked', time: 'eveningMinutes' },
+  { key: 'water', label: 'Water', sub: '11:00, 15:00 and 18:00 — only while behind pace' },
   { key: 'weeklySummary', label: 'Weekly summary', sub: 'Every 7 days from your start date' },
-  { key: 'milestoneReached', label: 'Milestone reached', sub: 'Fires once, the first time you cross one' },
+  { key: 'milestoneReached', label: 'Milestone reached', sub: 'Once, the first time you cross one' },
 ];
 
 export function SettingsScreen({
@@ -82,6 +85,7 @@ export function SettingsScreen({
   const {
     data,
     setNotification,
+    setReminderTime,
     updateProfile,
     replayOnboarding,
     loadDemo,
@@ -183,34 +187,52 @@ export function SettingsScreen({
       </Card>
       )}
 
-      {/* ── reminders ───────────────────────────────────────────────────── */}
+      {/* ── notifications ───────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
-        <SectionHeading title="Reminders" />
+        <SectionHeading title="Notifications" />
       </View>
       <View style={{ gap: space.sm }}>
-        {REMINDERS.map((reminder) => (
-          <Card
-            key={reminder.key}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: 17, paddingVertical: 13 }}
-          >
-            <View style={{ flex: 1, gap: 1 }}>
-              <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>{reminder.label}</Body>
-              <Caption style={{ fontSize: 11.5, lineHeight: 16 }}>{reminder.sub}</Caption>
-            </View>
-            <Toggle
-              value={data.notifications[reminder.key]}
-              disabled={!remindersSupported}
-              accessibilityLabel={reminder.label}
-              onChange={(next) => setNotification(reminder.key, next)}
-            />
-          </Card>
-        ))}
+        {REMINDERS.map((reminder) => {
+          const on = data.notifications[reminder.key];
+          const minutes = reminder.time ? data.notifications[reminder.time] : null;
+          return (
+            <Card key={reminder.key} style={{ paddingHorizontal: 17, paddingVertical: 13, gap: space.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>{reminder.label}</Body>
+                  <Caption style={{ fontSize: 11.5, lineHeight: 16 }}>{reminder.sub}</Caption>
+                </View>
+                <Toggle
+                  value={on}
+                  accessibilityLabel={reminder.label}
+                  onChange={(next) => setNotification(reminder.key, next)}
+                />
+              </View>
+              {reminder.time && minutes != null && on && (
+                <TimeStepper
+                  label={reminder.label}
+                  minutes={minutes}
+                  onChange={(next) => setReminderTime(reminder.time!, next)}
+                />
+              )}
+            </Card>
+          );
+        })}
       </View>
-      {!remindersSupported && (
+      {remindersSupported ? (
+        <GhostButton
+          label="Send a test notification"
+          tone="muted"
+          onPress={async () => {
+            const sent = await sendTestReminder().catch(() => false);
+            showToast(sent ? 'Sent — it arrives in a few seconds' : 'Notifications are blocked in system settings');
+          }}
+        />
+      ) : (
         <Caption style={{ fontSize: 11.5, lineHeight: 17, paddingHorizontal: space.xs }}>
-          Reminders need a development build. Expo Go on Android dropped the notification support
-          they rely on, so the switches are off here — everything else works as normal, and a
-          development build turns them back on.
+          Expo Go on Android can't show phone notifications, so these reach you in the bell on Today
+          instead. The installed app (a development or store build) delivers them to your lock screen
+          too — the switches and times here carry over.
         </Caption>
       )}
 
@@ -589,5 +611,50 @@ function CsvImportDialog({
         </View>
       </View>
     </Modal>
+  );
+}
+
+/** 07:00 with a step either side — half-hour steps cover every sensible choice in a few taps. */
+function TimeStepper({
+  label,
+  minutes,
+  onChange,
+}: {
+  label: string;
+  minutes: number;
+  onChange: (minutes: number) => void;
+}) {
+  const { colors } = useTheme();
+  const step = (delta: number, text: string, a11y: string) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+      onPress={() => onChange(shiftMinutes(minutes, delta))}
+      style={({ pressed }) => ({
+        width: 44,
+        height: 36,
+        borderRadius: radius.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: pressed ? colors.line : colors.tint,
+      })}
+    >
+      <Body style={{ fontFamily: font.semibold, fontSize: 18 }} color={colors.accent}>
+        {text}
+      </Body>
+    </Pressable>
+  );
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+      <Caption style={{ flex: 1, fontSize: 12 }}>Time</Caption>
+      {step(-30, '−', `${label} 30 minutes earlier`)}
+      <Body
+        style={{ fontFamily: font.semibold, fontSize: 16, minWidth: 58, textAlign: 'center' }}
+        accessibilityLabel={`${label} at ${minutesLabel(minutes)}`}
+      >
+        {minutesLabel(minutes)}
+      </Body>
+      {step(30, '+', `${label} 30 minutes later`)}
+    </View>
   );
 }
