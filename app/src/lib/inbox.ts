@@ -17,7 +17,7 @@
 
 import { AppData, DateKey } from '../data/types';
 import { entryFor, habitTicks, habitsMetCount, weeklyRollups, weighInStreaks } from './calc';
-import { addDays, daysBetween, toKey } from './date';
+import { addDays, dayKeyAt, daysBetween, minuteOfDayAt } from './date';
 import { WATER_CHECKS } from './reminderRules';
 import { formatterFor } from './units';
 
@@ -45,13 +45,12 @@ const STREAK_MARKS = [7, 14, 21, 30, 60, 90, 100, 150, 200, 365];
 /** Body measurements every two weeks is plenty; sooner is noise. */
 const MEASURE_EVERY_DAYS = 14;
 
-const minutesNow = (now: Date) => now.getHours() * 60 + now.getMinutes();
-
 export function inboxItems(data: AppData, now: Date = new Date()): InboxItem[] {
   const { profile, notifications: n } = data;
   const u = formatterFor(profile.units);
-  const today = toKey(now);
-  const clock = minutesNow(now);
+  // Both on Algerian time — see lib/date.ts.
+  const today = dayKeyAt(now);
+  const clock = minuteOfDayAt(now);
   const entry = entryFor(data.entries, today);
   const out: InboxItem[] = [];
 

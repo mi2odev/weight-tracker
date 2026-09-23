@@ -50,7 +50,7 @@ import {
   restorePhotos,
   sweepOrphanedPhotos,
 } from '../lib/photos';
-import { todayKey } from '../lib/date';
+import { msUntilNextDay, todayKey } from '../lib/date';
 import {
   copyMeals,
   mealFromTemplate,
@@ -106,6 +106,11 @@ interface StoreValue {
   /** Tries the first read again, for the retry button on the blocking screen. */
   retryHydration: () => void;
 
+  /**
+   * Today's date on the app's clock (Algerian time). State rather than a call,
+   * so everything re-renders when midnight passes.
+   */
+  today: DateKey;
   /** The day the user is currently looking at on Today / Log. */
   cursor: DateKey;
   setCursor: (d: DateKey) => void;
@@ -238,7 +243,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    * failed hydration is exactly the case that must never write.
    */
   const [hydration, setHydration] = useState<HydrationResult | null>(null);
+  const [today, setToday] = useState<DateKey>(() => todayKey());
   const [cursor, setCursor] = useState<DateKey>(() => todayKey());
+
+  /**
+   * Rolls the day over at Algerian midnight.
+   *
+   * Without this, an app left open — or sitting in the background overnight,
+   * which is how phones keep apps — kept showing yesterday as "Today" until it
+   * was restarted. A timer fires at midnight, and coming back to the
+   * foreground re-checks, since timers do not run in the background. Someone
+   * looking at today moves on to the new day; someone deliberately looking at
+   * an older day stays there.
+   */
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let shown = todayKey();
+    const check = () => {
+      const now = todayKey();
+      if (now !== shown) {
+        const was = shown;
+        shown = now;
+        setToday(now);
+        setCursor((c) => (c === was ? now : c));
+      }
+      clearTimeout(timer);
+      // A second past midnight, so the check lands on the new day.
+      timer = setTimeout(check, msUntilNextDay() + 1000);
+    };
+    check();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') check();
+    });
+    return () => {
+      clearTimeout(timer);
+      sub.remove();
+    };
+  }, []);
   const [toast, setToast] = useState('');
   const [undo, setUndo] = useState<UndoAction | null>(null);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
@@ -1220,6 +1261,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       storageUnreadable,
       retryHydration,
+      today,
       cursor,
       setCursor,
       toast,
@@ -1273,6 +1315,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       storageUnreadable,
       retryHydration,
+      today,
       cursor,
       toast,
       showToast,

@@ -9,7 +9,7 @@ import { describe, it } from 'node:test';
 
 import { emptyData } from '../data/seed';
 import { AppData, WeighIn } from '../data/types';
-import { addDays, fromKey } from './date';
+import { addDays, instantAt } from './date';
 import { inboxItems, inboxWhen, unreadCount } from './inbox';
 
 const DAY = '2026-09-23';
@@ -23,11 +23,8 @@ const measured = (logDate: string) => ({
   neckCm: 40,
 });
 
-const at = (hour: number, minute = 0, date = DAY) => {
-  const d = fromKey(date);
-  d.setHours(hour, minute, 0, 0);
-  return d;
-};
+/** An instant at an Algerian wall-clock time. */
+const at = (hour: number, minute = 0, date = DAY) => instantAt(date, hour * 60 + minute);
 
 function data(entries: WeighIn[] = [], patch: Partial<AppData> = {}): AppData {
   const base = emptyData();
