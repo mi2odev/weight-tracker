@@ -15,8 +15,9 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 272 tests — calc, units, CSV, backup, health, hydration,
-                   #             snapshots, lock rules, photo sweeps, crash scrubbing
+npm test           # 317 tests — calc, units, CSV, backup, health, hydration,
+                   #             snapshots, lock rules, photo sweeps, crash scrubbing,
+                   #             templates, reminder rules, inbox
 ```
 
 `npm run web` runs it in a browser, which is how the screenshots during
@@ -29,16 +30,17 @@ src/
   theme/      tokens.ts — the pasted palette, type ramp, spacing; ThemeContext
   data/       types.ts (spec §3) · store.tsx (state + AsyncStorage) · seed.ts
               derived.tsx — memoised derived data, computed once per change
+              useInbox.ts — the inbox, re-derived each minute
   lib/        calc.ts (spec §4) · insights.ts (spec §5) · units.ts · csv.ts
               backup.ts · export.ts · health.ts · diagnostics.ts · date.ts
               hydration.ts · snapshots.ts · templates.ts · numberInput.ts
-              notifications.ts (spec §6)
+              reminderRules.ts / notifications.ts (spec §6) · inbox.ts
               lockRules.ts / lock.ts · photoRules.ts / photos.ts · *.test.ts
   components/ Card, Controls, HabitTicks, Icon, Overlays, Screen, TabBar, Type
-              ErrorBoundary, LockGate
+              ErrorBoundary, LockGate, InboxBell, ProgressRing
               charts/ TrendChart, Sparkline, LossBars, HeatMap
   screens/    Onboarding, Today, Progress, Trends, Habits, Milestones,
-              Body, Log, More, Settings, Privacy, StorageError
+              Body, Log, More, Settings, Privacy, Inbox, StorageError
   navigation/ Root.tsx — an explicit route union, no navigation library
 tools/        generate-icons.mjs — redraws everything in assets/
 ```
@@ -128,6 +130,12 @@ metric on save, and the tests pin the round trip.
 per-habit rates and insights cost ~13 ms per Progress render — and it re-ran on
 every keystroke in a Today field. `data/derived.tsx` memoises the walk on the
 log itself, so typing no longer pays for it.
+
+**A softer, current look.** Card radii are 16 / 22 rather than the handoff's
+14 / 18, the active tab sits in a tinted pill, and the daily habits carry a
+progress ring with a line of encouragement ("1 to go — nearly there") in place
+of a bare count. On Today, "Start from 152.5 kg" pre-fills the keypad with the
+last weight, so a weigh-in is usually a digit or two rather than four.
 
 **Red is for missed habits, and for one button.** The style frame reserves
 amber-red for a missed habit, never a weight gain, and that still holds for
@@ -410,31 +418,43 @@ renaming it would make every backup taken before the rename unrestorable.
   milestone ladder, the "total lost" framing and the whole insight vocabulary
   is a much larger change than adding a band.
 
-## Notes on the reminders
+## Notifications
 
-All four are *local* notifications, so they work offline, which the spec
-requires.
+Two channels, one set of switches (Settings → Notifications):
 
-**They need a development build on Android.** Not because local notifications
-stopped working, but because `expo-notifications` cannot be *imported* at all
-on Android inside Expo Go: its index re-exports
+- **Phone reminders** — local notifications, so they work offline. Morning
+  weigh-in and evening check-in at times you choose (half-hour steps), water
+  check-ins at 11:00 / 15:00 / 18:00, the weekly summary and milestone
+  reached. "Send a test notification" confirms the permission works.
+- **The inbox** — the bell on Today (and Notifications at the top of More).
+  It carries the same messages inside the app, plus weigh-in streaks and a
+  re-measure nudge every two weeks, and it works everywhere, including Expo Go
+  on Android where phone reminders cannot.
+
+The rules decide what *not* to say as much as what to say: no weigh-in nudge
+once the weight is in, no water nudge once the day is on pace, only the latest
+water check-in in the inbox rather than three stacked, and a week where weight
+went up is reported plainly ("one week is noise, the trend is what counts"),
+never as a failure.
+
+Both are pure and tested: `lib/reminderRules.ts` decides the phone schedule and
+`lib/inbox.ts` derives the inbox from the log and the clock. Inbox items are
+never stored — only the ids already opened (`inboxRead`, schema v6), and every
+id is stable for its situation so a read item stays read. The inbox re-derives
+each minute and when the app comes back to the foreground.
+
+**Phone reminders need a development build on Android.** `expo-notifications`
+cannot be *imported* on Android inside Expo Go: its index re-exports
 `DevicePushTokenAutoRegistration.fx`, which calls `addPushTokenListener()` at
-module scope, and since SDK 53 that throws rather than warns — remote push was
-removed from the Go client. A top-level import took the whole app down at
-startup, over a feature this app never uses.
+module scope, and since SDK 53 that throws — remote push was removed from the
+Go client. So `notifications.ts` `require`s the module on first use and not at
+all where that is fatal (`remindersSupported`). There, Settings says the
+messages arrive in the inbox instead; iOS in Expo Go only warns, so reminders
+work there.
 
-So the module is `require`d on first use and not at all where the require is
-fatal (`remindersSupported`). Reminders are the only thing that stops working
-there; the Settings switches say so and disable themselves. iOS in Expo Go
-only warns, so they work there.
+A scheduled notification cannot check a condition when it fires, so the whole
+schedule is rewritten (debounced) whenever the log or a setting changes; if
+today's condition is already met, today's occurrence is never scheduled.
+Declining the permission turns phone reminders off rather than erroring —
+logging never depends on it.
 
-Two of the four are conditional: the morning weigh-in is suppressed once the
-day is logged, and the evening nudge only fires under three habits. A scheduled
-notification cannot evaluate a condition when it fires, so instead the whole
-schedule is rewritten whenever the log changes: if today's condition is already
-satisfied, today's occurrence is simply never scheduled. `plannedReminders` is
-pure, so those rules are readable without a device.
-
-On a simulator, or in a development build, you will be asked for notification
-permission the first time the app has something to schedule. Declining turns
-the feature off rather than erroring — logging never depends on it.
