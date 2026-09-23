@@ -590,6 +590,8 @@ export interface WeekRollup {
   cardioMin: number;
   strengthDays: number;
   daysLogged: number;
+  /** Days of this week that have happened — 7 unless it is the current week. */
+  daysElapsed: number;
 }
 
 /**
@@ -631,6 +633,7 @@ export function weeklyRollups(
       cardioMin: inWeek.reduce((a, e) => a + (e.cardioMin ?? 0), 0),
       strengthDays: inWeek.filter((e) => e.strengthDone).length,
       daysLogged: inWeek.filter((e) => isLogged(e)).length,
+      daysElapsed: Math.min(7, daysBetween(start, asOf) + 1),
     });
 
     if (avg != null) prevAvg = avg;
@@ -670,7 +673,12 @@ export function monthlyRollups(entries: WeighIn[], asOf: DateKey = todayKey()): 
       const endW = weighed.length ? (weighed[weighed.length - 1].weightKg as number) : null;
       const lost = startW != null && endW != null ? startW - endW : null;
       const daysLogged = list.filter((e) => isLogged(e)).length;
-      const daily = lost != null && daysLogged > 0 ? lost / daysLogged : null;
+      // A rate is change over elapsed time. Dividing by the number of days
+      // logged instead turned two weigh-ins a month apart into "9.8 kg a week".
+      const elapsed = weighed.length > 1
+        ? daysBetween(weighed[0].logDate, weighed[weighed.length - 1].logDate)
+        : 0;
+      const daily = lost != null && elapsed > 0 ? lost / elapsed : null;
       return {
         month: m,
         label: fromKey(`${m}-01`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),

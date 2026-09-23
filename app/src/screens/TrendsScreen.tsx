@@ -46,7 +46,12 @@ export function TrendsScreen() {
           .map((w) => ({
             id: `w${w.index}`,
             title: `Week ${w.index}`,
-            range: `${formatShort(w.start)} – ${formatShort(w.end)}`,
+            // The current week is still filling in; say so rather than
+            // grading it against days that have not happened yet.
+            range:
+              w.daysElapsed < 7
+                ? `${formatShort(w.start)} – ${formatShort(w.end)} · in progress`
+                : `${formatShort(w.start)} – ${formatShort(w.end)}`,
             lost: w.lostKg,
             pct: w.pctChange,
             chips: [
@@ -58,7 +63,7 @@ export function TrendsScreen() {
               { key: 'Water', value: u.volume(w.avgWaterL) },
               { key: 'Cardio', value: `${w.cardioMin}min` },
               { key: 'Strength', value: `${w.strengthDays}d` },
-              { key: 'Logged', value: `${w.daysLogged}/7` },
+              { key: 'Logged', value: `${w.daysLogged}/${w.daysElapsed}` },
             ] as Chip[],
           }))
       : months
@@ -73,7 +78,6 @@ export function TrendsScreen() {
             chips: [
               { key: 'Start', value: u.weightValue(m.startWeightKg) },
               { key: 'End', value: u.weightValue(m.endWeightKg) },
-              { key: 'Per day', value: m.avgDailyLossKg == null ? '—' : m.avgDailyLossKg.toFixed(2) },
               { key: 'Per week', value: u.weightValue(m.avgWeeklyLossKg) },
               { key: 'Logged', value: `${m.daysLogged}d` },
             ] as Chip[],
