@@ -33,6 +33,7 @@ import {
   Profile,
   Sex,
   Units,
+  WATER_INTERVALS,
   WORKOUT_TYPES,
   WeighIn,
   WorkoutEntry,
@@ -185,7 +186,21 @@ function migrateNotifications(raw: unknown, defaults: NotificationSettings): Not
     water: bool(src.water, defaults.water),
     morningMinutes: minuteOfDay(src.morningMinutes, defaults.morningMinutes),
     eveningMinutes: minuteOfDay(src.eveningMinutes, defaults.eveningMinutes),
+    ...waterWindow(src, defaults),
+    waterOnlyBehind: bool(src.waterOnlyBehind, defaults.waterOnlyBehind),
   };
+}
+
+/** v7: interval from the allowed list; a window that ends after it starts. */
+function waterWindow(src: Record<string, unknown>, defaults: NotificationSettings) {
+  const every = (WATER_INTERVALS as readonly number[]).includes(src.waterEveryMinutes as number)
+    ? (src.waterEveryMinutes as number)
+    : defaults.waterEveryMinutes;
+  const start = minuteOfDay(src.waterStartMinutes, defaults.waterStartMinutes);
+  const end = minuteOfDay(src.waterEndMinutes, defaults.waterEndMinutes);
+  return end > start
+    ? { waterEveryMinutes: every, waterStartMinutes: start, waterEndMinutes: end }
+    : { waterEveryMinutes: every, waterStartMinutes: defaults.waterStartMinutes, waterEndMinutes: defaults.waterEndMinutes };
 }
 
 /** A whole minute of the day, 00:00 – 23:59. */

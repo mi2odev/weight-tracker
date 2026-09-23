@@ -10,7 +10,7 @@ import { describe, it } from 'node:test';
 import { emptyData } from '../data/seed';
 import { AppData, WeighIn } from '../data/types';
 import { addDays, instantAt, minuteOfDayAt, todayKey } from './date';
-import { minutesLabel, plannedReminders, shiftMinutes, WATER_CHECKS } from './reminderRules';
+import { minutesLabel, plannedReminders, shiftMinutes, waterCheckTimes, waterDueBy } from './reminderRules';
 
 const TODAY = todayKey();
 /** Algerian midnight today, so every reminder today is still ahead. */
@@ -73,30 +73,59 @@ describe('the morning weigh-in', () => {
   });
 });
 
-describe('water check-ins', () => {
-  it('schedules every check-in on a day with no water', () => {
+describe('water reminders', () => {
+  const todays = (d: AppData) => plannedReminders(d, MIDNIGHT).filter((r) => r.id.startsWith(`water-${TODAY}`));
+
+  it('repeat every 2 hours from 09:00 to 21:00 by default', () => {
     const d = only(data(), 'water');
-    const today = plannedReminders(d, MIDNIGHT).filter((r) => r.id.startsWith(`water-${TODAY}`));
-    assert.equal(today.length, WATER_CHECKS.length);
+    assert.deepEqual(todays(d).map((r) => minuteOfDayAt(r.date) / 60), [9, 11, 13, 15, 17, 19, 21]);
   });
 
-  it('drops the ones whose pace is already met', () => {
-    // 2 L of a 3 L target: past the 30% and 60% marks, short of 80%.
-    const d = only(data({}, [{ logDate: TODAY, waterL: 2 }]), 'water');
-    const today = plannedReminders(d, MIDNIGHT).filter((r) => r.id.startsWith(`water-${TODAY}`));
-    assert.deepEqual(today.map((r) => minuteOfDayAt(r.date)), [18 * 60]);
+  it('follow the interval and window the user picks — every hour, 08:00 to 12:00', () => {
+    const d = only(data(), 'water');
+    Object.assign(d.notifications, { waterEveryMinutes: 60, waterStartMinutes: 8 * 60, waterEndMinutes: 12 * 60 });
+    assert.deepEqual(todays(d).map((r) => minuteOfDayAt(r.date) / 60), [8, 9, 10, 11, 12]);
   });
 
-  it('speaks the user\'s units', () => {
-    const base = data();
+  it('stop for the day once the target is reached', () => {
+    const d = only(data({}, [{ logDate: TODAY, waterL: 3 }]), 'water');
+    assert.equal(todays(d).length, 0);
+    assert.ok(plannedReminders(d, MIDNIGHT).some((r) => r.id.startsWith(`water-${addDays(TODAY, 1)}`)), 'tomorrow still on');
+  });
+
+  it('can skip the times the day is already on pace', () => {
+    // 1.5 L of 3 L: on pace until the halfway point of 09:00–21:00 (15:00).
+    const d = only(data({}, [{ logDate: TODAY, waterL: 1.5 }]), 'water');
+    d.notifications.waterOnlyBehind = true;
+    assert.deepEqual(todays(d).map((r) => minuteOfDayAt(r.date) / 60), [17, 19, 21]);
+  });
+
+  it('stay inside the phone\'s limit on pending notifications', () => {
+    const d = only(data(), 'water');
+    d.notifications.waterEveryMinutes = 30;
+    const water = plannedReminders(d, MIDNIGHT).filter((r) => r.id.startsWith('water-'));
+    assert.ok(water.length <= 40, `${water.length} scheduled`);
+  });
+
+  it('say how much is in so far, in the user\'s units', () => {
+    const base = data({}, [{ logDate: TODAY, waterL: 1 }]);
     const d = only({ ...base, profile: { ...base.profile, units: 'imperial' } }, 'water');
-    assert.match(plannedReminders(d, MIDNIGHT)[0].body, /fl oz/);
+    assert.match(todays(d)[0].body, /fl oz/);
+    assert.match(todays(d)[0].body, /so far/);
   });
 
-  it('stays quiet when switched off', () => {
+  it('stay quiet when switched off', () => {
     const d = data();
     d.notifications.water = false;
     assert.ok(plannedReminders(d, MIDNIGHT).every((r) => !r.id.startsWith('water-')));
+  });
+
+  it('pace the target in a straight line across the window', () => {
+    const n = data().notifications;
+    assert.equal(waterCheckTimes(n).length, 7);
+    assert.equal(waterDueBy(n, 3, 15 * 60), 1.5);
+    assert.equal(waterDueBy(n, 3, 7 * 60), 0);
+    assert.equal(waterDueBy(n, 3, 23 * 60), 3);
   });
 });
 
