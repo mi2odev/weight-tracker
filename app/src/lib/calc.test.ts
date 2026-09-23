@@ -297,6 +297,12 @@ describe('weekly roll-ups', () => {
     assert.equal(weeks[0].end, addDays(START, 6));
     assert.equal(weeks[1].start, addDays(START, 7));
     assert.equal(weeks[0].daysLogged, 7);
+    assert.equal(weeks[0].daysElapsed, 7);
+  });
+
+  it('counts only the days that have happened in the current week', () => {
+    const weeks = weeklyRollups(steadyLog(10), profile, addDays(START, 9));
+    assert.equal(weeks[1].daysElapsed, 3, 'day 8, 9 and 10 of the plan');
   });
 
   it('measures a week against the previous week average', () => {
@@ -317,7 +323,13 @@ describe('monthly roll-ups', () => {
     assert.equal(months.length, 2);
     assert.equal(months[0].lostKg, 2);
     assert.equal(months[1].lostKg!.toFixed(1), '2.8');
-    assert.equal(months[1].avgWeeklyLossKg!.toFixed(1), '9.8'); // 2.8 / 2 days × 7
+    // 2.8 kg over the 30 days between the two weigh-ins, not over the 2 days logged.
+    assert.equal(months[1].avgWeeklyLossKg!.toFixed(2), '0.65');
+  });
+
+  it('gives no rate for a month with a single weigh-in', () => {
+    const months = monthlyRollups([{ logDate: '2026-09-13', weightKg: 157 }], '2026-09-30');
+    assert.equal(months[0].avgDailyLossKg, null);
   });
 });
 
