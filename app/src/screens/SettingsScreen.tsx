@@ -13,8 +13,10 @@ import {
   GOAL_TYPES,
   GoalType,
   LockSettings,
+  NotificationSettings,
   ReminderTime,
   ReminderToggle,
+  WATER_INTERVALS,
   Sex,
   Units,
 } from '../data/types';
@@ -42,7 +44,7 @@ import { ConflictChoice } from '../lib/backup';
 import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
 import { formatBytes, totalPhotoBytes } from '../lib/photos';
 import { remindersSupported, sendTestReminder } from '../lib/notifications';
-import { minutesLabel, shiftMinutes } from '../lib/reminderRules';
+import { minutesLabel, shiftMinutes, waterCheckTimes } from '../lib/reminderRules';
 import { parseDecimalInput } from '../lib/numberInput';
 
 /** How many measurements still have a photo file behind them. */
@@ -69,7 +71,7 @@ function photosIn(photos: Record<string, string>): string {
 const REMINDERS: { key: ReminderToggle; label: string; sub: string; time?: ReminderTime }[] = [
   { key: 'morningWeighIn', label: 'Morning weigh-in', sub: 'Skipped once you have weighed in', time: 'morningMinutes' },
   { key: 'eveningLog', label: 'Evening check-in', sub: 'Only if under 3 habits are ticked', time: 'eveningMinutes' },
-  { key: 'water', label: 'Water', sub: '11:00, 15:00 and 18:00 — only while behind pace' },
+  { key: 'water', label: 'Water', sub: 'Repeats through the day; stops once you hit your target' },
   { key: 'weeklySummary', label: 'Weekly summary', sub: 'Every 7 days from your start date' },
   { key: 'milestoneReached', label: 'Milestone reached', sub: 'Once, the first time you cross one' },
 ];
@@ -172,6 +174,13 @@ export function SettingsScreen({
                   label={reminder.label}
                   minutes={minutes}
                   onChange={(next) => setReminderTime(reminder.time!, next)}
+                />
+              )}
+              {reminder.key === 'water' && on && (
+                <WaterSchedule
+                  settings={data.notifications}
+                  onTime={setReminderTime}
+                  onOnlyBehind={(next) => setNotification('waterOnlyBehind', next)}
                 />
               )}
             </Card>
@@ -619,10 +628,12 @@ function TimeStepper({
   label,
   minutes,
   onChange,
+  caption = 'Time',
 }: {
   label: string;
   minutes: number;
   onChange: (minutes: number) => void;
+  caption?: string;
 }) {
   const { colors } = useTheme();
   const step = (delta: number, text: string, a11y: string) => (
@@ -646,7 +657,7 @@ function TimeStepper({
   );
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-      <Caption style={{ flex: 1, fontSize: 12 }}>Time</Caption>
+      <Caption style={{ flex: 1, fontSize: 12 }}>{caption}</Caption>
       {step(-30, '−', `${label} 30 minutes earlier`)}
       <Body
         style={{ fontFamily: font.semibold, fontSize: 16, minWidth: 58, textAlign: 'center' }}
@@ -655,6 +666,91 @@ function TimeStepper({
         {minutesLabel(minutes)}
       </Body>
       {step(30, '+', `${label} 30 minutes later`)}
+    </View>
+  );
+}
+
+const INTERVAL_LABELS: Record<number, string> = {
+  30: '30 min',
+  60: '1 h',
+  90: '1½ h',
+  120: '2 h',
+  180: '3 h',
+  240: '4 h',
+};
+
+/** How often, from when, until when — and whether to skip while on pace. */
+function WaterSchedule({
+  settings,
+  onTime,
+  onOnlyBehind,
+}: {
+  settings: NotificationSettings;
+  onTime: (key: ReminderTime, minutes: number) => void;
+  onOnlyBehind: (next: boolean) => void;
+}) {
+  const { colors } = useTheme();
+  const times = waterCheckTimes(settings);
+  const { waterStartMinutes: start, waterEndMinutes: end } = settings;
+  return (
+    <View style={{ gap: space.sm }}>
+      <Caption style={{ fontSize: 12 }}>Every</Caption>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        {WATER_INTERVALS.map((every) => {
+          const active = settings.waterEveryMinutes === every;
+          return (
+            <Pressable
+              key={every}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`Every ${INTERVAL_LABELS[every]}`}
+              onPress={() => onTime('waterEveryMinutes', every)}
+              style={({ pressed }) => ({
+                minHeight: 36,
+                paddingHorizontal: space.md,
+                borderRadius: radius.pill,
+                justifyContent: 'center',
+                backgroundColor: active ? colors.accent : pressed ? colors.line : colors.tint,
+              })}
+            >
+              <Body style={{ fontFamily: font.semibold, fontSize: 13 }} color={active ? colors.onAccent : colors.accent}>
+                {INTERVAL_LABELS[every]}
+              </Body>
+            </Pressable>
+          );
+        })}
+      </View>
+      {/* The window can't close before it opens: a step that would cross the
+          other end is ignored. */}
+      <TimeStepper
+        label="Water reminders from"
+        caption="From"
+        minutes={start}
+        onChange={(next) => next < end && onTime('waterStartMinutes', next)}
+      />
+      <TimeStepper
+        label="Water reminders until"
+        caption="Until"
+        minutes={end}
+        onChange={(next) => next > start && onTime('waterEndMinutes', next)}
+      />
+      <Caption style={{ fontSize: 11.5, lineHeight: 16 }}>
+        {times.length === 1 ? 'Once a day' : `${times.length} a day`}:{' '}
+        {times.length > 6
+          ? `${times.slice(0, 3).map(minutesLabel).join(', ')} … ${minutesLabel(times[times.length - 1])}`
+          : times.map(minutesLabel).join(', ')}
+      </Caption>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+        <View style={{ flex: 1 }}>
+          <Body style={{ fontFamily: font.semibold, fontSize: 13 }}>Only when I'm behind</Body>
+          <Caption style={{ fontSize: 11.5 }}>Skip a reminder while you're on pace for the day</Caption>
+        </View>
+        <Toggle
+          value={settings.waterOnlyBehind}
+          accessibilityLabel="Only remind me when I'm behind on water"
+          onChange={onOnlyBehind}
+        />
+      </View>
     </View>
   );
 }

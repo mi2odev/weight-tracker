@@ -18,7 +18,7 @@
 import { AppData, DateKey } from '../data/types';
 import { entryFor, habitTicks, habitsMetCount, weeklyRollups, weighInStreaks } from './calc';
 import { addDays, dayKeyAt, daysBetween, minuteOfDayAt } from './date';
-import { WATER_CHECKS } from './reminderRules';
+import { waterCheckTimes, waterDueBy, waterReminderDue } from './reminderRules';
 import { formatterFor } from './units';
 
 export type InboxKind = 'weigh' | 'water' | 'evening' | 'milestone' | 'week' | 'streak' | 'measure';
@@ -71,17 +71,19 @@ export function inboxItems(data: AppData, now: Date = new Date()): InboxItem[] {
   }
 
   if (n.water && profile.targetWaterL > 0) {
-    // Only the latest check-in that has passed — three stacked water nudges
-    // would be nagging.
-    const passed = WATER_CHECKS.filter((c) => clock >= c.minutes);
+    // Only the latest reminder time that has passed — a stack of hourly
+    // water nudges would be nagging.
+    const passed = waterCheckTimes(n).filter((m) => clock >= m);
     const check = passed[passed.length - 1];
     const drunk = entry?.waterL ?? 0;
-    if (check && drunk < profile.targetWaterL * check.share) {
+    if (check != null && waterReminderDue(n, profile.targetWaterL, drunk, check)) {
       out.push({
-        id: `water-${today}-${check.minutes}`,
+        id: `water-${today}-${check}`,
         kind: 'water',
-        title: 'Water check',
-        body: `${u.volume(drunk)} so far. About ${u.volume(profile.targetWaterL * check.share)} by now keeps you on pace.`,
+        title: 'Time for some water',
+        body: `${u.volume(drunk)} of ${u.volume(profile.targetWaterL)} so far. About ${u.volume(
+          waterDueBy(n, profile.targetWaterL, check),
+        )} by now keeps you on pace.`,
         date: today,
         target: 'today',
       });

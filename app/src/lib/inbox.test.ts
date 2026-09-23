@@ -65,14 +65,24 @@ describe('the weigh-in nudge', () => {
 });
 
 describe('water', () => {
-  it('shows only the latest check-in that has passed', () => {
+  it('shows only the latest reminder time that has passed', () => {
     const water = inboxItems(data(), at(16)).filter((i) => i.kind === 'water');
     assert.equal(water.length, 1);
-    assert.equal(water[0].id, `water-${DAY}-900`);
+    assert.equal(water[0].id, `water-${DAY}-900`, '15:00, the last 2-hourly time before 16:00');
   });
 
-  it('is gone once the pace is met', () => {
-    assert.ok(!kinds(data([{ logDate: DAY, waterL: 2 }]), at(16)).includes('water'));
+  it('follows an hourly interval', () => {
+    const d = data();
+    d.notifications.waterEveryMinutes = 60;
+    assert.equal(inboxItems(d, at(16, 5)).find((i) => i.kind === 'water')?.id, `water-${DAY}-960`);
+  });
+
+  it('is gone once the day\'s target is reached', () => {
+    assert.ok(!kinds(data([{ logDate: DAY, waterL: 3 }]), at(16)).includes('water'));
+  });
+
+  it('is not there before the window opens', () => {
+    assert.ok(!kinds(data(), at(8, 59)).includes('water'));
   });
 });
 

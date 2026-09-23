@@ -197,18 +197,34 @@ export type ReminderToggle =
   | 'eveningLog'
   | 'weeklySummary'
   | 'milestoneReached'
-  | 'water';
+  | 'water'
+  | 'waterOnlyBehind';
 
 /** The two reminders whose time the user picks. */
-export type ReminderTime = 'morningMinutes' | 'eveningMinutes';
+export type ReminderTime =
+  | 'morningMinutes'
+  | 'eveningMinutes'
+  | 'waterStartMinutes'
+  | 'waterEndMinutes'
+  | 'waterEveryMinutes';
+
+/** How often water reminders can repeat, in minutes. */
+export const WATER_INTERVALS = [30, 60, 90, 120, 180, 240] as const;
 
 export interface NotificationSettings {
   morningWeighIn: boolean;
   eveningLog: boolean;
   weeklySummary: boolean;
   milestoneReached: boolean;
-  /** Nudges through the day while water is behind the target's pace. */
+  /** Water reminders, repeating through a window of the day. */
   water: boolean;
+  /** Minutes between water reminders — one of WATER_INTERVALS. */
+  waterEveryMinutes: number;
+  /** The window they repeat in, minutes after midnight. */
+  waterStartMinutes: number;
+  waterEndMinutes: number;
+  /** Skip a reminder when the day is already on pace for the target. */
+  waterOnlyBehind: boolean;
   /** Minutes after midnight — 420 is 07:00. */
   morningMinutes: number;
   eveningMinutes: number;
@@ -227,13 +243,14 @@ export interface NotificationSettings {
  *     been shown.
  * 5 — adds `savedMeals` and `savedWorkouts`: reusable templates, so a meal
  *     eaten every morning is typed once rather than every day.
+ * 7 — water reminders repeat at a chosen interval inside a chosen window.
  * 6 — reminder times become settings, a water reminder joins them, and
  *     `inboxRead` records which in-app notifications have been opened.
  *
  * Lives here rather than in `schema.ts` so `seed.ts` can stamp it without the
  * two files importing each other.
  */
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 export interface AppData {
   /** The shape version this payload was written at. See `data/schema.ts`. */

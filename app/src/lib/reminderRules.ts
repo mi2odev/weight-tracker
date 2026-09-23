@@ -12,7 +12,7 @@
  * left off.
  */
 
-import { AppData, DateKey } from '../data/types';
+import { AppData, DateKey, NotificationSettings } from '../data/types';
 import { entryFor, habitTicks, habitsMetCount, milestones } from './calc';
 import { addDays, daysBetween, instantAt, todayKey } from './date';
 import { formatterFor } from './units';
@@ -26,19 +26,44 @@ export interface PlannedReminder {
 }
 
 /**
- * Water check-ins, and how much of the day's target should be in by then.
- * A steady pace, loosely: a third by late morning, most of it by early
- * evening. Nothing after 18:00 — a nudge to drink a litre at bedtime helps
- * nobody.
+ * Water reminder times: every `waterEveryMinutes` from the start of the
+ * window to its end, inclusive — 09:00, 11:00 … 21:00 by default.
  */
-export const WATER_CHECKS: readonly { minutes: number; share: number }[] = [
-  { minutes: 11 * 60, share: 0.3 },
-  { minutes: 15 * 60, share: 0.6 },
-  { minutes: 18 * 60, share: 0.8 },
-];
+export function waterCheckTimes(n: NotificationSettings): number[] {
+  const out: number[] = [];
+  const step = Math.max(15, n.waterEveryMinutes);
+  for (let t = n.waterStartMinutes; t <= n.waterEndMinutes; t += step) out.push(t);
+  return out;
+}
 
-/** Days of water check-ins scheduled ahead. Short, because pace is re-read on every change. */
-const WATER_DAYS = 3;
+/**
+ * How much of the day's target should be in by `minutes`: a straight line
+ * from nothing at the start of the window to all of it at the end.
+ */
+export function waterDueBy(n: NotificationSettings, targetL: number, minutes: number): number {
+  const span = n.waterEndMinutes - n.waterStartMinutes;
+  if (span <= 0) return targetL;
+  const share = Math.min(1, Math.max(0, (minutes - n.waterStartMinutes) / span));
+  return targetL * share;
+}
+
+/** Whether a water reminder at `minutes` has anything to say, given what was drunk. */
+export function waterReminderDue(
+  n: NotificationSettings,
+  targetL: number,
+  drunkL: number,
+  minutes: number,
+): boolean {
+  if (drunkL >= targetL) return false; // done for the day — no more nudges
+  return !n.waterOnlyBehind || drunkL < waterDueBy(n, targetL, minutes);
+}
+
+/**
+ * Pending notifications are capped by the OS (64 on iOS), so water — the
+ * only one that repeats within a day — gets a budget. Hourly for 12 hours
+ * fits three days; every 30 minutes fits one.
+ */
+const WATER_BUDGET = 40;
 
 /** 420 → "07:00". */
 export function minutesLabel(minutes: number): string {
@@ -96,20 +121,26 @@ export function plannedReminders(data: AppData, now: Date = new Date()): Planned
     }
   }
 
-  // 3 · Water — at each check-in, only while behind the pace for that hour.
+  // 3 · Water — at the chosen interval inside the chosen window; never once
+  // the day's target is reached, and optionally only while behind pace.
   if (notifications.water && profile.targetWaterL > 0) {
-    for (let i = 0; i < WATER_DAYS; i++) {
+    const times = waterCheckTimes(notifications);
+    const days = Math.max(1, Math.min(3, Math.floor(WATER_BUDGET / Math.max(1, times.length))));
+    const target = profile.targetWaterL;
+    for (let i = 0; i < days; i++) {
       const date = addDays(today, i);
       const drunk = entryFor(data.entries, date)?.waterL ?? 0;
-      for (const check of WATER_CHECKS) {
-        const due = profile.targetWaterL * check.share;
-        if (drunk >= due) continue;
-        const when = at(date, check.minutes);
+      for (const minutes of times) {
+        if (!waterReminderDue(notifications, target, drunk, minutes)) continue;
+        const when = at(date, minutes);
         if (when <= now) continue;
         out.push({
-          id: `water-${date}-${check.minutes}`,
-          title: 'Water check',
-          body: `About ${u.volume(due)} by now keeps you on pace for ${u.volume(profile.targetWaterL)}.`,
+          id: `water-${date}-${minutes}`,
+          title: 'Time for some water',
+          body:
+            date === today && drunk > 0
+              ? `${u.volume(drunk)} of ${u.volume(target)} so far — a glass now keeps you on track.`
+              : `A glass now keeps you on track for ${u.volume(target)} today.`,
           date: when,
         });
       }

@@ -38,6 +38,10 @@ const DEFAULT_NOTIFICATIONS = {
   weeklySummary: true,
   milestoneReached: true,
   water: true,
+  waterEveryMinutes: 120,
+  waterStartMinutes: 9 * 60,
+  waterEndMinutes: 21 * 60,
+  waterOnlyBehind: false,
   morningMinutes: 7 * 60,
   eveningMinutes: 21 * 60,
 };

@@ -397,3 +397,27 @@ describe('v6 — reminder times, water reminder, inbox', () => {
     assert.ok(result.data.inboxRead.every((id) => typeof id === 'string'));
   });
 });
+
+describe('v7 — water reminder interval and window', () => {
+  it('fills defaults on an older payload: every 2 h, 09:00–21:00, not pace-only', () => {
+    const n = migrate(v1Payload()).data.notifications;
+    assert.equal(n.waterEveryMinutes, 120);
+    assert.equal(n.waterStartMinutes, 9 * 60);
+    assert.equal(n.waterEndMinutes, 21 * 60);
+    assert.equal(n.waterOnlyBehind, false);
+  });
+
+  it('keeps a chosen hourly interval and window', () => {
+    const n = migrate(
+      v1Payload({ notifications: { waterEveryMinutes: 60, waterStartMinutes: 480, waterEndMinutes: 1200 } }),
+    ).data.notifications;
+    assert.deepEqual([n.waterEveryMinutes, n.waterStartMinutes, n.waterEndMinutes], [60, 480, 1200]);
+  });
+
+  it('rejects an interval outside the list and a window that ends before it starts', () => {
+    const n = migrate(
+      v1Payload({ notifications: { waterEveryMinutes: 7, waterStartMinutes: 1200, waterEndMinutes: 480 } }),
+    ).data.notifications;
+    assert.deepEqual([n.waterEveryMinutes, n.waterStartMinutes, n.waterEndMinutes], [120, 540, 1260]);
+  });
+});
