@@ -2,9 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
-import { font, MIN_TAP, radius, space, tnum, type } from '../theme/tokens';
+import { font, radius, space, tnum, type } from '../theme/tokens';
 import { SaveWeighInError, useStore } from '../data/store';
-import { useUnits } from '../data/derived';
+import { useDerived, useUnits } from '../data/derived';
 import { addWater, UnitFormatter, waterSteps } from '../lib/units';
 import { WeighIn } from '../data/types';
 import { Card, Grid } from '../components/Card';
@@ -12,9 +12,10 @@ import { NumberField, PrimaryButton, Toggle } from '../components/Controls';
 import { HabitTicks } from '../components/HabitTicks';
 import { Icon } from '../components/Icon';
 import { Screen } from '../components/Screen';
+import { DateNavigator } from '../components/DateNavigator';
 import { InboxBell } from '../components/InboxBell';
 import { useInbox } from '../data/useInbox';
-import { Body, Display, Label } from '../components/Type';
+import { Body, Caption, Display, Label } from '../components/Type';
 import {
   dailyChange,
   entryFor,
@@ -25,7 +26,9 @@ import {
   previousWeight,
   workoutTotals,
 } from '../lib/calc';
-import { addDays, daysBetween, formatLong, todayKey } from '../lib/date';
+import { daysBetween, formatLong, formatShort, todayKey } from '../lib/date';
+import { unusualWeighIn } from '../lib/weighInCheck';
+import { ConfirmDialog } from '../components/Overlays';
 import { parseDecimalInput } from '../lib/numberInput';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
@@ -44,6 +47,7 @@ export function TodayScreen({
   const { data, cursor, setCursor, saveWeighIn, updateEntry, showToast } = useStore();
   const u = useUnits();
   const { unread } = useInbox();
+  const d = useDerived();
   const { profile, entries } = data;
 
   const [draft, setDraft] = useState('');
@@ -77,7 +81,12 @@ export function TodayScreen({
     setDraft((prev) => {
       // The keypad works in whatever unit is on screen; conversion to metric
       // happens once, on save.
-      let next = prev !== '' ? prev : savedWeight != null ? u.weightField(savedWeight) : '';
+      //
+      // Typing replaces the shown weight rather than appending to it. Seeding
+      // from the saved value meant that deleting back to empty and pressing a
+      // key brought the old number back, so it could never be retyped. "Start
+      // from …" is there for adjusting the last weight instead.
+      let next = prev;
       if (key === '⌫') next = next.slice(0, -1);
       else if (key === '.') next = !next.includes('.') && next !== '' ? `${next}.` : next;
       else next = (next + key).replace(/^0+(\d)/, '$1').slice(0, 5);
@@ -104,9 +113,18 @@ export function TodayScreen({
         ? `Enter a weight between ${u.weightValue(30)} and ${u.weight(400)}`
         : null;
 
-  const onSave = () => {
+  // A reading far from the last one is usually a slipped digit. Asked once,
+  // never refused — see lib/weighInCheck.ts.
+  const unusual = draft !== '' && draftKg != null && !draftError ? unusualWeighIn(entries, cursor, draftKg) : null;
+  const [confirmUnusual, setConfirmUnusual] = useState(false);
+
+  const onSave = (confirmed = false) => {
     if (draftKg == null) {
       showToast('Enter a weight first');
+      return;
+    }
+    if (unusual && !confirmed) {
+      setConfirmUnusual(true);
       return;
     }
     const error = saveWeighIn(cursor, draftKg);
@@ -150,59 +168,39 @@ export function TodayScreen({
             borderTopColor: colors.line,
           }}
         >
-          <PrimaryButton label={saveLabel} onPress={onSave} disabled={saveDisabled} />
+          <PrimaryButton label={saveLabel} onPress={() => onSave()} disabled={saveDisabled} />
         </View>
       }
     >
-      {/* ── date navigator ──────────────────────────────────────────────── */}
-      <View
-        style={{
-          marginTop: space.md,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: colors.card,
-          borderWidth: 1,
-          borderColor: colors.line,
-          borderRadius: radius.md,
-          height: 48,
-          paddingHorizontal: space.xs,
+      <ConfirmDialog
+        visible={confirmUnusual && unusual != null}
+        title={`Save ${draftKg != null ? u.weight(draftKg) : ''}?`}
+        body={
+          unusual
+            ? `That is ${u.weight(Math.abs(unusual.deltaKg))} ${unusual.deltaKg < 0 ? 'below' : 'above'} your ${formatShort(
+                unusual.previousDate,
+              )} weigh-in of ${u.weight(unusual.previousKg)}. If a digit slipped, fix it first — it would pull your average and trend with it.`
+            : ''
+        }
+        confirmLabel="Save anyway"
+        cancelLabel="Fix it"
+        onConfirm={() => {
+          setConfirmUnusual(false);
+          onSave(true);
         }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Previous day"
-          onPress={() => {
-            setCursor(addDays(cursor, -1));
+        onCancel={() => setConfirmUnusual(false)}
+      />
+
+      {/* ── date navigator ──────────────────────────────────────────────── */}
+      <View style={{ marginTop: space.md }}>
+        <DateNavigator
+          cursor={cursor}
+          onChange={(date) => {
+            setCursor(date);
             setDraft('');
             setEditing(false);
           }}
-          style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon name="chevronLeft" size={15} color={colors.muted} strokeWidth={2} />
-        </Pressable>
-
-        <Body style={{ fontFamily: font.semibold, fontSize: 15 }}>{formatLong(cursor)}</Body>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Next day"
-          accessibilityState={{ disabled: cursor >= today }}
-          disabled={cursor >= today}
-          onPress={() => {
-            setCursor(addDays(cursor, 1));
-            setDraft('');
-            setEditing(false);
-          }}
-          style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon
-            name="chevronRight"
-            size={15}
-            color={cursor >= today ? colors.disabled : colors.muted}
-            strokeWidth={2}
-          />
-        </Pressable>
+        />
       </View>
 
       {/* ── the hero weigh-in ───────────────────────────────────────────── */}
@@ -254,7 +252,41 @@ export function TodayScreen({
           >
             {draftError ?? deltaText(delta, draftKg, cursor === today, u)}
           </Body>
+          {unusual && (
+            <Body style={{ fontFamily: font.medium, fontSize: 13, marginTop: 2 }} color={colors.caution}>
+              That's a big jump from {formatShort(unusual.previousDate)} — worth a second look
+            </Body>
+          )}
         </View>
+
+        {/* The whole journey in one line, under today's number — the reason
+            the daily figure matters. Only for today, and only once there is a
+            goal to count toward. */}
+        {!keypadUp && cursor === today && d.isCountdown && (
+          <View style={{ marginTop: space.md, gap: 6 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
+              <Caption style={[{ fontSize: 12, fontFamily: font.semibold }, tnum]} color={colors.greenText}>
+                {d.lostKg > 0 ? `${u.weight(d.lostKg)} lost` : 'Just getting started'}
+              </Caption>
+              <Caption style={[{ fontSize: 12 }, tnum]}>{u.weight(Math.max(0, d.remainingKg))} to go</Caption>
+            </View>
+            <View
+              accessibilityRole="progressbar"
+              accessibilityLabel="Progress to goal"
+              accessibilityValue={{ min: 0, max: 100, now: Math.round(d.completionPct) }}
+              style={{ height: 6, borderRadius: radius.pill, backgroundColor: colors.rail, overflow: 'hidden' }}
+            >
+              <View
+                style={{
+                  height: '100%',
+                  width: `${Math.min(100, Math.max(d.completionPct > 0 ? 2 : 0, d.completionPct))}%`,
+                  borderRadius: radius.pill,
+                  backgroundColor: colors.green,
+                }}
+              />
+            </View>
+          </View>
+        )}
 
         {/* Most mornings land within a kilo of the last one, so start there
             and let the keypad adjust, rather than typing all four digits. */}
