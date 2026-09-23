@@ -5,6 +5,7 @@ import { font, radius, space } from '../theme/tokens';
 import { Body, Caption, Title } from './Type';
 import { Icon } from './Icon';
 import { useKeyboard } from './keyboard';
+import { RevealContext, useRevealFocused } from './revealFocused';
 import { PrimaryButton } from './Controls';
 import { Celebration } from '../data/store';
 import { f1 } from '../lib/calc';
@@ -259,6 +260,7 @@ export function Sheet({
   const { colors } = useTheme();
   const { height: screenHeight } = useWindowDimensions();
   const keyboard = useKeyboard();
+  const { reveal, scrollProps, contentRef } = useRevealFocused();
   // The space the sheet can use: the backdrop's measured height (on Android
   // already ending at the top of the keys), less what the keys still cover.
   const [backdropHeight, setBackdropHeight] = useState(0);
@@ -309,6 +311,7 @@ export function Sheet({
               own save button. `handled` matters: without it the first tap on
               that button only dismisses the keyboard. */}
           <ScrollView
+            {...scrollProps}
             contentContainerStyle={{
               paddingHorizontal: space.xl,
               paddingTop: space.md,
@@ -320,7 +323,9 @@ export function Sheet({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {children}
+            <View ref={contentRef} collapsable={false} style={{ gap: space.md }}>
+              <RevealContext.Provider value={reveal}>{children}</RevealContext.Provider>
+            </View>
           </ScrollView>
         </Pressable>
       </Pressable>

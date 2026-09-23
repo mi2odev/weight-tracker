@@ -12,6 +12,7 @@ import { NumberField, PrimaryButton, Toggle } from '../components/Controls';
 import { HabitTicks } from '../components/HabitTicks';
 import { Icon } from '../components/Icon';
 import { Screen } from '../components/Screen';
+import { useReveal } from '../components/revealFocused';
 import { DateNavigator } from '../components/DateNavigator';
 import { InboxBell } from '../components/InboxBell';
 import { useInbox } from '../data/useInbox';
@@ -464,22 +465,7 @@ export function TodayScreen({
         </Grid>
         <Card style={{ marginTop: space.sm, gap: 4 }}>
           <Label>Notes</Label>
-          <TextInput
-            value={entry?.notes ?? ''}
-            onChangeText={(text) => updateEntry(cursor, { notes: text })}
-            placeholder="How did the day feel?"
-            placeholderTextColor={colors.disabled}
-            multiline
-            accessibilityLabel="Notes"
-            style={{
-              padding: 0,
-              minHeight: 40,
-              fontFamily: font.regular,
-              fontSize: 14,
-              lineHeight: 20,
-              color: colors.text,
-            }}
-          />
+          <NotesInput value={entry?.notes ?? ''} onChangeText={(text) => updateEntry(cursor, { notes: text })} />
         </Card>
       </View>
 
@@ -596,4 +582,34 @@ function volumeTargetHint(
 function missedColor(value: number | null | undefined, target: number, colors: Colors): string | undefined {
   if (value == null) return undefined;
   return value < target ? colors.missed : undefined;
+}
+
+/**
+ * The notes box. Its own component so it sits inside Screen's reveal context:
+ * each line it grows by scrolls the caret back above the keyboard.
+ */
+function NotesInput({ value, onChangeText }: { value: string; onChangeText: (text: string) => void }) {
+  const { colors } = useTheme();
+  const reveal = useReveal();
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder="How did the day feel?"
+      placeholderTextColor={colors.disabled}
+      multiline
+      onContentSizeChange={reveal}
+      onFocus={() => setTimeout(reveal, 300)}
+      accessibilityLabel="Notes"
+      style={{
+        padding: 0,
+        minHeight: 40,
+        fontFamily: font.regular,
+        fontSize: 14,
+        lineHeight: 20,
+        color: colors.text,
+        textAlignVertical: 'top',
+      }}
+    />
+  );
 }
