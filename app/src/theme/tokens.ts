@@ -106,8 +106,8 @@ export const palettes: Record<Mode, Palette> = { light, dark };
 /** 4 pt base — the only spacing values the design uses. */
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
-/** "14 pt radius small, 18 pt hero" — plus the pill used for controls. */
-export const radius = { sm: 10, md: 14, lg: 18, pill: 999 } as const;
+/** Card radii — softened from the handoff's 14 / 18 for a rounder, current look — plus the pill used for controls. */
+export const radius = { sm: 12, md: 16, lg: 22, pill: 999 } as const;
 
 export const font = {
   regular: 'IBMPlexSans_400Regular',
