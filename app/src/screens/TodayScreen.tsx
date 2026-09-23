@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
@@ -26,7 +26,7 @@ import {
   previousWeight,
   workoutTotals,
 } from '../lib/calc';
-import { daysBetween, formatLong, formatShort, todayKey } from '../lib/date';
+import { daysBetween, formatLong, formatShort } from '../lib/date';
 import { unusualWeighIn } from '../lib/weighInCheck';
 import { ConfirmDialog } from '../components/Overlays';
 import { parseDecimalInput } from '../lib/numberInput';
@@ -44,7 +44,7 @@ export function TodayScreen({
   onOpenInbox: () => void;
 }) {
   const { colors } = useTheme();
-  const { data, cursor, setCursor, saveWeighIn, updateEntry, showToast } = useStore();
+  const { data, today, cursor, setCursor, saveWeighIn, updateEntry, showToast } = useStore();
   const u = useUnits();
   const { unread } = useInbox();
   const d = useDerived();
@@ -53,7 +53,13 @@ export function TodayScreen({
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState(false);
 
-  const today = todayKey();
+  // A typed-but-unsaved weight belongs to the day it was typed on. However the
+  // day changes — the arrows, the heat map, or midnight rolling over — it goes.
+  useEffect(() => {
+    setDraft('');
+    setEditing(false);
+  }, [cursor]);
+
   const entry = entryFor(entries, cursor);
   const savedWeight = entry?.weightKg ?? null;
   const dayNumber = daysBetween(profile.startDate, cursor) + 1;

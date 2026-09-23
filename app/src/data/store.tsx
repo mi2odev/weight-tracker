@@ -21,7 +21,7 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
@@ -279,6 +279,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (now !== shown) {
         const was = shown;
         shown = now;
+        // Close any field mid-edit first: its text and its "+" base belong
+        // to the day that just ended, and must not land on the new one.
+        Keyboard.dismiss();
         setToday(now);
         setCursor((c) => (c === was ? now : c));
       }

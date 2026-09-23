@@ -109,7 +109,7 @@ export function ProgressScreen({ onOpenMilestones }: { onOpenMilestones: () => v
           label="Avg weekly loss"
           value={u.weightValue(d.averageWeeklyLossKg)}
           unit={d.averageWeeklyLossKg == null ? undefined : u.labels.weight}
-          sub={d.averageWeeklyLossKg == null ? 'Needs two weigh-ins' : `Over ${d.weekNumber} weeks`}
+          sub={d.averageWeeklyLossKg == null ? 'Shown after your first week' : `Over ${d.weekNumber} weeks`}
         />
         <StatCard label="BMI" value={d.bmi.toFixed(1)} sub={d.bmiBand} />
         {d.isCountdown ? (

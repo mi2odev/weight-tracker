@@ -2,7 +2,8 @@ import { Pressable, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
 import { font, MIN_TAP, radius, space } from '../theme/tokens';
-import { addDays, formatLong, todayKey } from '../lib/date';
+import { addDays, formatLong } from '../lib/date';
+import { useStore } from '../data/store';
 import { DateKey } from '../data/types';
 import { Icon } from './Icon';
 import { Body } from './Type';
@@ -26,7 +27,8 @@ export function DateNavigator({
   firstDay: DateKey;
 }) {
   const { colors } = useTheme();
-  const today = todayKey();
+  // The store's day, which rolls over at Algerian midnight with everything else.
+  const { today } = useStore();
   const atToday = cursor >= today;
   const atStart = cursor <= firstDay;
 
