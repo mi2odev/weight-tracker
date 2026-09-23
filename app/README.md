@@ -15,7 +15,7 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 343 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 363 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing,
                    #             templates, reminder rules, inbox, weigh-in check
 ```
@@ -170,6 +170,18 @@ so an app left open or in the background overnight moves on to the new day
 instead of showing yesterday until restarted. Someone looking at today follows
 it; someone looking at an older day stays put. The tests run the clock under
 several device time zones.
+
+**The Progress page reads like a report.** Below the headline stats and the
+trend chart it adds a *journey* track (start → now → goal, a tick per milestone,
+and a hollow marker for where a straight 730-day plan would put you today, with
+"ahead / behind plan" in words), a *weekly rhythm* chart of the average
+overnight change for each weekday over eight weeks, *last 7 days* meters for
+calories, protein, water, steps and sleep against their targets, a *BMI* scale
+across the WHO bands with start and now marked, and *records* (lowest weight,
+best week, longest streak, days weighed). The figures are `lib/progressStats.ts`,
+tested. Charts stay in the app palette; where two markers share a track they
+differ by shape (filled / hollow) rather than a second colour, because teal and
+green are too close to separate as two series, and every bar carries its value.
 
 **Red is for missed habits, and for one button.** The style frame reserves
 amber-red for a missed habit, never a weight gain, and that still holds for
@@ -476,8 +488,9 @@ Two channels, one set of switches (Settings → Notifications):
 
 - **Phone reminders** — local notifications, so they work offline. Morning
   weigh-in and evening check-in at times you choose (half-hour steps), water
-  check-ins at 11:00 / 15:00 / 18:00, the weekly summary and milestone
-  reached. "Send a test notification" confirms the permission works.
+  reminders every 30 min – 4 h inside a window you choose (they stop once the
+  day's target is reached, and can be limited to times you are behind pace),
+  the weekly summary and milestone reached. "Send a test notification" confirms the permission works.
 - **The inbox** — the bell on Today (and Notifications at the top of More).
   It carries the same messages inside the app, plus weigh-in streaks and a
   re-measure nudge every two weeks, and it works everywhere, including Expo Go

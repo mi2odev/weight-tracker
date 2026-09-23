@@ -24,7 +24,7 @@ import { addDays, daysBetween, fromKey, toKey, todayKey } from './date';
 /** 7 700 kcal ≈ 1 kg of body fat. */
 export const KCAL_PER_KG = 7700;
 /** The plan spans 730 days from the start date. */
-const PLAN_DAYS = 730;
+export const PLAN_DAYS = 730;
 
 export function mean(values: number[]): number | null {
   if (!values.length) return null;
