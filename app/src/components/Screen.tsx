@@ -5,7 +5,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { space } from '../theme/tokens';
 import { Icon } from './Icon';
 import { Meta, Title } from './Type';
-import { useKeyboardInset } from './keyboard';
+import { useKeyboard } from './keyboard';
 
 /**
  * The design is drawn for a 390 pt phone. On a tablet the choice is to stretch
@@ -48,10 +48,10 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const wide = width > MAX_CONTENT_WIDTH;
-  const keyboard = useKeyboardInset();
+  const keyboard = useKeyboard();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.page }} onLayout={keyboard.onLayout}>
+    <View style={{ flex: 1, backgroundColor: colors.page }}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{

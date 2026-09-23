@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Keyboard, Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space } from '../theme/tokens';
 import { Body, Caption, Title } from './Type';
 import { Icon } from './Icon';
-import { useKeyboardInset } from './keyboard';
+import { useKeyboard } from './keyboard';
 import { PrimaryButton } from './Controls';
 import { Celebration } from '../data/store';
 import { f1 } from '../lib/calc';
@@ -258,10 +258,11 @@ export function Sheet({
 }) {
   const { colors } = useTheme();
   const { height: screenHeight } = useWindowDimensions();
-  const keyboard = useKeyboardInset();
-  // The space the sheet can use: the backdrop's measured height (already
-  // shrunk if the system made room for the keys), less what they still cover.
-  const room = (keyboard.height || screenHeight) - keyboard.inset;
+  const keyboard = useKeyboard();
+  // The space the sheet can use: the backdrop's measured height (on Android
+  // already ending at the top of the keys), less what the keys still cover.
+  const [backdropHeight, setBackdropHeight] = useState(0);
+  const room = (backdropHeight || screenHeight) - keyboard.inset;
 
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
@@ -272,7 +273,7 @@ export function Sheet({
       <Pressable
         accessibilityLabel={keyboard.open ? 'Hide keyboard' : 'Close'}
         onPress={() => (keyboard.open ? Keyboard.dismiss() : onClose())}
-        onLayout={keyboard.onLayout}
+        onLayout={(e) => setBackdropHeight(e.nativeEvent.layout.height)}
         style={{ flex: 1, backgroundColor: 'rgba(28,28,26,0.45)', justifyContent: 'flex-end' }}
       >
         {/* A second Pressable swallows taps inside the panel, so typing in a
@@ -311,7 +312,9 @@ export function Sheet({
             contentContainerStyle={{
               paddingHorizontal: space.xl,
               paddingTop: space.md,
-              paddingBottom: space.xxl + space.md,
+              // Room for the home indicator when the sheet meets the screen
+              // edge; none when it sits on the keys, or it reads as a gap.
+              paddingBottom: keyboard.open ? space.md : space.xxl + space.md,
               gap: space.md,
             }}
             keyboardShouldPersistTaps="handled"
