@@ -15,9 +15,9 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 317 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 325 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing,
-                   #             templates, reminder rules, inbox
+                   #             templates, reminder rules, inbox, weigh-in check
 ```
 
 `npm run web` runs it in a browser, which is how the screenshots during
@@ -137,6 +137,18 @@ progress ring with a line of encouragement ("1 to go — nearly there") in place
 of a bare count. On Today, "Start from 152.5 kg" pre-fills the keypad with the
 last weight, so a weigh-in is usually a digit or two rather than four.
 
+**A second look at a likely typo.** `lib/weighInCheck.ts` compares a new
+weight with the previous reading: more than 2.5 kg apart (plus 0.5 kg per day
+between them, capped at 12 kg) earns an inline note and a *Save anyway / Fix it*
+dialog. It never refuses — but a slipped 125 for 152 would otherwise pull the
+7-day average, the trend, the projection and possibly a milestone with it.
+Typing on the keypad replaces the shown weight; "Start from …" is the way to
+adjust the last one.
+
+**Days are reachable from where you are.** The same date navigator heads Today
+and the food log (tap the date to jump back to today), and each day in the
+Habits heat map opens that day on Today.
+
 **Red is for missed habits, and for one button.** The style frame reserves
 amber-red for a missed habit, never a weight gain, and that still holds for
 every value on screen. The single exception is the "Delete it all" button in
@@ -166,6 +178,9 @@ Tapping a saved row *fills the form* rather than logging straight away: the
 numbers on a repeated meal shift a little, and the user should get to look
 before it lands in their day. Removing is a separate small target, so a mis-tap
 costs a fill rather than a deletion, and it is undoable.
+
+Past five saved items the picker shows the five most-used, a "Show N more"
+link, and a search box that matches every typed word in any order.
 
 For the meal that really is identical every day there are two faster paths on
 the Log screen, both undoable from the toast:
