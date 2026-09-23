@@ -1,4 +1,3 @@
-import React from 'react';
 import { View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
@@ -13,7 +12,6 @@ import { Screen } from '../components/Screen';
 import { HeatMap } from '../components/charts/HeatMap';
 import { Body, Caption } from '../components/Type';
 import { HABIT_KEYS } from '../data/types';
-import { consistencyPct, habitRatePct, weighInStreaks } from '../lib/calc';
 import { todayKey } from '../lib/date';
 
 export function HabitsScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {

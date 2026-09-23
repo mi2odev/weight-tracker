@@ -135,7 +135,6 @@ export const type = {
 export const tnum = { fontVariant: ['tabular-nums' as const] };
 
 /** Minimum tap target, per the spec's accessibility requirement. */
-export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
 export const MIN_TAP = 44;
 
 /**

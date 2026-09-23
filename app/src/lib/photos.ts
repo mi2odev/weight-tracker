@@ -76,7 +76,7 @@ export async function takePhoto(logDate: DateKey): Promise<PhotoPick> {
 }
 
 /** Every file currently sitting in the photo directory. */
-export function listPhotoFiles(): string[] {
+function listPhotoFiles(): string[] {
   try {
     return photoDirectory()
       .list()
@@ -164,16 +164,6 @@ export function restorePhotos(byId: Record<string, string>): Record<string, stri
     }
   }
   return out;
-}
-
-/** True when a stored URI still points at a file that exists. */
-export function photoExists(uri: string | null | undefined): boolean {
-  if (!uri) return false;
-  try {
-    return new FileSystem.File(uri).exists;
-  } catch {
-    return false;
-  }
 }
 
 /** Rough size of a photo set, so the UI can warn before a huge backup. */

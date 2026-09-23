@@ -156,7 +156,7 @@ export const MIN_AGE = 14;
 export const MAX_AGE = 100;
 
 /** A v3-and-earlier `ageYears` as the year of birth it stood for. */
-export function birthYearFromAge(age: number | null, year: number): number | null {
+function birthYearFromAge(age: number | null, year: number): number | null {
   return age == null ? null : year - age;
 }
 

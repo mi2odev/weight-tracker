@@ -1,4 +1,3 @@
-import React from 'react';
 import { View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space } from '../theme/tokens';

@@ -16,10 +16,10 @@ const FLOZ_PER_L = 33.814022702; // US fluid ounces
 
 export const kgToLb = (kg: number) => kg * LB_PER_KG;
 export const lbToKg = (lb: number) => lb / LB_PER_KG;
-export const cmToIn = (cm: number) => cm * IN_PER_CM;
-export const inToCm = (inches: number) => inches / IN_PER_CM;
-export const litresToFlOz = (l: number) => l * FLOZ_PER_L;
-export const flOzToLitres = (oz: number) => oz / FLOZ_PER_L;
+const cmToIn = (cm: number) => cm * IN_PER_CM;
+const inToCm = (inches: number) => inches / IN_PER_CM;
+const litresToFlOz = (l: number) => l * FLOZ_PER_L;
+const flOzToLitres = (oz: number) => oz / FLOZ_PER_L;
 
 export interface UnitLabels {
   weight: string;
@@ -27,7 +27,7 @@ export interface UnitLabels {
   volume: string;
 }
 
-export const labelsFor = (units: Units): UnitLabels =>
+const labelsFor = (units: Units): UnitLabels =>
   units === 'imperial'
     ? { weight: 'lb', length: 'in', volume: 'fl oz' }
     : { weight: 'kg', length: 'cm', volume: 'L' };

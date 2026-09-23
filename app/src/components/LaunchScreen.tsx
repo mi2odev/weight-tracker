@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 

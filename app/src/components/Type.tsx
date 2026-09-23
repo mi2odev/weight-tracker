@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleProp, Text, TextProps, TextStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { tnum, type } from '../theme/tokens';
@@ -34,7 +33,6 @@ export const Title = make(type.title, (c) => c.text);
 export const Stat = make(type.stat, (c) => c.text, true);
 export const Body = make(type.body, (c) => c.text);
 export const Label = make(type.label, (c) => c.muted);
-export const Eyebrow = make(type.eyebrow, (c) => c.muted);
 
 /** 13 px semibold — card titles and section headings. */
 export const Heading = make(

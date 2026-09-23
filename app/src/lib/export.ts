@@ -136,7 +136,7 @@ export type PickedFile = { canceled: true } | { canceled: false; name: string; t
  * provider the app cannot read directly, and the read fails on a file the
  * user definitely just chose.
  */
-export async function pickTextFile(types: string[]): Promise<PickedFile> {
+async function pickTextFile(types: string[]): Promise<PickedFile> {
   const result = await DocumentPicker.getDocumentAsync({
     type: types,
     copyToCacheDirectory: true,

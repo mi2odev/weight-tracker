@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, View } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 import { font, space } from '../../theme/tokens';

@@ -78,7 +78,7 @@ function installHandler(Notifications: NotificationsModule) {
  * Returns false when the user has said no — callers should treat that as
  * "reminders off" rather than an error.
  */
-export async function ensurePermission(): Promise<boolean> {
+async function ensurePermission(): Promise<boolean> {
   const Notifications = api();
   if (!Notifications) return false;
   installHandler(Notifications);

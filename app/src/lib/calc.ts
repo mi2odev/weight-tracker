@@ -24,21 +24,21 @@ import { addDays, daysBetween, fromKey, toKey, todayKey } from './date';
 /** 7 700 kcal ≈ 1 kg of body fat. */
 export const KCAL_PER_KG = 7700;
 /** The plan spans 730 days from the start date. */
-export const PLAN_DAYS = 730;
+const PLAN_DAYS = 730;
 
 export function mean(values: number[]): number | null {
   if (!values.length) return null;
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-export function clamp(n: number, lo: number, hi: number): number {
+function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
 // ── the log ──────────────────────────────────────────────────────────────────
 
 /** Every entry, oldest first. */
-export function sortedEntries(entries: WeighIn[]): WeighIn[] {
+function sortedEntries(entries: WeighIn[]): WeighIn[] {
   return entries.slice().sort((a, b) => (a.logDate < b.logDate ? -1 : a.logDate > b.logDate ? 1 : 0));
 }
 
@@ -485,7 +485,7 @@ export function habitsMetCount(ticks: Record<HabitKey, boolean> | null): number 
 }
 
 /** Mean of the six ticks for a day, 0–1. Null outside the plan. */
-export function dailyHabitScore(
+function dailyHabitScore(
   entries: WeighIn[],
   profile: Profile,
   date: DateKey,
@@ -876,13 +876,4 @@ export function f1(n: number | null | undefined): string {
 
 export function int(n: number | null | undefined): string {
   return n == null || Number.isNaN(n) ? '—' : Math.round(n).toLocaleString('en-GB');
-}
-
-/**
- * A signed delta with its arrow. Colour is never the only signal, so the arrow
- * is part of the string itself rather than a separate decorative element.
- */
-export function signed(deltaKg: number, unit = 'kg'): string {
-  if (Math.abs(deltaKg) < 0.05) return `No change ${unit === 'kg' ? '' : unit}`.trim();
-  return `${deltaKg < 0 ? '↓' : '↑'} ${Math.abs(deltaKg).toFixed(1)} ${unit}`;
 }

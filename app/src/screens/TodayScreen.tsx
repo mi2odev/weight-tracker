@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';

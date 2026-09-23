@@ -1,6 +1,6 @@
 import { DateKey } from '../data/types';
 
-export const DAY_MS = 86400000;
+const DAY_MS = 86400000;
 
 /** Local-day key. Never use toISOString() here — that shifts across the UTC boundary. */
 export function toKey(d: Date): DateKey {
