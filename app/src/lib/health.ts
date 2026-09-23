@@ -64,7 +64,7 @@ export const CALORIE_CEILING = 6000;
  * Losing more than roughly 1% of body weight per week is faster than is
  * generally advised outside medical supervision.
  */
-export const FAST_LOSS_FRACTION = 0.01;
+const FAST_LOSS_FRACTION = 0.01;
 
 export interface TargetCheck {
   /** Set when the value cannot be saved at all. */
@@ -133,8 +133,6 @@ export function suggestedGentlerTarget(profile: Profile, currentWeightKg: number
 
 /** Below this BMI the app refuses to set a goal at all. */
 export const BLOCKED_GOAL_BMI = 17;
-/** Below this BMI the app warns but lets the user proceed. */
-export const UNDERWEIGHT_BMI = 18.5;
 
 export interface GoalCheck {
   error: string | null;
@@ -190,7 +188,7 @@ export const UNDER_18_NOTICE =
  * Sustained loss faster than this share of body weight per week is worth
  * flagging, whatever the target says the plan is.
  */
-export const RAPID_LOSS_FRACTION = 0.015;
+const RAPID_LOSS_FRACTION = 0.015;
 
 /**
  * True when the measured 14-day trend shows loss faster than ~1.5% of body

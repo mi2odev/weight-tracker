@@ -73,7 +73,7 @@ import {
  */
 export const STORAGE_KEY = 'wt.data.v1';
 /** A rescued copy of a payload that would not parse. Never deleted by the app. */
-export const CORRUPT_KEY_PREFIX = 'wt.data.corrupt.';
+const CORRUPT_KEY_PREFIX = 'wt.data.corrupt.';
 const PERSIST_DEBOUNCE_MS = 500;
 
 export interface Celebration {

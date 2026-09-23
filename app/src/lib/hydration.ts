@@ -22,7 +22,7 @@ export const MAX_READ_ATTEMPTS = 3;
  * — long enough for a device that is busy mounting storage, not long enough to
  * feel like a hang.
  */
-export const READ_RETRY_DELAYS_MS = [120, 360];
+const READ_RETRY_DELAYS_MS = [120, 360];
 
 /** The wait before attempt `n + 1`, or null when there should not be one. */
 export function retryDelayMs(attempt: number, maxAttempts = MAX_READ_ATTEMPTS): number | null {

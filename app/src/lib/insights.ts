@@ -12,7 +12,6 @@
 import { Profile, WeighIn } from '../data/types';
 import {
   averageDailyLossKg,
-  averageOverLastDays,
   consistencyPct,
   currentWeight,
   f1,
@@ -262,9 +261,4 @@ export function buildInsights(
  */
 export function chartIsReady(entries: WeighIn[], asOf?: string): boolean {
   return weighedEntries(entries).filter((e) => !asOf || e.logDate <= asOf).length >= 2;
-}
-
-/** The 7-day average, or null while nothing is logged. */
-export function sevenDayAverage(entries: WeighIn[], asOf?: string): number | null {
-  return averageOverLastDays(entries, 7, asOf);
 }

@@ -100,7 +100,7 @@ export function mealsCsv(data: AppData): string {
   );
 }
 
-export function workoutsCsv(data: AppData): string {
+function workoutsCsv(data: AppData): string {
   return toCsv(
     ['log_date', 'type', 'session', 'duration_min', 'intensity', 'calories_burned', 'notes'],
     data.workouts

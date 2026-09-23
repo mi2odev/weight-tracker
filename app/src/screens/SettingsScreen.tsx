@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
