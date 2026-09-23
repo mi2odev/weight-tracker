@@ -171,3 +171,22 @@ export function mealFromTemplate(template: SavedMeal, logDate: DateKey, id: stri
     proteinG: template.proteinG,
   };
 }
+
+/**
+ * Every meal from `from`, re-dated to `to` with fresh ids — "same as
+ * yesterday" for people who eat the same thing most days.
+ *
+ * Ids come from `idFor` so the caller owns id generation (and the tests can
+ * make them predictable). Order is kept, so breakfast still reads first.
+ */
+export function copyMeals(
+  meals: MealEntry[],
+  from: DateKey,
+  to: DateKey,
+  idFor: (index: number) => string,
+): MealEntry[] {
+  if (from === to) return [];
+  return meals
+    .filter((m) => m.logDate === from)
+    .map((m, i) => ({ ...m, id: idFor(i), logDate: to }));
+}
