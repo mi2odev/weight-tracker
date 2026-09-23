@@ -27,6 +27,8 @@ import {
   MealType,
   Measurement,
   NO_CALORIE_TARGET,
+  SavedMeal,
+  SavedWorkout,
   NotificationSettings,
   Profile,
   Sex,
@@ -249,6 +251,47 @@ function migrateMeals(raw: unknown, notes: string[]): MealEntry[] {
   return out;
 }
 
+/**
+ * v5 templates. Dropped rather than repaired when unreadable: a template is a
+ * convenience, and a broken one is not worth guessing at.
+ */
+function migrateSavedMeals(raw: unknown): SavedMeal[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SavedMeal[] = [];
+  raw.forEach((row, i) => {
+    const mealType = isObject(row) ? oneOf<MealType>(row.mealType, MEAL_TYPES) : null;
+    const description = isObject(row) ? text(row.description, 280) : null;
+    if (!mealType || !description) return;
+    out.push({
+      id: isObject(row) && typeof row.id === 'string' && row.id ? row.id : `saved-meal-${i}`,
+      mealType,
+      description,
+      calories: (isObject(row) && numberIn(row.calories, 0, 10000)) || 0,
+      proteinG: (isObject(row) && numberIn(row.proteinG, 0, 500)) || 0,
+    });
+  });
+  return out;
+}
+
+function migrateSavedWorkouts(raw: unknown): SavedWorkout[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SavedWorkout[] = [];
+  raw.forEach((row, i) => {
+    const type = isObject(row) ? oneOf<WorkoutType>(row.type, WORKOUT_TYPES) : null;
+    const session = isObject(row) ? text(row.session, 280) : null;
+    if (!type || !session) return;
+    out.push({
+      id: isObject(row) && typeof row.id === 'string' && row.id ? row.id : `saved-workout-${i}`,
+      type,
+      session,
+      durationMin: (isObject(row) && numberIn(row.durationMin, 0, 600)) || 0,
+      intensity: (isObject(row) && oneOf<Intensity>(row.intensity, INTENSITIES)) || 'Medium',
+      caloriesBurned: (isObject(row) && numberIn(row.caloriesBurned, 0, 10000)) || 0,
+    });
+  });
+  return out;
+}
+
 function migrateWorkouts(raw: unknown, notes: string[]): WorkoutEntry[] {
   if (!Array.isArray(raw)) return [];
   const out: WorkoutEntry[] = [];
@@ -380,6 +423,8 @@ export function migrate(raw: unknown): MigrationResult {
     entries: migrateEntries(raw.entries, notes),
     meals: migrateMeals(raw.meals, notes),
     workouts: migrateWorkouts(raw.workouts, notes),
+    savedMeals: migrateSavedMeals(raw.savedMeals),
+    savedWorkouts: migrateSavedWorkouts(raw.savedWorkouts),
     measurements: migrateMeasurements(raw.measurements, notes),
     rewards: migrateRewards(raw.rewards),
     achieved: migrateAchieved(raw.achieved),

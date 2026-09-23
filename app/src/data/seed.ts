@@ -19,11 +19,14 @@ import {
   Measurement,
   MealEntry,
   Profile,
+  SavedMeal,
+  SavedWorkout,
   WeighIn,
   WorkoutEntry,
 } from './types';
 import { addDays, todayKey } from '../lib/date';
 import { suggestedCalorieTarget, suggestedProteinTarget, tdee } from '../lib/calc';
+import { templateFromMeal, templateFromWorkout } from '../lib/templates';
 import { DEFAULT_LOCK } from '../lib/lockRules';
 
 /** Off until the user says otherwise — that is what opt-in means. */
@@ -66,6 +69,8 @@ export function emptyData(): AppData {
     entries: [],
     meals: [],
     workouts: [],
+    savedMeals: [],
+    savedWorkouts: [],
     measurements: [],
     rewards: {},
     achieved: {},
@@ -187,6 +192,13 @@ export function demoData(): AppData {
     },
   ].map((w, i) => ({ id: `wo-${i}`, logDate: today, ...w }));
 
+  // The demo's own meals and workouts, kept as templates — this is exactly
+  // what someone would save after logging the same lunch a few times.
+  const savedMeals: SavedMeal[] = meals.map((m, i) => templateFromMeal(m, `saved-meal-${i}`));
+  const savedWorkouts: SavedWorkout[] = workouts.map((w, i) =>
+    templateFromWorkout(w, `saved-workout-${i}`),
+  );
+
   // Stamp achieved dates the way the app would have as the user crossed them:
   // the earliest log date at or below each 5 kg mark.
   const achieved: Record<string, DateKey> = {};
@@ -201,6 +213,8 @@ export function demoData(): AppData {
     profile,
     entries,
     meals,
+    savedMeals,
+    savedWorkouts,
     workouts,
     measurements,
     rewards: { '155': 'New running shoes' },

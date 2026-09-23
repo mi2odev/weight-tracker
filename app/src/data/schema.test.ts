@@ -329,3 +329,45 @@ describe('v4 — a birth year instead of an age', () => {
     assert.equal(migrate(v1Payload({ adulthoodNoticed: true })).data.adulthoodNoticed, true);
   });
 });
+
+describe('v5 — saved meals and workouts', () => {
+  it('starts an older payload with an empty library rather than undefined', () => {
+    const result = migrate(v1Payload());
+    assert.deepEqual(result.data.savedMeals, []);
+    assert.deepEqual(result.data.savedWorkouts, []);
+  });
+
+  it('keeps templates it can read', () => {
+    const result = migrate(v1Payload({
+      savedMeals: [{ id: 's1', mealType: 'Breakfast', description: 'Porridge', calories: 410, proteinG: 14 }],
+      savedWorkouts: [{ id: 'w1', type: 'Cardio', session: 'Intervals', durationMin: 35, intensity: 'Medium', caloriesBurned: 380 }],
+    }));
+
+    assert.equal(result.data.savedMeals[0].description, 'Porridge');
+    assert.equal(result.data.savedWorkouts[0].session, 'Intervals');
+  });
+
+  it('drops a template with no name or no type, which nothing could use', () => {
+    const result = migrate(v1Payload({
+      savedMeals: [
+        { id: 'a', mealType: 'Breakfast' },
+        { id: 'b', description: 'No type' },
+        { id: 'c', mealType: 'Lunch', description: 'Fine' },
+      ],
+    }));
+    assert.equal(result.data.savedMeals.length, 1);
+    assert.equal(result.data.savedMeals[0].description, 'Fine');
+  });
+
+  it('fills in missing numbers rather than dropping the whole template', () => {
+    const result = migrate(v1Payload({
+      savedMeals: [{ id: 's1', mealType: 'Snack', description: 'An apple' }],
+    }));
+    assert.equal(result.data.savedMeals[0].calories, 0);
+    assert.equal(result.data.savedMeals[0].proteinG, 0);
+  });
+
+  it('ignores a savedMeals that is not a list at all', () => {
+    assert.deepEqual(migrate(v1Payload({ savedMeals: 'nope' })).data.savedMeals, []);
+  });
+});
