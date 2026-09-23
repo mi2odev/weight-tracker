@@ -87,6 +87,12 @@ export function TodayScreen({
 
   const draftKg = draft !== '' ? u.parseWeight(draft) : savedWeight;
 
+  /** The weight to offer as a starting point: this day's, or the latest before it. */
+  const lastWeight =
+    savedWeight ?? (entries.some((e) => e.weightKg != null && e.logDate < cursor)
+      ? previousWeight(entries, profile, cursor)
+      : null);
+
   /**
    * Validated as you type rather than after the fact, so the Save button can
    * say why it is unavailable instead of a toast explaining it afterwards.
@@ -249,6 +255,32 @@ export function TodayScreen({
             {draftError ?? deltaText(delta, draftKg, cursor === today, u)}
           </Body>
         </View>
+
+        {/* Most mornings land within a kilo of the last one, so start there
+            and let the keypad adjust, rather than typing all four digits. */}
+        {keypadUp && draft === '' && lastWeight != null && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Start from your last weight, ${u.weight(lastWeight)}`}
+            onPress={() => setDraft(u.weightField(lastWeight))}
+            style={({ pressed }) => ({
+              alignSelf: 'flex-start',
+              marginTop: space.md,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              minHeight: 36,
+              paddingHorizontal: space.md,
+              borderRadius: radius.pill,
+              backgroundColor: pressed ? colors.line : colors.tint,
+            })}
+          >
+            <Icon name="rate" size={13} color={colors.accent} />
+            <Body style={{ fontFamily: font.semibold, fontSize: 13 }} color={colors.accent}>
+              Start from {u.weight(lastWeight)}
+            </Body>
+          </Pressable>
+        )}
       </Card>
 
       {/* ── keypad ──────────────────────────────────────────────────────── */}

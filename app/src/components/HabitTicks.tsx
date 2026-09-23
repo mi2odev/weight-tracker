@@ -4,6 +4,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space } from '../theme/tokens';
 import { HabitKey, HABIT_KEYS } from '../data/types';
 import { Card } from './Card';
+import { ProgressRing } from './ProgressRing';
 import { Icon, IconName } from './Icon';
 import { Body, Caption } from './Type';
 
@@ -42,11 +43,20 @@ export function HabitTicks({
 
   return (
     <Card hero style={{ paddingHorizontal: space.lg, paddingVertical: 14 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <Body style={{ fontFamily: font.semibold, fontSize: 13 }}>Habits</Body>
-        <Body style={{ fontFamily: font.semibold, fontSize: 13 }} color={colors.muted} numeric>
-          {met} of 6 met
-        </Body>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Body style={{ fontFamily: font.semibold, fontSize: 15 }}>Daily habits</Body>
+          <Caption style={{ fontSize: 12 }}>{headline(met, dayHasData)}</Caption>
+        </View>
+        <ProgressRing value={met / 6} size={46} stroke={5} color={met === 6 ? colors.green : colors.accent}>
+          <Body
+            style={{ fontFamily: font.bold, fontSize: 13 }}
+            numeric
+            accessibilityLabel={`${met} of 6 habits met`}
+          >
+            {met}/6
+          </Body>
+        </ProgressRing>
       </View>
 
       <View style={{ flexDirection: 'row', gap: 6, marginTop: space.md }}>
@@ -83,4 +93,13 @@ export function HabitTicks({
       </View>
     </Card>
   );
+}
+
+/** The line under "Daily habits" — encouragement, never a scolding. */
+function headline(met: number, dayHasData: boolean): string {
+  if (!dayHasData) return 'Log anything to get started';
+  if (met === 6) return 'All six — a perfect day';
+  if (met >= 4) return `${6 - met} to go — nearly there`;
+  if (met >= 1) return `${met} done, ${6 - met} still open`;
+  return 'Every tick counts';
 }

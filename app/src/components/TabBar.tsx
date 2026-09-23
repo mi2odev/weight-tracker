@@ -37,7 +37,7 @@ export function TabBar({ active, onChange }: { active: TabKey; onChange: (t: Tab
     >
       {TABS.map((tab) => {
         const on = tab.key === active;
-        const color = on ? colors.accent : colors.disabled;
+        const color = on ? colors.accent : colors.muted;
         return (
           <Pressable
             key={tab.key}
@@ -45,11 +45,24 @@ export function TabBar({ active, onChange }: { active: TabKey; onChange: (t: Tab
             accessibilityState={{ selected: on }}
             accessibilityLabel={tab.label}
             onPress={() => onChange(tab.key)}
-            style={{ flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', gap: 3 }}
+            style={{ flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', gap: 2 }}
           >
-            <Icon name={tab.icon} size={20} color={color} strokeWidth={1.6} />
+            {/* The active tab sits in a pill, so the selection reads at a glance
+                rather than by colour alone. */}
+            <View
+              style={{
+                width: 54,
+                height: 28,
+                borderRadius: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: on ? colors.tint : 'transparent',
+              }}
+            >
+              <Icon name={tab.icon} size={20} color={color} strokeWidth={on ? 1.9 : 1.6} />
+            </View>
             <Body
-              style={{ fontFamily: on ? font.semibold : font.medium, fontSize: 10 }}
+              style={{ fontFamily: on ? font.semibold : font.medium, fontSize: 10.5 }}
               color={color}
             >
               {tab.label}
