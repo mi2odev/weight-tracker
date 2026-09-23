@@ -273,33 +273,46 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
         <HabitTicks ticks={ticks} dayHasData={dayHasData} />
       </View>
 
-      {/* ── quick-add water: a glass is a tap, not a sum ─────────────────── */}
-      <View style={{ marginTop: space.md, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Label style={{ flex: 1 }}>Add water</Label>
-        {waterSteps(u.units).map((step) => (
-          <Pressable
-            key={step.label}
-            accessibilityRole="button"
-            accessibilityLabel={`Add ${step.label.slice(1)} of water`}
-            onPress={() => updateEntry(cursor, { waterL: addWater(entry?.waterL, step.litres) })}
-            style={({ pressed }) => ({
-              minHeight: MIN_TAP,
-              paddingHorizontal: space.lg,
-              borderRadius: radius.pill,
-              borderWidth: 1,
-              borderColor: colors.line,
-              justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Body style={{ fontFamily: font.semibold, fontSize: 13 }} color={colors.accent}>
-              {step.label}
-            </Body>
-          </Pressable>
-        ))}
+      {/* ── water: typed, or a glass at a time ─────────────────────────── */}
+      <View style={{ marginTop: space.md, flexDirection: 'row', gap: space.sm }}>
+        <View style={{ flex: 1 }}>
+          <NumberField
+              label="Water"
+              unit={u.labels.volume}
+              hint={volumeTargetHint(entry?.waterL, profile.targetWaterL, u)}
+              value={u.volumeField(entry?.waterL)}
+              onChangeText={(text) =>
+                updateEntry(cursor, { waterL: text === '' ? null : u.parseVolume(text) })
+              }
+              valueColor={missedColor(entry?.waterL, profile.targetWaterL, colors)}
+            />
+        </View>
+        <View style={{ gap: space.xs, justifyContent: 'center' }}>
+          {waterSteps(u.units).map((step) => (
+            <Pressable
+              key={step.label}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${step.label.slice(1)} of water`}
+              onPress={() => updateEntry(cursor, { waterL: addWater(entry?.waterL, step.litres) })}
+              style={({ pressed }) => ({
+                flex: 1,
+                minHeight: 36,
+                paddingHorizontal: space.md,
+                borderRadius: radius.sm,
+                backgroundColor: pressed ? colors.line : colors.tint,
+                alignItems: 'center',
+                justifyContent: 'center',
+              })}
+            >
+              <Body style={{ fontFamily: font.semibold, fontSize: 13 }} color={colors.accent}>
+                {step.label}
+              </Body>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
-      {/* ── the eight optional fields ───────────────────────────────────── */}
+      {/* ── the other optional fields ───────────────────────────────────── */}
       <View style={{ marginTop: space.md }}>
         <Grid columns={2}>
         <NumberField
@@ -321,16 +334,6 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
           hint={`Target ${profile.targetProteinG} g`}
           value={fieldText(entry?.proteinG)}
           onChangeText={setNumericField('proteinG', 'manualProtein')}
-        />
-        <NumberField
-          label="Water"
-          unit={u.labels.volume}
-          hint={volumeTargetHint(entry?.waterL, profile.targetWaterL, u)}
-          value={u.volumeField(entry?.waterL)}
-          onChangeText={(text) =>
-            updateEntry(cursor, { waterL: text === '' ? null : u.parseVolume(text) })
-          }
-          valueColor={missedColor(entry?.waterL, profile.targetWaterL, colors)}
         />
         <NumberField
           label="Steps"
@@ -373,7 +376,8 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
           />
         </Card>
 
-        <Card style={{ flex: 1, gap: 3 }}>
+        </Grid>
+        <Card style={{ marginTop: space.sm, gap: 4 }}>
           <Label>Notes</Label>
           <TextInput
             value={entry?.notes ?? ''}
@@ -384,15 +388,14 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
             accessibilityLabel="Notes"
             style={{
               padding: 0,
-              minHeight: 32,
+              minHeight: 40,
               fontFamily: font.regular,
-              fontSize: 12,
-              lineHeight: 16,
+              fontSize: 14,
+              lineHeight: 20,
               color: colors.text,
             }}
           />
         </Card>
-        </Grid>
       </View>
 
       {/* ── meals and training ──────────────────────────────────────────── */}
@@ -493,7 +496,12 @@ function volumeTargetHint(
   if (litres == null) return `Target ${u.volume(targetLitres)}`;
   const diff = litres - targetLitres;
   if (Math.abs(diff) < 0.001) return `Exactly ${u.volume(targetLitres)}`;
-  const magnitude = u.volume(Math.abs(diff));
+  // Under a litre, millilitres: glasses are 250 ml, and "0.1 L over" for
+  // 50 ml was both rounded and harder to read.
+  const magnitude =
+    u.units === 'metric' && Math.abs(diff) < 1
+      ? `${Math.round(Math.abs(diff) * 1000)} ml`
+      : u.volume(Math.abs(diff));
   return diff < 0
     ? `− ${magnitude} under ${u.volume(targetLitres)}`
     : `+ ${magnitude} over ${u.volume(targetLitres)}`;

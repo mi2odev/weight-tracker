@@ -153,20 +153,22 @@ export function Segmented<T extends string>({
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             onPress={() => onChange(opt)}
-            style={{
+            style={({ pressed }) => ({
+              opacity: pressed && !active ? 0.7 : 1,
               flex: 1,
               minHeight: MIN_TAP - 4,
               borderRadius: radius.sm,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: active ? colors.tint : 'transparent',
-            }}
+            })}
           >
             <Body
               style={{ fontFamily: font.semibold, fontSize: 14 }}
               color={active ? colors.accent : colors.muted}
             >
-              {opt}
+              {/* Values are often lower-case keys ('metric'); labels are not. */}
+              {opt.charAt(0).toUpperCase() + opt.slice(1)}
             </Body>
           </Pressable>
         );
@@ -215,8 +217,14 @@ export function NumberField({
       ? parsed.toLocaleString('en-GB', { maximumFractionDigits: 2 })
       : value);
 
+  const inputRef = React.useRef<TextInput>(null);
+
   return (
-    <View
+    <Pressable
+      // The whole card is the target, not just the digits: a thumb landing on
+      // the label or the hint should still open the keyboard.
+      onPress={() => inputRef.current?.focus()}
+      accessible={false}
       style={{
         // Deliberately not `flex: 1`. Every one of these sits in a `Grid`
         // cell, and a cell is a *column*, so `flex: 1` sets flexBasis 0 on the
@@ -236,9 +244,20 @@ export function NumberField({
         gap: 2,
       }}
     >
-      <Label numberOfLines={1}>{label}</Label>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.xs }}>
+      {/* The unit sits with the label rather than trailing the input: an
+          input that fills the row pushed it to the far edge, detached from
+          the number it describes. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+        <Label numberOfLines={1} style={{ flexShrink: 1 }}>{label}</Label>
+        {!!unit && (
+          <Caption style={{ fontSize: 11, marginLeft: 'auto' }} numberOfLines={1}>
+            {unit}
+          </Caption>
+        )}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
         <TextInput
+          ref={inputRef}
           value={display}
           // Seeded from the raw value, never from the grouped display — the
           // caret should not land after a separator the user did not type.
@@ -258,6 +277,9 @@ export function NumberField({
               flex: 1,
               minWidth: 0,
               padding: 0,
+              // The card is the focus affordance; the browser's ring on the
+              // bare input (web builds only) just boxed the digits.
+              outlineWidth: 0,
               fontFamily: font.semibold,
               fontSize: 20,
               letterSpacing: -0.4,
@@ -266,10 +288,9 @@ export function NumberField({
             tnum,
           ]}
         />
-        {!!unit && <Caption style={{ fontSize: 11 }}>{unit}</Caption>}
       </View>
       {!!hint && <Caption numberOfLines={1}>{hint}</Caption>}
-    </View>
+    </Pressable>
   );
 }
 

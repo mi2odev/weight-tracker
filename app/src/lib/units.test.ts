@@ -119,3 +119,10 @@ describe('quick-add water', () => {
     assert.ok(Math.abs(total - step * 2) < 0.002, 'and still two cups, give or take a millilitre');
   });
 });
+
+describe('the water field', () => {
+  it('shows a quarter-litre step as logged, not rounded to the tenth', () => {
+    assert.equal(formatterFor('metric').volumeField(3.05), '3.05');
+    assert.equal(formatterFor('metric').volumeField(2.8), '2.8');
+  });
+});
