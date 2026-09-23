@@ -146,47 +146,6 @@ export function SettingsScreen({
       </Card>
       <GhostButton label="Edit targets" onPress={() => setTargetSheet(true)} />
 
-      {/* ── read-only calculated block ──────────────────────────────────── */}
-      <View style={{ marginTop: space.lg }}>
-        <SectionHeading title="Calculated for you" trailing="Read-only" />
-      </View>
-      {!isAdult(profile) ? (
-        <Card hero style={{ padding: 18, gap: space.sm }}>
-          <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>Targets are off for now</Body>
-          <Body style={{ fontSize: 13.5, lineHeight: 20 }} color={colors.muted}>
-            {UNDER_18_NOTICE}
-          </Body>
-        </Card>
-      ) : (
-      <Card padded={false} hero style={{ paddingHorizontal: 18 }}>
-        <ValueRow label="BMI" note="weight ÷ height²" value={bmiValue.toFixed(1)} />
-        <ValueRow label="Classification" note="WHO bands" value={bmiBand(bmiValue)} />
-        <ValueRow
-          label="Healthy weight range"
-          note="BMI 18.5–24.9 at your height"
-          value={`${u.weightValue(healthy.lowKg)}–${u.weight(healthy.highKg)}`}
-        />
-        <ValueRow
-          label="Resting burn (BMR)"
-          note="Mifflin-St Jeor, recalculated as you lose"
-          value={`${int(bmrValue)} kcal`}
-        />
-        <ValueRow label="Maintenance (TDEE)" note="BMR × activity factor" value={`${int(tdeeValue)} kcal`} />
-        <ValueRow label="Planned daily deficit" note="TDEE − calorie target" value={`${int(deficit)} kcal`} />
-        <ValueRow
-          label="Expected loss at target"
-          note="7 700 kcal ≈ 1 kg"
-          value={`${u.weight(expectedLossPerWeek(current, profile))}/week`}
-        />
-        <ValueRow
-          label="Required pace"
-          note="To reach goal inside 730 days"
-          value={`${u.weight(requiredPacePerWeek(profile))}/week`}
-          last
-        />
-      </Card>
-      )}
-
       {/* ── notifications ───────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
         <SectionHeading title="Notifications" />
@@ -259,6 +218,47 @@ export function SettingsScreen({
         value={preference}
         onChange={setPreference}
       />
+
+      {/* ── read-only calculated block ──────────────────────────────────── */}
+      <View style={{ marginTop: space.lg }}>
+        <SectionHeading title="Calculated for you" trailing="Read-only" />
+      </View>
+      {!isAdult(profile) ? (
+        <Card hero style={{ padding: 18, gap: space.sm }}>
+          <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>Targets are off for now</Body>
+          <Body style={{ fontSize: 13.5, lineHeight: 20 }} color={colors.muted}>
+            {UNDER_18_NOTICE}
+          </Body>
+        </Card>
+      ) : (
+      <Card padded={false} hero style={{ paddingHorizontal: 18 }}>
+        <ValueRow label="BMI" note="weight ÷ height²" value={bmiValue.toFixed(1)} />
+        <ValueRow label="Classification" note="WHO bands" value={bmiBand(bmiValue)} />
+        <ValueRow
+          label="Healthy weight range"
+          note="BMI 18.5–24.9 at your height"
+          value={`${u.weightValue(healthy.lowKg)}–${u.weight(healthy.highKg)}`}
+        />
+        <ValueRow
+          label="Resting burn (BMR)"
+          note="Mifflin-St Jeor, recalculated as you lose"
+          value={`${int(bmrValue)} kcal`}
+        />
+        <ValueRow label="Maintenance (TDEE)" note="BMR × activity factor" value={`${int(tdeeValue)} kcal`} />
+        <ValueRow label="Planned daily deficit" note="TDEE − calorie target" value={`${int(deficit)} kcal`} />
+        <ValueRow
+          label="Expected loss at target"
+          note="7 700 kcal ≈ 1 kg"
+          value={`${u.weight(expectedLossPerWeek(current, profile))}/week`}
+        />
+        <ValueRow
+          label="Required pace"
+          note="To reach goal inside 730 days"
+          value={`${u.weight(requiredPacePerWeek(profile))}/week`}
+          last
+        />
+      </Card>
+      )}
 
       {/* ── privacy ─────────────────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
