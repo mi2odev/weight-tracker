@@ -231,7 +231,7 @@ export function NumberField({
   const inputRef = React.useRef<TextInput>(null);
 
   const entry = additive && draft != null ? readFieldEntry(draft, base.current) : null;
-  const adding = draft != null && /^\s*[+\-−]/.test(draft);
+  const adding = additive && draft != null && /^\s*[+\-−]/.test(draft);
   const beginAdd = () => {
     base.current = parseDecimalInput(value);
     if (inputRef.current?.isFocused()) setDraft('+');
@@ -298,6 +298,9 @@ export function NumberField({
             // "+" alone waits for a number; anything else stores the result.
             const next = readFieldEntry(text, base.current);
             if (next.kind === 'value') onChangeText(next.value == null ? '' : String(next.value));
+            // Backspaced to a bare sign: the addition is gone, so is its total.
+            else if (parseDecimalInput(value) !== base.current)
+              onChangeText(base.current == null ? '' : String(base.current));
           }}
           placeholder={placeholder}
           placeholderTextColor={colors.disabled}
@@ -346,8 +349,10 @@ export function NumberField({
         <Caption numberOfLines={1} color={colors.accent}>
           {entry.kind === 'pending'
             ? `Adding to ${formatAmount(base.current ?? 0)}…`
-            : `${formatAmount(base.current ?? 0)} ${draft!.trim()[0] === '+' ? '+' : '−'} ${formatAmount(
-                Math.abs((entry.value ?? 0) - (base.current ?? 0)),
+            : // The amount as typed, not the difference: "-50" on 22 reads
+              // "22 − 50 = 0", since the total is floored at zero.
+              `${formatAmount(base.current ?? 0)} ${draft!.trim()[0] === '+' ? '+' : '−'} ${formatAmount(
+                parseDecimalInput(draft!.trim().slice(1)) ?? 0,
               )} = ${formatAmount(entry.value ?? 0)}`}
         </Caption>
       ) : (

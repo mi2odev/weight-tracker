@@ -172,8 +172,11 @@ export function buildInsights(
   } else {
     // The journey average, matching the "Avg weekly loss" card — the trend
     // above has already established that the direction is downward.
-    const perDay = averageDailyLossKg(entries, profile, asOf) ?? -trend;
-    const weeks = Math.max(1, Math.round(spanDays / 7));
+    const average = averageDailyLossKg(entries, profile, asOf);
+    const perDay = average ?? -trend;
+    // The same span the average covers: the start date to the latest weigh-in.
+    const last = weighed[weighed.length - 1].logDate;
+    const weeks = Math.max(1, Math.round((average == null ? spanDays : daysBetween(profile.startDate, last)) / 7));
     out.push({
       id: 'rate',
       title: 'Loss rate',

@@ -17,12 +17,15 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { LaunchScreen } from './src/components/LaunchScreen';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [loaded, fontError] = useFonts({
     IBMPlexSans_400Regular,
     IBMPlexSans_500Medium,
     IBMPlexSans_600SemiBold,
     IBMPlexSans_700Bold,
   });
+  // A face that fails to load falls back to the system font rather than
+  // leaving the launch screen up for ever.
+  const fontsLoaded = loaded || fontError != null;
 
   return (
     <SafeAreaProvider>

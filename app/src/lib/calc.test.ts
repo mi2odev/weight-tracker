@@ -195,8 +195,11 @@ describe('average loss rate', () => {
     assert.equal(averageDailyLossKg(entries, profile, addDays(START, 7))!.toFixed(2), '0.10');
   });
 
-  it('has no rate on day 0 itself', () => {
+  it('has no rate in the first week, when the change is mostly water', () => {
     assert.equal(averageDailyLossKg([{ logDate: START, weightKg: 156 }], profile, START), null);
+    // 2 kg off the next morning would otherwise read as 14 kg a week.
+    assert.equal(averageDailyLossKg([{ logDate: addDays(START, 1), weightKg: 155 }], profile, addDays(START, 1)), null);
+    assert.ok(averageDailyLossKg([{ logDate: addDays(START, 7), weightKg: 156 }], profile, addDays(START, 7)) != null);
   });
 
   it('reports the journey average even when the recent trend differs', () => {

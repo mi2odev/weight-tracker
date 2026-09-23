@@ -299,6 +299,9 @@ export function weeklyLossKg(entries: WeighIn[], asOf?: DateKey): number | null 
  * insight are labelled against ("Averaging 0.6 kg per week over the last 8
  * weeks"). The trend still decides *whether* a projection is shown at all.
  */
+/** Days from the start date before an average loss rate is shown. */
+export const MIN_AVERAGE_DAYS = 7;
+
 export function averageDailyLossKg(
   entries: WeighIn[],
   profile: Profile,
@@ -315,7 +318,9 @@ export function averageDailyLossKg(
   const last = weighed[weighed.length - 1];
   if (!last) return null;
   const days = daysBetween(profile.startDate, last.logDate);
-  if (days <= 0) return null;
+  // Under a week the figure is mostly water: 2 kg off on day one would read
+  // as "14 kg a week" and size every projection from it.
+  if (days < MIN_AVERAGE_DAYS) return null;
   return (profile.startWeightKg - last.weightKg) / days;
 }
 
