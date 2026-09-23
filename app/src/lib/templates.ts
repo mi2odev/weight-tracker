@@ -203,3 +203,15 @@ export function copyMeals(
     .filter((m) => m.logDate === from)
     .map((m, i) => ({ ...m, id: idFor(i), logDate: to }));
 }
+
+/**
+ * Filters a saved list by what was typed: every word has to appear in the
+ * name or the detail line, in any order, ignoring case. "chick rice" finds
+ * "Chicken, rice, roasted peppers".
+ */
+export function matchesQuery(text: string, query: string): boolean {
+  const words = normaliseName(query).split(' ').filter(Boolean);
+  if (!words.length) return true;
+  const haystack = normaliseName(text);
+  return words.every((w) => haystack.includes(w));
+}

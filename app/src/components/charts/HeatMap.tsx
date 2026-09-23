@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 import { font, space } from '../../theme/tokens';
 import { Caption } from '../Type';
@@ -22,10 +22,13 @@ export function HeatMap({
   entries,
   profile,
   asOf,
+  onOpenDay,
 }: {
   entries: WeighIn[];
   profile: Profile;
   asOf: string;
+  /** Tapping a day inside the plan opens it for editing. */
+  onOpenDay?: (date: string) => void;
 }) {
   const { colors } = useTheme();
 
@@ -47,8 +50,10 @@ export function HeatMap({
 
   return (
     <View
-      accessible
-      accessibilityRole="image"
+      // With tappable days the grid can't be one image to a screen reader —
+      // each day has to be reachable on its own.
+      accessible={!onOpenDay}
+      accessibilityRole={onOpenDay ? undefined : 'image'}
       accessibilityLabel={
         inPlan.length
           ? `Habit heat map for the last five weeks. ${average}% of habits met on average across ${inPlan.length} days.`
@@ -72,15 +77,19 @@ export function HeatMap({
               const met = habitsMetCount(ticks);
 
               return (
-                <View
+                <Pressable
                   key={date}
                   accessible
+                  accessibilityRole={onOpenDay && !outside ? 'button' : undefined}
                   accessibilityLabel={
                     outside
                       ? `${date}, outside your plan`
-                      : `${date}, ${met} of 6 habits met`
+                      : `${date}, ${met} of 6 habits met${onOpenDay ? '. Opens the day' : ''}`
                   }
-                  style={{
+                  disabled={!onOpenDay || outside}
+                  onPress={() => onOpenDay?.(date)}
+                  style={({ pressed }) => ({
+                    opacity: pressed ? 0.6 : 1,
                     flex: 1,
                     aspectRatio: 1,
                     borderRadius: 9,
@@ -89,7 +98,7 @@ export function HeatMap({
                     borderColor: outside ? colors.line : 'transparent',
                     alignItems: 'center',
                     justifyContent: 'center',
-                  }}
+                  })}
                 >
                   <Caption
                     style={{ fontSize: 9.5, fontFamily: font.semibold }}
@@ -97,7 +106,7 @@ export function HeatMap({
                   >
                     {fromKey(date).getDate()}
                   </Caption>
-                </View>
+                </Pressable>
               );
             })}
           </View>

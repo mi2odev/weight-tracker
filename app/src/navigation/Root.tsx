@@ -42,6 +42,7 @@ export function Root() {
     celebration,
     dismissCelebration,
     dismissAdulthoodNotice,
+    setCursor,
   } = useStore();
   const [route, setRoute] = useState<Route>(HOME);
 
@@ -103,7 +104,14 @@ export function Root() {
           <ProgressScreen onOpenMilestones={() => goSub('milestones', 'progress')} />
         )}
         {route.kind === 'tab' && route.tab === 'trends' && <TrendsScreen />}
-        {route.kind === 'tab' && route.tab === 'habits' && <HabitsScreen />}
+        {route.kind === 'tab' && route.tab === 'habits' && (
+          <HabitsScreen
+            onOpenDay={(date) => {
+              setCursor(date);
+              goTab('today');
+            }}
+          />
+        )}
         {route.kind === 'tab' && route.tab === 'more' && (
           <MoreScreen onOpen={(screen) => goSub(screen, 'more')} />
         )}
