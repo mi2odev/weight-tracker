@@ -1,11 +1,12 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleProp, useWindowDimensions, View, ViewStyle } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleProp, useWindowDimensions, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { space } from '../theme/tokens';
 import { Icon } from './Icon';
 import { Meta, Title } from './Type';
 import { useKeyboard } from './keyboard';
+import { RevealContext, useRevealFocused } from './revealFocused';
 
 /**
  * The design is drawn for a 390 pt phone. On a tablet the choice is to stretch
@@ -49,10 +50,12 @@ export function Screen({
   const { width } = useWindowDimensions();
   const wide = width > MAX_CONTENT_WIDTH;
   const keyboard = useKeyboard();
+  const { reveal, scrollProps, contentRef } = useRevealFocused();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.page }}>
       <ScrollView
+        {...scrollProps}
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: insets.top,
@@ -65,9 +68,13 @@ export function Screen({
         keyboardShouldPersistTaps="handled"
         // Tapping away from a field should put the keyboard down, which is
         // what people expect and the only way to reach the tab bar again.
-        keyboardDismissMode="on-drag"
+        // Native only dismisses when the user starts a drag. The web build
+        // dismisses on *any* scroll — including a layout shift from the first
+        // value typed into an empty day — which blurred the field mid-word.
+        keyboardDismissMode={Platform.OS === 'web' ? 'none' : 'on-drag'}
         showsVerticalScrollIndicator={false}
       >
+        <View ref={contentRef} collapsable={false}>
         <View
           style={{
             paddingHorizontal: 20,
@@ -106,7 +113,8 @@ export function Screen({
             contentStyle,
           ]}
         >
-          {children}
+          <RevealContext.Provider value={reveal}>{children}</RevealContext.Provider>
+        </View>
         </View>
       </ScrollView>
 
@@ -116,7 +124,11 @@ export function Screen({
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.page }}
       />
 
-      {footer ? (
+      {/* Hidden while the phone keyboard is up: pinned above the keys it
+          covered the fields being typed in (Notes, on Today), and nothing in
+          it is needed mid-typing. The weigh-in keypad is on screen, not the
+          system keyboard, so it is unaffected. */}
+      {footer && !keyboard.open ? (
         <View
           style={[
             wide ? { width: MAX_CONTENT_WIDTH, alignSelf: 'center' } : null,
