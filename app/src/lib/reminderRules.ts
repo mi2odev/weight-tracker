@@ -14,7 +14,7 @@
 
 import { AppData, DateKey, NotificationSettings } from '../data/types';
 import { entryFor, habitTicks, habitsMetCount, milestones } from './calc';
-import { addDays, daysBetween, instantAt, todayKey } from './date';
+import { addDays, daysBetween, instantAt, todayKey, weekdayIndex } from './date';
 import { formatterFor } from './units';
 
 export interface PlannedReminder {
@@ -65,6 +65,14 @@ export function waterReminderDue(
  */
 const WATER_BUDGET = 40;
 
+/** Everything pending at once stays under iOS's cap of 64, soonest first. */
+export const MAX_PENDING = 60;
+
+/** Whether a reminder set to `days` (Monday = 0) runs on `date`. */
+export function runsOn(days: number[], date: DateKey): boolean {
+  return days.includes(weekdayIndex(date));
+}
+
 /** 420 → "07:00". */
 export function minutesLabel(minutes: number): string {
   const m = ((Math.round(minutes) % 1440) + 1440) % 1440;
@@ -91,6 +99,7 @@ export function plannedReminders(data: AppData, now: Date = new Date()): Planned
   if (notifications.morningWeighIn) {
     for (let i = 0; i < 7; i++) {
       const date = addDays(today, i);
+      if (!runsOn(notifications.weighDays, date)) continue;
       if (entryFor(data.entries, date)?.weightKg != null) continue;
       const when = at(date, notifications.morningMinutes);
       if (when <= now) continue;
@@ -107,6 +116,7 @@ export function plannedReminders(data: AppData, now: Date = new Date()): Planned
   if (notifications.eveningLog) {
     for (let i = 0; i < 7; i++) {
       const date = addDays(today, i);
+      if (!runsOn(notifications.eveningDays, date)) continue;
       const ticks = habitTicks(entryFor(data.entries, date), profile, date, date);
       // Future days have nothing logged yet, so they qualify by definition.
       if (ticks && habitsMetCount(ticks) >= 3) continue;
@@ -129,6 +139,7 @@ export function plannedReminders(data: AppData, now: Date = new Date()): Planned
     const target = profile.targetWaterL;
     for (let i = 0; i < days; i++) {
       const date = addDays(today, i);
+      if (!runsOn(notifications.waterDays, date)) continue;
       const drunk = entryFor(data.entries, date)?.waterL ?? 0;
       for (const minutes of times) {
         if (!waterReminderDue(notifications, target, drunk, minutes)) continue;
@@ -171,5 +182,32 @@ export function plannedReminders(data: AppData, now: Date = new Date()): Planned
     }
   }
 
-  return out;
+  // 5 · The user's own reminders, on the days they chose.
+  for (const reminder of notifications.custom) {
+    if (!reminder.enabled) continue;
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(today, i);
+      if (!runsOn(reminder.days, date)) continue;
+      const when = at(date, reminder.minutes);
+      if (when <= now) continue;
+      out.push({ id: `custom-${reminder.id}-${date}`, title: reminder.label, body: 'Your reminder from Weighpoint.', date: when });
+    }
+  }
+
+  // Soonest first, and never more than the phone will hold. The schedule is
+  // rewritten on every change, so what is cut now comes back as time passes.
+  return out.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, MAX_PENDING);
+}
+
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** "Every day", "Weekdays", "Weekends", "Never", or "Mon, Wed, Fri". */
+export function daysLabel(days: number[]): string {
+  const set = new Set(days);
+  if (set.size === 7) return 'Every day';
+  if (set.size === 0) return 'Never';
+  const key = [...set].sort().join('');
+  if (key === '01234') return 'Weekdays';
+  if (key === '56') return 'Weekends';
+  return [...set].sort().map((d) => DAY_NAMES[d]).join(', ');
 }

@@ -8,9 +8,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { emptyData } from '../data/seed';
-import { AppData, WeighIn } from '../data/types';
-import { addDays, instantAt, minuteOfDayAt, todayKey } from './date';
-import { minutesLabel, plannedReminders, shiftMinutes, waterCheckTimes, waterDueBy } from './reminderRules';
+import { AppData, CustomReminder, WeighIn } from '../data/types';
+import { addDays, instantAt, minuteOfDayAt, todayKey, weekdayIndex } from './date';
+import { daysLabel, MAX_PENDING, minutesLabel, plannedReminders, shiftMinutes, waterCheckTimes, waterDueBy } from './reminderRules';
 
 const TODAY = todayKey();
 /** Algerian midnight today, so every reminder today is still ahead. */
@@ -139,5 +139,59 @@ describe('the evening nudge', () => {
     const planned = plannedReminders(d, MIDNIGHT);
     assert.ok(!planned.some((r) => r.id === `evening-${TODAY}`));
     assert.equal(minuteOfDayAt(planned[0].date), 20 * 60);
+  });
+});
+
+describe('choosing the days', () => {
+  it('skips the weigh-in reminder on days switched off', () => {
+    const d = only(data(), 'morningWeighIn');
+    d.notifications.weighDays = [0, 1, 2, 3, 4]; // weekdays only
+    const days = plannedReminders(d, MIDNIGHT).map((r) => weekdayIndex(r.id.slice('weigh-'.length)));
+    assert.ok(days.length > 0);
+    assert.ok(days.every((w) => w <= 4), `got weekdays ${days}`);
+  });
+
+  it('skips water on days switched off', () => {
+    const d = only(data(), 'water');
+    d.notifications.waterDays = [];
+    assert.equal(plannedReminders(d, MIDNIGHT).length, 0);
+  });
+});
+
+describe('the user\'s own reminders', () => {
+  const vitamins: CustomReminder = { id: 'v', label: 'Vitamins', minutes: 8 * 60, days: [0, 1, 2, 3, 4, 5, 6], enabled: true };
+
+  it('fire at their time every chosen day, titled as written', () => {
+    const d = only(data(), 'milestoneReached');
+    d.notifications.custom = [vitamins];
+    const planned = plannedReminders(d, MIDNIGHT);
+    assert.equal(planned.length, 7);
+    assert.equal(planned[0].title, 'Vitamins');
+    assert.equal(minuteOfDayAt(planned[0].date), 8 * 60);
+  });
+
+  it('stay quiet when paused', () => {
+    const d = only(data(), 'milestoneReached');
+    d.notifications.custom = [{ ...vitamins, enabled: false }];
+    assert.equal(plannedReminders(d, MIDNIGHT).length, 0);
+  });
+
+  it('never push the total past what the phone holds, soonest first', () => {
+    const d = data();
+    d.notifications.waterEveryMinutes = 30;
+    d.notifications.custom = Array.from({ length: 12 }, (_, i) => ({ ...vitamins, id: `r${i}`, minutes: 60 + i }));
+    const planned = plannedReminders(d, MIDNIGHT);
+    assert.ok(planned.length <= MAX_PENDING);
+    for (let i = 1; i < planned.length; i++) assert.ok(planned[i].date >= planned[i - 1].date);
+  });
+});
+
+describe('describing the days', () => {
+  it('says it the way a person would', () => {
+    assert.equal(daysLabel([0, 1, 2, 3, 4, 5, 6]), 'Every day');
+    assert.equal(daysLabel([4, 0, 1, 2, 3]), 'Weekdays');
+    assert.equal(daysLabel([5, 6]), 'Weekends');
+    assert.equal(daysLabel([]), 'Never');
+    assert.equal(daysLabel([0, 2, 4]), 'Mon, Wed, Fri');
   });
 });

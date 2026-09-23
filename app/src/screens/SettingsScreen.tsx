@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Modal, Pressable, TextInput, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
 import { font, radius, space } from '../theme/tokens';
@@ -13,6 +13,7 @@ import {
   GOAL_TYPES,
   GoalType,
   LockSettings,
+  CustomReminder,
   NotificationSettings,
   ReminderTime,
   ReminderToggle,
@@ -44,7 +45,8 @@ import { ConflictChoice } from '../lib/backup';
 import { checkCalorieTarget, checkGoalWeight, isAdult, UNDER_18_NOTICE } from '../lib/health';
 import { formatBytes, totalPhotoBytes } from '../lib/photos';
 import { remindersSupported, sendTestReminder } from '../lib/notifications';
-import { minutesLabel, shiftMinutes, waterCheckTimes } from '../lib/reminderRules';
+import { daysLabel, minutesLabel, shiftMinutes, waterCheckTimes } from '../lib/reminderRules';
+import { MAX_CUSTOM_REMINDERS } from '../data/schema';
 import { parseDecimalInput } from '../lib/numberInput';
 
 /** How many measurements still have a photo file behind them. */
@@ -68,10 +70,12 @@ function photosIn(photos: Record<string, string>): string {
   return ` and ${count} ${count === 1 ? 'photo' : 'photos'}`;
 }
 
-const REMINDERS: { key: ReminderToggle; label: string; sub: string; time?: ReminderTime }[] = [
-  { key: 'morningWeighIn', label: 'Morning weigh-in', sub: 'Skipped once you have weighed in', time: 'morningMinutes' },
-  { key: 'eveningLog', label: 'Evening check-in', sub: 'Only if under 3 habits are ticked', time: 'eveningMinutes' },
-  { key: 'water', label: 'Water', sub: 'Repeats through the day; stops once you hit your target' },
+type DaysKey = 'weighDays' | 'eveningDays' | 'waterDays';
+
+const REMINDERS: { key: ReminderToggle; label: string; sub: string; time?: ReminderTime; days?: DaysKey }[] = [
+  { key: 'morningWeighIn', label: 'Morning weigh-in', sub: 'Skipped once you have weighed in', time: 'morningMinutes', days: 'weighDays' },
+  { key: 'eveningLog', label: 'Evening check-in', sub: 'Only if under 3 habits are ticked', time: 'eveningMinutes', days: 'eveningDays' },
+  { key: 'water', label: 'Water', sub: 'Repeats through the day; stops once you hit your target', days: 'waterDays' },
   { key: 'weeklySummary', label: 'Weekly summary', sub: 'Every 7 days from your start date' },
   { key: 'milestoneReached', label: 'Milestone reached', sub: 'Once, the first time you cross one' },
 ];
@@ -88,6 +92,9 @@ export function SettingsScreen({
     data,
     setNotification,
     setReminderTime,
+    setReminderDays,
+    saveCustomReminder,
+    removeCustomReminder,
     updateProfile,
     replayOnboarding,
     loadDemo,
@@ -104,6 +111,7 @@ export function SettingsScreen({
   const { profile, entries } = data;
 
   const [planSheet, setPlanSheet] = useState(false);
+  const [editingReminder, setEditingReminder] = useState<CustomReminder | null>(null);
   const [targetSheet, setTargetSheet] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmDemo, setConfirmDemo] = useState(false);
@@ -183,10 +191,76 @@ export function SettingsScreen({
                   onOnlyBehind={(next) => setNotification('waterOnlyBehind', next)}
                 />
               )}
+              {reminder.days && on && (
+                <DayPicker
+                  label={reminder.label}
+                  days={data.notifications[reminder.days]}
+                  onChange={(days) => setReminderDays(reminder.days!, days)}
+                />
+              )}
             </Card>
           );
         })}
       </View>
+
+      {/* ── the user's own reminders ────────────────────────────────────── */}
+      <View style={{ marginTop: space.md }}>
+        <SectionHeading title="Your reminders" trailing={`${data.notifications.custom.length} of ${MAX_CUSTOM_REMINDERS}`} />
+      </View>
+      <View style={{ gap: space.sm }}>
+        {data.notifications.custom.map((r) => (
+          <Card key={r.id} padded={false}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingRight: 17 }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${r.label}`}
+                onPress={() => setEditingReminder(r)}
+                style={{ flex: 1, paddingLeft: 17, paddingVertical: 13, gap: 1 }}
+              >
+                <Body style={{ fontFamily: font.semibold, fontSize: 14 }} numberOfLines={1}>
+                  {r.label}
+                </Body>
+                <Caption style={{ fontSize: 11.5 }}>
+                  {minutesLabel(r.minutes)} · {daysLabel(r.days)}
+                </Caption>
+              </Pressable>
+              <Toggle
+                value={r.enabled}
+                accessibilityLabel={`${r.label} on`}
+                onChange={(enabled) => saveCustomReminder({ ...r, enabled })}
+              />
+            </View>
+          </Card>
+        ))}
+        {data.notifications.custom.length < MAX_CUSTOM_REMINDERS && (
+          <GhostButton
+            label="Add a reminder"
+            dashed
+            onPress={() =>
+              setEditingReminder({
+                id: `r-${Date.now()}`,
+                label: '',
+                minutes: 8 * 60,
+                days: [0, 1, 2, 3, 4, 5, 6],
+                enabled: true,
+              })
+            }
+          />
+        )}
+      </View>
+      <ReminderSheet
+        reminder={editingReminder}
+        isNew={editingReminder != null && !data.notifications.custom.some((r) => r.id === editingReminder.id)}
+        onClose={() => setEditingReminder(null)}
+        onSave={(r) => {
+          saveCustomReminder(r);
+          setEditingReminder(null);
+        }}
+        onDelete={(id) => {
+          removeCustomReminder(id);
+          setEditingReminder(null);
+        }}
+      />
       {remindersSupported ? (
         <GhostButton
           label="Send a test notification"
@@ -629,11 +703,14 @@ function TimeStepper({
   minutes,
   onChange,
   caption = 'Time',
+  step: stepSize = 30,
 }: {
   label: string;
   minutes: number;
   onChange: (minutes: number) => void;
   caption?: string;
+  /** Minutes per tap. */
+  step?: number;
 }) {
   const { colors } = useTheme();
   const step = (delta: number, text: string, a11y: string) => (
@@ -658,14 +735,14 @@ function TimeStepper({
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
       <Caption style={{ flex: 1, fontSize: 12 }}>{caption}</Caption>
-      {step(-30, '−', `${label} 30 minutes earlier`)}
+      {step(-stepSize, '−', `${label} ${stepSize} minutes earlier`)}
       <Body
         style={{ fontFamily: font.semibold, fontSize: 16, minWidth: 58, textAlign: 'center' }}
         accessibilityLabel={`${label} at ${minutesLabel(minutes)}`}
       >
         {minutesLabel(minutes)}
       </Body>
-      {step(30, '+', `${label} 30 minutes later`)}
+      {step(stepSize, '+', `${label} ${stepSize} minutes later`)}
     </View>
   );
 }
@@ -752,5 +829,108 @@ function WaterSchedule({
         />
       </View>
     </View>
+  );
+}
+
+const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const DAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** Seven round toggles, Monday first, plus a one-word summary. */
+function DayPicker({ label, days, onChange }: { label: string; days: number[]; onChange: (days: number[]) => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ gap: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Caption style={{ fontSize: 12 }}>Days</Caption>
+        <Caption style={{ fontSize: 12, fontFamily: font.semibold }}>{daysLabel(days)}</Caption>
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        {DAY_LETTERS.map((letter, d) => {
+          const on = days.includes(d);
+          return (
+            <Pressable
+              key={d}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: on }}
+              accessibilityLabel={`${label} on ${DAY_FULL[d]}`}
+              onPress={() => onChange(on ? days.filter((x) => x !== d) : [...days, d])}
+              style={({ pressed }) => ({
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: on ? colors.accent : pressed ? colors.line : colors.tint,
+              })}
+            >
+              <Body style={{ fontFamily: font.semibold, fontSize: 13 }} color={on ? colors.onAccent : colors.accent}>
+                {letter}
+              </Body>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/** Add or edit one of the user's own reminders. */
+function ReminderSheet({
+  reminder,
+  isNew,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  reminder: CustomReminder | null;
+  isNew: boolean;
+  onClose: () => void;
+  onSave: (r: CustomReminder) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { colors } = useTheme();
+  const [draft, setDraft] = useState<CustomReminder | null>(reminder);
+  const [lastId, setLastId] = useState<string | null>(reminder?.id ?? null);
+  // A fresh draft each time a different reminder opens.
+  if ((reminder?.id ?? null) !== lastId) {
+    setLastId(reminder?.id ?? null);
+    setDraft(reminder);
+  }
+  const label = draft?.label.trim() ?? '';
+  return (
+    <Sheet visible={reminder != null} title={isNew ? 'New reminder' : 'Edit reminder'} onClose={onClose}>
+      {draft && (
+        <>
+          <Card style={{ gap: 3 }}>
+            <Caption style={{ fontSize: 10.5, letterSpacing: 0.7, textTransform: 'uppercase', fontFamily: font.semibold }}>
+              What to remind you
+            </Caption>
+            <TextInput
+              value={draft.label}
+              onChangeText={(text) => setDraft({ ...draft, label: text.slice(0, 60) })}
+              placeholder="Take vitamins, go for a walk…"
+              placeholderTextColor={colors.disabled}
+              accessibilityLabel="Reminder text"
+              style={{ padding: 0, fontFamily: font.medium, fontSize: 16, color: colors.text, outlineWidth: 0 }}
+            />
+          </Card>
+          <Card style={{ gap: space.md }}>
+            <TimeStepper
+              label="Reminder"
+              minutes={draft.minutes}
+              step={15}
+              onChange={(minutes) => setDraft({ ...draft, minutes })}
+            />
+            <DayPicker label="Reminder" days={draft.days} onChange={(days) => setDraft({ ...draft, days })} />
+          </Card>
+          <PrimaryButton
+            label={isNew ? 'Add reminder' : 'Save reminder'}
+            disabled={!label || draft.days.length === 0}
+            onPress={() => onSave({ ...draft, label })}
+          />
+          {!isNew && <GhostButton label="Delete this reminder" tone="muted" onPress={() => onDelete(draft.id)} />}
+        </>
+      )}
+    </Sheet>
   );
 }

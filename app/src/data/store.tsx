@@ -31,6 +31,8 @@ import {
   MealEntry,
   Measurement,
   LockSettings,
+  CustomReminder,
+  ProgressLayout,
   ReminderTime,
   ReminderToggle,
   Profile,
@@ -38,7 +40,7 @@ import {
   WorkoutEntry,
 } from './types';
 import { demoData, emptyData } from './seed';
-import { describeData, hasAnyData, INBOX_READ_CAP, migrate } from './schema';
+import { describeData, hasAnyData, INBOX_READ_CAP, MAX_CUSTOM_REMINDERS, migrate } from './schema';
 import { formatterFor } from '../lib/units';
 import { mealTotals, newlyAchievedMilestones, workoutTotals } from '../lib/calc';
 import { fireMilestoneReached, syncReminders } from '../lib/notifications';
@@ -161,6 +163,11 @@ interface StoreValue {
   replayOnboarding: () => void;
   setNotification: (key: ReminderToggle, value: boolean) => void;
   setReminderTime: (key: ReminderTime, minutes: number) => void;
+  setReminderDays: (key: 'weighDays' | 'eveningDays' | 'waterDays', days: number[]) => void;
+  /** Adds a user-written reminder, or replaces the one with the same id. */
+  saveCustomReminder: (reminder: CustomReminder) => void;
+  removeCustomReminder: (id: string) => void;
+  setProgressLayout: (patch: Partial<ProgressLayout>) => void;
   /** Marks in-app notifications as opened. See `lib/inbox.ts`. */
   markInboxRead: (ids: string[]) => void;
   setLock: (patch: Partial<LockSettings>) => void;
@@ -1097,6 +1104,59 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [update],
   );
 
+  const setReminderDays = useCallback<StoreValue['setReminderDays']>(
+    (key, days) => {
+      const clean = Array.from(new Set(days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))).sort();
+      update((prev) => ({ ...prev, notifications: { ...prev.notifications, [key]: clean } }));
+    },
+    [update],
+  );
+
+  const saveCustomReminder = useCallback<StoreValue['saveCustomReminder']>(
+    (reminder) => {
+      update((prev) => {
+        const list = prev.notifications.custom;
+        const exists = list.some((r) => r.id === reminder.id);
+        const custom = exists
+          ? list.map((r) => (r.id === reminder.id ? reminder : r))
+          : [...list, reminder].slice(0, MAX_CUSTOM_REMINDERS);
+        return { ...prev, notifications: { ...prev.notifications, custom } };
+      });
+    },
+    [update],
+  );
+
+  const removeCustomReminder = useCallback<StoreValue['removeCustomReminder']>(
+    (id) => {
+      const prev = dataRef.current;
+      const index = prev.notifications.custom.findIndex((r) => r.id === id);
+      if (index < 0) return;
+      const removed = prev.notifications.custom[index];
+      commit({
+        ...prev,
+        notifications: { ...prev.notifications, custom: prev.notifications.custom.filter((r) => r.id !== id) },
+      });
+      showToast(`Removed "${removed.label}"`, {
+        label: 'Undo',
+        run: () =>
+          update((current) => {
+            if (current.notifications.custom.some((r) => r.id === id)) return current;
+            const custom = current.notifications.custom.slice();
+            custom.splice(Math.min(index, custom.length), 0, removed);
+            return { ...current, notifications: { ...current.notifications, custom } };
+          }),
+      });
+    },
+    [commit, update, showToast],
+  );
+
+  const setProgressLayout = useCallback<StoreValue['setProgressLayout']>(
+    (patch) => {
+      update((prev) => ({ ...prev, progressLayout: { ...prev.progressLayout, ...patch } }));
+    },
+    [update],
+  );
+
   const markInboxRead = useCallback<StoreValue['markInboxRead']>(
     (ids) => {
       update((prev) => {
@@ -1321,6 +1381,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setNotification,
       setReminderTime,
       markInboxRead,
+      setReminderDays,
+      saveCustomReminder,
+      removeCustomReminder,
+      setProgressLayout,
       setLock,
       setDiagnostics,
       dismissAdulthoodNotice,
@@ -1370,6 +1434,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setNotification,
       setReminderTime,
       markInboxRead,
+      setReminderDays,
+      saveCustomReminder,
+      removeCustomReminder,
+      setProgressLayout,
       setLock,
       setDiagnostics,
       dismissAdulthoodNotice,

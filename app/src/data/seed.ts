@@ -19,6 +19,8 @@ import {
   Measurement,
   MealEntry,
   Profile,
+  PROGRESS_SECTIONS,
+  ProgressLayout,
   SavedMeal,
   SavedWorkout,
   WeighIn,
@@ -42,9 +44,17 @@ const DEFAULT_NOTIFICATIONS = {
   waterStartMinutes: 9 * 60,
   waterEndMinutes: 21 * 60,
   waterOnlyBehind: false,
+  weighDays: [0, 1, 2, 3, 4, 5, 6],
+  eveningDays: [0, 1, 2, 3, 4, 5, 6],
+  waterDays: [0, 1, 2, 3, 4, 5, 6],
+  custom: [],
   morningMinutes: 7 * 60,
   eveningMinutes: 21 * 60,
 };
+
+export function defaultProgressLayout(): ProgressLayout {
+  return { order: [...PROGRESS_SECTIONS], hidden: [], period: 30 };
+}
 
 export function defaultProfile(): Profile {
   const base: Profile = {
@@ -87,6 +97,7 @@ export function emptyData(): AppData {
     diagnostics: { ...DEFAULT_DIAGNOSTICS },
     adulthoodNoticed: false,
     inboxRead: [],
+    progressLayout: defaultProgressLayout(),
     onboarded: false,
   };
 }
@@ -233,6 +244,7 @@ export function demoData(): AppData {
     diagnostics: { ...DEFAULT_DIAGNOSTICS },
     adulthoodNoticed: false,
     inboxRead: [],
+    progressLayout: defaultProgressLayout(),
     onboarded: true,
   };
 }

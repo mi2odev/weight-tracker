@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { measurementsCsv, mealsCsv, neutraliseFormula, profileCsv, weighInsCsv } from './csv';
-import { AppData, CURRENT_SCHEMA_VERSION, Profile } from '../data/types';
+import { AppData, CURRENT_SCHEMA_VERSION, Profile, PROGRESS_SECTIONS } from '../data/types';
 
 const profile: Profile = {
   startDate: '2026-09-13',
@@ -50,6 +50,10 @@ function makeData(over: Partial<AppData> = {}): AppData {
       waterStartMinutes: 540,
       waterEndMinutes: 1260,
       waterOnlyBehind: false,
+      weighDays: [0, 1, 2, 3, 4, 5, 6],
+      eveningDays: [0, 1, 2, 3, 4, 5, 6],
+      waterDays: [0, 1, 2, 3, 4, 5, 6],
+      custom: [],
       morningMinutes: 420,
       eveningMinutes: 1260,
     },
@@ -57,6 +61,7 @@ function makeData(over: Partial<AppData> = {}): AppData {
     diagnostics: { crashReports: false },
     adulthoodNoticed: false,
     inboxRead: [],
+    progressLayout: { order: [...PROGRESS_SECTIONS], hidden: [], period: 30 },
     onboarded: true,
     ...over,
   };

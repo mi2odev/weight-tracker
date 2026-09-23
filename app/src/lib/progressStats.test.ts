@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { emptyData } from '../data/seed';
 import { Profile, WeighIn } from '../data/types';
 import { addDays } from './date';
-import { bmiPosition, bmiScaleMax, lastSevenDays, personalRecords, planPosition, weekdayPattern } from './progressStats';
+import { bmiPosition, bmiScaleMax, lastSevenDays, periodStart, periodSummary, personalRecords, planPosition, weekdayPattern } from './progressStats';
 
 const START = '2026-09-07'; // a Monday
 const profile: Profile = { ...emptyData().profile, startDate: START, startWeightKg: 100, goalWeightKg: 80 };
@@ -106,5 +106,30 @@ describe('the BMI scale', () => {
     const max = bmiScaleMax(49.6, 48);
     assert.equal(max, 55);
     assert.ok(bmiPosition(49.6, max) < 1 && bmiPosition(48, max) < bmiPosition(49.6, max));
+  });
+});
+
+describe('a chosen period', () => {
+  const entries: WeighIn[] = Array.from({ length: 40 }, (_, i) => ({ logDate: addDays(START, i), weightKg: 100 - i * 0.1 }));
+
+  it('covers the last N days, never before the start date', () => {
+    assert.equal(periodStart(profile, addDays(START, 39), 30), addDays(START, 10));
+    assert.equal(periodStart(profile, addDays(START, 5), 30), START);
+    assert.equal(periodStart(profile, addDays(START, 39), 0), START, '0 means the whole plan');
+  });
+
+  it('reports the change, the weekly rate and the lowest point inside it', () => {
+    const s = periodSummary(entries, profile, addDays(START, 39), 30);
+    assert.equal(s.days, 30);
+    assert.equal(s.changeKg!.toFixed(1), '-2.9');
+    assert.equal(s.perWeekKg!.toFixed(1), '-0.7');
+    assert.equal(s.lowest?.date, addDays(START, 39));
+    assert.equal(s.weighedDays, 30);
+  });
+
+  it('gives no weekly rate for under a week of weigh-ins', () => {
+    const s = periodSummary(entries, profile, addDays(START, 39), 7);
+    assert.ok(s.changeKg != null);
+    assert.equal(s.perWeekKg, null);
   });
 });
