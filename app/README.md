@@ -15,7 +15,7 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 325 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 333 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing,
                    #             templates, reminder rules, inbox, weigh-in check
 ```
@@ -149,6 +149,16 @@ adjust the last one.
 **Days are reachable from where you are.** The same date navigator heads Today
 and the food log (tap the date to jump back to today), and each day in the
 Habits heat map opens that day on Today.
+
+**The day starts at 00:00 Algerian time.** `lib/date.ts` reads "today", reminder
+times and inbox nudges on Algeria's clock (UTC+1 all year, no daylight saving,
+so a fixed offset is exact and needs no time-zone database), whatever zone the
+phone is set to. The store holds `today` as state and rolls it over at
+Algerian midnight — by timer while open, and on returning to the foreground —
+so an app left open or in the background overnight moves on to the new day
+instead of showing yesterday until restarted. Someone looking at today follows
+it; someone looking at an older day stays put. The tests run the clock under
+several device time zones.
 
 **Red is for missed habits, and for one button.** The style frame reserves
 amber-red for a missed habit, never a weight gain, and that still holds for

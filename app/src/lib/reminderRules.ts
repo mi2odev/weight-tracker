@@ -14,7 +14,7 @@
 
 import { AppData, DateKey } from '../data/types';
 import { entryFor, habitTicks, habitsMetCount, milestones } from './calc';
-import { addDays, daysBetween, fromKey, todayKey } from './date';
+import { addDays, daysBetween, instantAt, todayKey } from './date';
 import { formatterFor } from './units';
 
 export interface PlannedReminder {
@@ -51,16 +51,15 @@ export function shiftMinutes(minutes: number, delta: number): number {
   return (((minutes + delta) % 1440) + 1440) % 1440;
 }
 
+/** Reminder times are Algerian wall-clock times, whatever zone the phone is in. */
 function at(date: DateKey, minutes: number): Date {
-  const d = fromKey(date);
-  d.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-  return d;
+  return instantAt(date, minutes);
 }
 
 export function plannedReminders(data: AppData, now: Date = new Date()): PlannedReminder[] {
   const { profile, notifications } = data;
   const u = formatterFor(profile.units);
-  const today = todayKey();
+  const today = todayKey(now);
   const out: PlannedReminder[] = [];
 
   // 1 · Morning weigh-in — skipped on a day whose weight is already in.

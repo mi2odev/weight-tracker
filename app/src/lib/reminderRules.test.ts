@@ -9,12 +9,12 @@ import { describe, it } from 'node:test';
 
 import { emptyData } from '../data/seed';
 import { AppData, WeighIn } from '../data/types';
-import { addDays, fromKey, todayKey } from './date';
+import { addDays, instantAt, minuteOfDayAt, todayKey } from './date';
 import { minutesLabel, plannedReminders, shiftMinutes, WATER_CHECKS } from './reminderRules';
 
 const TODAY = todayKey();
-/** Midnight today, so every reminder today is still ahead. */
-const MIDNIGHT = fromKey(TODAY);
+/** Algerian midnight today, so every reminder today is still ahead. */
+const MIDNIGHT = instantAt(TODAY, 0);
 
 function data(patch: Partial<AppData> = {}, entries: WeighIn[] = []): AppData {
   const base = emptyData();
@@ -56,8 +56,7 @@ describe('the morning weigh-in', () => {
     const d = only(data(), 'morningWeighIn');
     d.notifications.morningMinutes = 6 * 60 + 30;
     const first = plannedReminders(d, MIDNIGHT)[0];
-    assert.equal(first.date.getHours(), 6);
-    assert.equal(first.date.getMinutes(), 30);
+    assert.equal(minuteOfDayAt(first.date), 6 * 60 + 30);
   });
 
   it('is skipped on a day already weighed', () => {
@@ -69,8 +68,7 @@ describe('the morning weigh-in', () => {
 
   it('never schedules a time already past', () => {
     const d = only(data(), 'morningWeighIn');
-    const late = new Date(MIDNIGHT);
-    late.setHours(12);
+    const late = instantAt(TODAY, 12 * 60);
     assert.ok(plannedReminders(d, late).every((r) => r.date > late));
   });
 });
@@ -86,7 +84,7 @@ describe('water check-ins', () => {
     // 2 L of a 3 L target: past the 30% and 60% marks, short of 80%.
     const d = only(data({}, [{ logDate: TODAY, waterL: 2 }]), 'water');
     const today = plannedReminders(d, MIDNIGHT).filter((r) => r.id.startsWith(`water-${TODAY}`));
-    assert.deepEqual(today.map((r) => r.date.getHours()), [18]);
+    assert.deepEqual(today.map((r) => minuteOfDayAt(r.date)), [18 * 60]);
   });
 
   it('speaks the user\'s units', () => {
@@ -111,6 +109,6 @@ describe('the evening nudge', () => {
     d.notifications.eveningMinutes = 20 * 60;
     const planned = plannedReminders(d, MIDNIGHT);
     assert.ok(!planned.some((r) => r.id === `evening-${TODAY}`));
-    assert.equal(planned[0].date.getHours(), 20);
+    assert.equal(minuteOfDayAt(planned[0].date), 20 * 60);
   });
 });

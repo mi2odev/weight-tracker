@@ -44,7 +44,7 @@ import {
 } from '../lib/calc';
 import { Insight, buildInsights } from '../lib/insights';
 import { UnitFormatter, formatterFor } from '../lib/units';
-import { daysBetween, todayKey } from '../lib/date';
+import { daysBetween } from '../lib/date';
 
 export interface Projection {
   label: string;
@@ -101,11 +101,10 @@ export interface Derived {
 const DerivedContext = createContext<Derived | null>(null);
 
 export function DerivedProvider({ children }: { children: React.ReactNode }) {
-  const { data } = useStore();
+  const { data, today } = useStore();
   const { profile, entries, rewards, achieved } = data;
 
   const value = useMemo<Derived>(() => {
-    const today = todayKey();
     const u = formatterFor(profile.units);
 
     const weighed = weighedEntries(entries).filter((e) => e.logDate <= today);
@@ -168,7 +167,7 @@ export function DerivedProvider({ children }: { children: React.ReactNode }) {
 
       insights: buildInsights(entries, profile, today),
     };
-  }, [entries, profile, rewards, achieved]);
+  }, [entries, profile, rewards, achieved, today]);
 
   return <DerivedContext.Provider value={value}>{children}</DerivedContext.Provider>;
 }
