@@ -5,7 +5,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { font, MIN_TAP, radius, space, tnum, type } from '../theme/tokens';
 import { SaveWeighInError, useStore } from '../data/store';
 import { useUnits } from '../data/derived';
-import { UnitFormatter } from '../lib/units';
+import { addWater, UnitFormatter, waterSteps } from '../lib/units';
 import { WeighIn } from '../data/types';
 import { Card, Grid } from '../components/Card';
 import { NumberField, PrimaryButton, Toggle } from '../components/Controls';
@@ -271,6 +271,32 @@ export function TodayScreen({ onOpenLog }: { onOpenLog: () => void }) {
       {/* ── derived habit ticks ─────────────────────────────────────────── */}
       <View style={{ marginTop: space.lg }}>
         <HabitTicks ticks={ticks} dayHasData={dayHasData} />
+      </View>
+
+      {/* ── quick-add water: a glass is a tap, not a sum ─────────────────── */}
+      <View style={{ marginTop: space.md, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <Label style={{ flex: 1 }}>Add water</Label>
+        {waterSteps(u.units).map((step) => (
+          <Pressable
+            key={step.label}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${step.label.slice(1)} of water`}
+            onPress={() => updateEntry(cursor, { waterL: addWater(entry?.waterL, step.litres) })}
+            style={({ pressed }) => ({
+              minHeight: MIN_TAP,
+              paddingHorizontal: space.lg,
+              borderRadius: radius.pill,
+              borderWidth: 1,
+              borderColor: colors.line,
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Body style={{ fontFamily: font.semibold, fontSize: 13 }} color={colors.accent}>
+              {step.label}
+            </Body>
+          </Pressable>
+        ))}
       </View>
 
       {/* ── the eight optional fields ───────────────────────────────────── */}

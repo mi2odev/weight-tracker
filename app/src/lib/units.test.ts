@@ -7,7 +7,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { METRIC, formatterFor, kgToLb, lbToKg } from './units';
+import {
+  addWater,
+  formatterFor,
+  kgToLb,
+  lbToKg,
+  METRIC,
+  waterSteps,
+} from './units';
 
 const imperial = formatterFor('imperial');
 
@@ -80,5 +87,35 @@ describe('formatting', () => {
   it('rejects text that is not a number', () => {
     assert.equal(METRIC.parseWeight(''), null);
     assert.equal(METRIC.parseWeight('abc'), null);
+  });
+});
+
+describe('quick-add water', () => {
+  it('offers a glass and a bottle in the unit people pour in', () => {
+    assert.deepEqual(waterSteps('metric').map((s) => s.label), ['+250 ml', '+500 ml']);
+    assert.deepEqual(waterSteps('imperial').map((s) => s.label), ['+8 fl oz', '+16 fl oz']);
+  });
+
+  it('stores every step in litres', () => {
+    assert.equal(waterSteps('metric')[0].litres, 0.25);
+    assert.ok(Math.abs(waterSteps('imperial')[0].litres - 0.2366) < 0.001);
+  });
+
+  it('starts from nothing on an empty day', () => {
+    assert.equal(addWater(null, 0.25), 0.25);
+    assert.equal(addWater(undefined, 0.5), 0.5);
+  });
+
+  it('does not drift after many glasses', () => {
+    let total: number | null = null;
+    for (let i = 0; i < 12; i++) total = addWater(total, 0.25);
+    assert.equal(total, 3, 'twelve glasses is exactly 3 L, not 2.9999999');
+  });
+
+  it('keeps an imperial total clean to the millilitre', () => {
+    const step = waterSteps('imperial')[0].litres;
+    const total = addWater(addWater(null, step), step);
+    assert.equal(total, Math.round(total * 1000) / 1000, 'no float tail past the millilitre');
+    assert.ok(Math.abs(total - step * 2) < 0.002, 'and still two cups, give or take a millilitre');
   });
 });

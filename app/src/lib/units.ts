@@ -142,3 +142,42 @@ export function formatterFor(units: Units): UnitFormatter {
 
 /** The metric formatter, for code paths with no profile to hand. */
 export const METRIC = formatterFor('metric');
+
+// ── quick-add water ──────────────────────────────────────────────────────────
+
+export interface WaterStep {
+  /** What the button says: "+250 ml", "+8 fl oz". */
+  label: string;
+  /** Always stored in litres, whatever the button says. */
+  litres: number;
+}
+
+/**
+ * The two quick-add buttons under the water field.
+ *
+ * Water is logged a glass at a time through the day, so typing a running total
+ * with a decimal point in it is the wrong interaction entirely. A glass and a
+ * bottle, in the unit people actually pour in.
+ */
+export function waterSteps(units: Units): WaterStep[] {
+  return units === 'imperial'
+    ? [
+        { label: '+8 fl oz', litres: flOzToLitres(8) },
+        { label: '+16 fl oz', litres: flOzToLitres(16) },
+      ]
+    : [
+        { label: '+250 ml', litres: 0.25 },
+        { label: '+500 ml', litres: 0.5 },
+      ];
+}
+
+/**
+ * Adds a glass to the day's total.
+ *
+ * Rounded to the millilitre, because floating point would otherwise turn four
+ * glasses of 0.25 into 0.9999999 and a fifth into something the field then
+ * shows as "1.2" while the habit check compares against 1.25.
+ */
+export function addWater(currentLitres: number | null | undefined, stepLitres: number): number {
+  return Math.round(((currentLitres ?? 0) + stepLitres) * 1000) / 1000;
+}
