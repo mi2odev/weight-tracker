@@ -27,7 +27,7 @@ export function MilestonesScreen({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <Screen title="Milestones" meta={`Every ${u.weight(5)}`} onBack={onBack}>
+    <Screen title="Milestones" meta={`Every ${u.weight(5).replace(/\.0(?=\s)/, '')}`} onBack={onBack}>
       {list.map((m) => {
         const achieved = m.status === 'Achieved';
         const tone = badge(m.status);

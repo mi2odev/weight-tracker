@@ -135,8 +135,10 @@ export function formatterFor(units: Units): UnitFormatter {
     // parse* without the formatter's grouping getting in the way.
     weightField: (kg) => (kg == null ? '' : String(Math.round(toWeight(kg) * 10) / 10)),
     lengthField: (cm) => (cm == null ? '' : String(Math.round(toLength(cm) * 10) / 10)),
+    // Two places in litres: quick-add works in 250 ml steps, and rounding
+    // 3.05 L to "3.1" showed a figure nobody logged.
     volumeField: (l) =>
-      l == null ? '' : String(imperial ? Math.round(toVolume(l)) : Math.round(toVolume(l) * 10) / 10),
+      l == null ? '' : String(imperial ? Math.round(toVolume(l)) : Math.round(toVolume(l) * 100) / 100),
   };
 }
 
