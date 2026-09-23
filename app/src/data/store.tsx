@@ -49,6 +49,12 @@ import {
   sweepOrphanedPhotos,
 } from '../lib/photos';
 import { todayKey } from '../lib/date';
+import {
+  templateFromMeal,
+  templateFromWorkout,
+  upsertSavedMeal,
+  upsertSavedWorkout,
+} from '../lib/templates';
 import { HydrationResult, mayPersist, readStoredPayload } from '../lib/hydration';
 import {
   isDowngrade,
@@ -116,12 +122,19 @@ interface StoreValue {
   saveWeighIn: (date: DateKey, weightKg: number) => SaveWeighInError | null;
   updateEntry: (date: DateKey, patch: Partial<WeighIn>) => void;
 
-  addMeal: (meal: Omit<MealEntry, 'id'>) => void;
+  /** `save` also keeps it in the library, replacing any duplicate. */
+  addMeal: (meal: Omit<MealEntry, 'id'>, options?: { save?: boolean }) => void;
   updateMeal: (id: string, patch: Partial<Omit<MealEntry, 'id'>>) => void;
   removeMeal: (id: string) => void;
-  addWorkout: (workout: Omit<WorkoutEntry, 'id'>) => void;
+  addWorkout: (workout: Omit<WorkoutEntry, 'id'>, options?: { save?: boolean }) => void;
   updateWorkout: (id: string, patch: Partial<Omit<WorkoutEntry, 'id'>>) => void;
   removeWorkout: (id: string) => void;
+
+  /** Keeps a meal for reuse without logging it. */
+  saveMealTemplate: (meal: Omit<MealEntry, 'id' | 'logDate'>) => void;
+  saveWorkoutTemplate: (workout: Omit<WorkoutEntry, 'id' | 'logDate'>) => void;
+  removeSavedMeal: (id: string) => void;
+  removeSavedWorkout: (id: string) => void;
   addMeasurement: (m: Omit<Measurement, 'id'>) => void;
   updateMeasurement: (id: string, patch: Partial<Omit<Measurement, 'id'>>) => void;
   /** Deletes a measurement set. Its photo file outlives the undo window. */
@@ -633,16 +646,51 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addMeal = useCallback<StoreValue['addMeal']>(
-    (meal) => {
+    (meal, options) => {
       update((prev) => {
         const next: AppData = {
           ...prev,
           meals: prev.meals.concat({ ...meal, id: `meal-${Date.now()}-${prev.meals.length}` }),
+          savedMeals: options?.save
+            ? upsertSavedMeal(prev.savedMeals, templateFromMeal(meal, `saved-meal-${Date.now()}`))
+            : prev.savedMeals,
         };
         return { ...next, entries: applyLogRollup(next, meal.logDate) };
       });
     },
     [update],
+  );
+
+  /** Keeps a meal for reuse without logging it today. */
+  const saveMealTemplate = useCallback<StoreValue['saveMealTemplate']>(
+    (meal) => {
+      update((prev) => ({
+        ...prev,
+        savedMeals: upsertSavedMeal(
+          prev.savedMeals,
+          templateFromMeal(meal, `saved-meal-${Date.now()}`),
+        ),
+      }));
+      showToast('Saved for reuse');
+    },
+    [update, showToast],
+  );
+
+  const removeSavedMeal = useCallback<StoreValue['removeSavedMeal']>(
+    (id) => {
+      const prev = dataRef.current;
+      const removed = prev.savedMeals.find((m) => m.id === id);
+      if (!removed) return;
+
+      commit({ ...prev, savedMeals: prev.savedMeals.filter((m) => m.id !== id) });
+      showToast('Removed from saved meals', {
+        label: 'Undo',
+        // Templates carry no date, so order is the only thing to restore and
+        // appending is enough — the list ranks itself on use anyway.
+        run: () => update((current) => ({ ...current, savedMeals: current.savedMeals.concat(removed) })),
+      });
+    },
+    [commit, update, showToast],
   );
 
   /**
@@ -688,16 +736,52 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addWorkout = useCallback<StoreValue['addWorkout']>(
-    (workout) => {
+    (workout, options) => {
       update((prev) => {
         const next: AppData = {
           ...prev,
           workouts: prev.workouts.concat({ ...workout, id: `wo-${Date.now()}-${prev.workouts.length}` }),
+          savedWorkouts: options?.save
+            ? upsertSavedWorkout(
+                prev.savedWorkouts,
+                templateFromWorkout(workout, `saved-workout-${Date.now()}`),
+              )
+            : prev.savedWorkouts,
         };
         return { ...next, entries: applyLogRollup(next, workout.logDate) };
       });
     },
     [update],
+  );
+
+  const saveWorkoutTemplate = useCallback<StoreValue['saveWorkoutTemplate']>(
+    (workout) => {
+      update((prev) => ({
+        ...prev,
+        savedWorkouts: upsertSavedWorkout(
+          prev.savedWorkouts,
+          templateFromWorkout(workout, `saved-workout-${Date.now()}`),
+        ),
+      }));
+      showToast('Saved for reuse');
+    },
+    [update, showToast],
+  );
+
+  const removeSavedWorkout = useCallback<StoreValue['removeSavedWorkout']>(
+    (id) => {
+      const prev = dataRef.current;
+      const removed = prev.savedWorkouts.find((w) => w.id === id);
+      if (!removed) return;
+
+      commit({ ...prev, savedWorkouts: prev.savedWorkouts.filter((w) => w.id !== id) });
+      showToast('Removed from saved workouts', {
+        label: 'Undo',
+        run: () =>
+          update((current) => ({ ...current, savedWorkouts: current.savedWorkouts.concat(removed) })),
+      });
+    },
+    [commit, update, showToast],
   );
 
   const removeWorkout = useCallback<StoreValue['removeWorkout']>(
@@ -1077,6 +1161,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addWorkout,
       updateWorkout,
       removeWorkout,
+      saveMealTemplate,
+      saveWorkoutTemplate,
+      removeSavedMeal,
+      removeSavedWorkout,
       addMeasurement,
       updateMeasurement,
       removeMeasurement,
@@ -1117,6 +1205,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addWorkout,
       updateWorkout,
       removeWorkout,
+      saveMealTemplate,
+      saveWorkoutTemplate,
+      removeSavedMeal,
+      removeSavedWorkout,
       addMeasurement,
       updateMeasurement,
       removeMeasurement,

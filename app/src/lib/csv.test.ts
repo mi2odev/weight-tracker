@@ -34,6 +34,8 @@ function makeData(over: Partial<AppData> = {}): AppData {
     entries: [],
     meals: [],
     workouts: [],
+    savedMeals: [],
+    savedWorkouts: [],
     measurements: [],
     rewards: {},
     achieved: {},

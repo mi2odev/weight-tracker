@@ -124,6 +124,21 @@ export interface MealEntry {
   notes?: string;
 }
 
+/**
+ * A meal kept for reuse — the same shape minus the day it happened on.
+ *
+ * Logging "porridge and berries" every morning by retyping it is the kind of
+ * friction that stops people logging at all, so a meal can be saved once and
+ * added with a tap after that.
+ */
+export interface SavedMeal {
+  id: string;
+  mealType: MealType;
+  description: string;
+  calories: number;
+  proteinG: number;
+}
+
 export type WorkoutType = 'Cardio' | 'Strength' | 'Mobility' | 'Sport' | 'Walk';
 export const WORKOUT_TYPES: WorkoutType[] = ['Cardio', 'Strength', 'Mobility', 'Sport', 'Walk'];
 
@@ -139,6 +154,16 @@ export interface WorkoutEntry {
   intensity: Intensity;
   caloriesBurned: number;
   notes?: string;
+}
+
+/** A workout kept for reuse. See `SavedMeal`. */
+export interface SavedWorkout {
+  id: string;
+  type: WorkoutType;
+  session: string;
+  durationMin: number;
+  intensity: Intensity;
+  caloriesBurned: number;
 }
 
 export interface Measurement {
@@ -184,11 +209,13 @@ export interface NotificationSettings {
  * 4 — `profile.ageYears` becomes `profile.birthYear`, so age stops drifting,
  *     and `adulthoodNoticed` records whether the "you are 18 now" note has
  *     been shown.
+ * 5 — adds `savedMeals` and `savedWorkouts`: reusable templates, so a meal
+ *     eaten every morning is typed once rather than every day.
  *
  * Lives here rather than in `schema.ts` so `seed.ts` can stamp it without the
  * two files importing each other.
  */
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 export interface AppData {
   /** The shape version this payload was written at. See `data/schema.ts`. */
@@ -197,6 +224,9 @@ export interface AppData {
   entries: WeighIn[];
   meals: MealEntry[];
   workouts: WorkoutEntry[];
+  /** Reusable templates, not log rows — they carry no date. */
+  savedMeals: SavedMeal[];
+  savedWorkouts: SavedWorkout[];
   measurements: Measurement[];
   /** Milestone target (kg) → the user's free-text reward. The only milestone input. */
   rewards: Record<string, string>;

@@ -15,7 +15,7 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 248 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 272 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing
 ```
 
@@ -31,7 +31,8 @@ src/
               derived.tsx — memoised derived data, computed once per change
   lib/        calc.ts (spec §4) · insights.ts (spec §5) · units.ts · csv.ts
               backup.ts · export.ts · health.ts · diagnostics.ts · date.ts
-              hydration.ts · snapshots.ts · notifications.ts (spec §6)
+              hydration.ts · snapshots.ts · templates.ts · numberInput.ts
+              notifications.ts (spec §6)
               lockRules.ts / lock.ts · photoRules.ts / photos.ts · *.test.ts
   components/ Card, Controls, HabitTicks, Icon, Overlays, Screen, TabBar, Type
               ErrorBoundary, LockGate
@@ -133,6 +134,30 @@ amber-red for a missed habit, never a weight gain, and that still holds for
 every value on screen. The single exception is the "Delete it all" button in
 the reset dialog: that rule governs how data is *reported*, and a destructive
 action is an affordance, not a judgement about the user.
+
+## Saved meals and workouts
+
+Retyping the same porridge every morning is the kind of friction that stops
+people logging at all, so a meal or a workout can be kept as a template and
+added with a tap afterwards. The entry sheet offers the library at the top and
+a "keep this for reuse" switch at the foot; templates carry no date, which is
+the only thing that separates them from a log row.
+
+Two rules in `lib/templates.ts` keep the library worth scanning:
+
+- **Saving a duplicate updates it rather than adding a second line.** Matching
+  is on the name and the meal type, deliberately not on the numbers — "Porridge
+  410 kcal" and "Porridge 415 kcal" are the same meal to everyone except a
+  computer. Re-saving with a corrected figure means "this is the right number
+  now", so it overwrites rather than being refused.
+- **The list ranks itself by use.** A template's position comes from how often
+  its name appears in the log, so the daily breakfast rises to the top without
+  a separate favourites system bolted on top of a favourites system.
+
+Tapping a saved row *fills the form* rather than logging straight away: the
+numbers on a repeated meal shift a little, and the user should get to look
+before it lands in their day. Removing is a separate small target, so a mis-tap
+costs a fill rather than a deletion, and it is undoable.
 
 ## Backup, restore and import
 

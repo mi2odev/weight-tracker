@@ -11,12 +11,21 @@ import {
   MEAL_TYPES,
   MealEntry,
   MealType,
+  SavedMeal,
+  SavedWorkout,
   WORKOUT_TYPES,
   WorkoutEntry,
   WorkoutType,
 } from '../data/types';
 import { Card, Grid } from '../components/Card';
-import { GhostButton, NumberField, PrimaryButton, SectionHeading, Segmented } from '../components/Controls';
+import {
+  GhostButton,
+  NumberField,
+  PrimaryButton,
+  SectionHeading,
+  Segmented,
+  Toggle,
+} from '../components/Controls';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Overlays';
 import { Screen } from '../components/Screen';
@@ -24,6 +33,12 @@ import { Body, Caption } from '../components/Type';
 import { entryFor, mealTotals, workoutTotals } from '../lib/calc';
 import { formatShort, todayKey } from '../lib/date';
 import { parseDecimalInput } from '../lib/numberInput';
+import {
+  rankSavedMeals,
+  rankSavedWorkouts,
+  savedMealSummary,
+  savedWorkoutSummary,
+} from '../lib/templates';
 
 export function LogScreen({ onBack }: { onBack: () => void }) {
   const { colors } = useTheme();
@@ -203,24 +218,32 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
       <MealSheet
         target={mealSheet}
         onClose={() => setMealSheet(null)}
-        onSubmit={(meal) => {
+        onSubmit={(meal, options) => {
           const editing = mealSheet !== 'new' && mealSheet !== null ? mealSheet : null;
           if (editing) updateMeal(editing.id, meal);
-          else addMeal({ ...meal, logDate: cursor });
+          else addMeal({ ...meal, logDate: cursor }, options);
           setMealSheet(null);
-          showToast(editing ? 'Meal updated' : 'Meal added');
+          showToast(
+            editing ? 'Meal updated' : options.save ? 'Meal added and saved for reuse' : 'Meal added',
+          );
         }}
       />
 
       <WorkoutSheet
         target={workoutSheet}
         onClose={() => setWorkoutSheet(null)}
-        onSubmit={(workout) => {
+        onSubmit={(workout, options) => {
           const editing = workoutSheet !== 'new' && workoutSheet !== null ? workoutSheet : null;
           if (editing) updateWorkout(editing.id, workout);
-          else addWorkout({ ...workout, logDate: cursor });
+          else addWorkout({ ...workout, logDate: cursor }, options);
           setWorkoutSheet(null);
-          showToast(editing ? 'Workout updated' : 'Workout added');
+          showToast(
+            editing
+              ? 'Workout updated'
+              : options.save
+                ? 'Workout added and saved for reuse'
+                : 'Workout added',
+          );
         }}
       />
       <WeighInSheet
@@ -358,6 +381,115 @@ function TextField({
   );
 }
 
+/**
+ * The saved-templates list at the top of an entry sheet.
+ *
+ * Tapping a row *fills the form* rather than logging straight away — the
+ * numbers on a repeated meal shift a little, and the user should get to look
+ * before it lands in their day. Removing is a separate small target on the
+ * right, so a mis-tap costs a fill rather than a deletion.
+ */
+function SavedPicker({
+  title,
+  items,
+  onUse,
+  onRemove,
+}: {
+  title: string;
+  items: { id: string; name: string; detail: string }[];
+  onUse: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={{ gap: space.xs }}>
+      <Caption style={{ fontSize: 10.5, letterSpacing: 0.735, textTransform: 'uppercase', fontFamily: font.semibold }}>
+        {title}
+      </Caption>
+      {items.map((item) => (
+        <View
+          key={item.id}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.line,
+            borderRadius: radius.md,
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Use ${item.name}`}
+            onPress={() => onUse(item.id)}
+            style={({ pressed }) => ({
+              flex: 1,
+              gap: 1,
+              paddingVertical: 11,
+              paddingLeft: 13,
+              paddingRight: space.sm,
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Body numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 14 }}>
+              {item.name}
+            </Body>
+            <Caption numberOfLines={1} style={{ fontSize: 11.5 }}>
+              {item.detail}
+            </Caption>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${item.name} from saved`}
+            hitSlop={8}
+            onPress={() => onRemove(item.id)}
+            style={{ paddingHorizontal: 13, paddingVertical: 14 }}
+          >
+            <Icon name="close" size={13} color={colors.muted} strokeWidth={1.8} />
+          </Pressable>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** The "keep this for next time" switch at the foot of an entry sheet. */
+function SaveForReuse({
+  value,
+  onChange,
+  label,
+  hint,
+}: {
+  value: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  hint: string;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space.md,
+        paddingHorizontal: 13,
+        paddingVertical: 11,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.line,
+        borderRadius: radius.md,
+      }}
+    >
+      <View style={{ flex: 1, gap: 2 }}>
+        <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>{label}</Body>
+        <Caption style={{ fontSize: 11.5, lineHeight: 16 }}>{hint}</Caption>
+      </View>
+      <Toggle value={value} onChange={onChange} accessibilityLabel={label} />
+    </View>
+  );
+}
+
 function MealSheet({
   target,
   onClose,
@@ -365,15 +497,22 @@ function MealSheet({
 }: {
   target: 'new' | MealEntry | null;
   onClose: () => void;
-  onSubmit: (meal: { mealType: MealType; description: string; calories: number; proteinG: number }) => void;
+  onSubmit: (
+    meal: { mealType: MealType; description: string; calories: number; proteinG: number },
+    options: { save: boolean },
+  ) => void;
 }) {
-  const { showToast } = useStore();
+  const { data, showToast, removeSavedMeal } = useStore();
   const editing = target !== 'new' && target !== null ? target : null;
 
   const [mealType, setMealType] = useState<MealType>('Breakfast');
   const [description, setDescription] = useState('');
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
+  const [save, setSave] = useState(false);
+
+  // Most-eaten first, so the daily breakfast is the first thing in reach.
+  const saved = rankSavedMeals(data.savedMeals, data.meals);
 
   // Refill the form whenever the sheet opens on a different row.
   useEffect(() => {
@@ -382,7 +521,16 @@ function MealSheet({
     setDescription(editing?.description ?? '');
     setCalories(editing ? String(editing.calories) : '');
     setProtein(editing ? String(editing.proteinG) : '');
+    setSave(false);
   }, [target, editing]);
+
+  /** Fills the form from a saved meal, leaving the user free to adjust it. */
+  const useSaved = (meal: SavedMeal) => {
+    setMealType(meal.mealType);
+    setDescription(meal.description);
+    setCalories(String(meal.calories));
+    setProtein(String(meal.proteinG));
+  };
 
   /**
    * A blank number means zero, not a mistake.
@@ -400,16 +548,35 @@ function MealSheet({
     if (kcal < 0 || kcal > 10000) return showToast('Calories must be 0–10 000');
     if (pro < 0 || pro > 500) return showToast('Protein must be 0–500 g');
 
-    onSubmit({
-      mealType,
-      description: description.trim(),
-      calories: Math.round(kcal),
-      proteinG: Math.round(pro),
-    });
+    onSubmit(
+      {
+        mealType,
+        description: description.trim(),
+        calories: Math.round(kcal),
+        proteinG: Math.round(pro),
+      },
+      { save },
+    );
   };
 
   return (
     <Sheet visible={target !== null} title={editing ? 'Edit meal' : 'Add a meal'} onClose={onClose}>
+      {!editing && saved.length > 0 && (
+        <SavedPicker
+          title="Saved meals"
+          items={saved.map((m) => ({
+            id: m.id,
+            name: m.description,
+            detail: `${m.mealType} · ${savedMealSummary(m)}`,
+          }))}
+          onUse={(id) => {
+            const meal = saved.find((m) => m.id === id);
+            if (meal) useSaved(meal);
+          }}
+          onRemove={removeSavedMeal}
+        />
+      )}
+
       <TypePicker options={MEAL_TYPES} value={mealType} onChange={setMealType} />
       <TextField
         label="Description"
@@ -421,6 +588,14 @@ function MealSheet({
         <NumberField label="Calories" unit="kcal" value={calories} onChangeText={setCalories} />
         <NumberField label="Protein" unit="g" value={protein} onChangeText={setProtein} />
       </Grid>
+      {!editing && (
+        <SaveForReuse
+          value={save}
+          onChange={setSave}
+          label="Keep this meal for reuse"
+          hint="It will appear at the top of this sheet next time."
+        />
+      )}
       <PrimaryButton label={editing ? 'Save meal' : 'Add meal'} onPress={submit} style={{ marginTop: space.xs }} />
     </Sheet>
   );
@@ -439,9 +614,9 @@ function WorkoutSheet({
     durationMin: number;
     intensity: Intensity;
     caloriesBurned: number;
-  }) => void;
+  }, options: { save: boolean }) => void;
 }) {
-  const { showToast } = useStore();
+  const { data, showToast, removeSavedWorkout } = useStore();
   const editing = target !== 'new' && target !== null ? target : null;
 
   const [type, setType] = useState<WorkoutType>('Cardio');
@@ -449,6 +624,9 @@ function WorkoutSheet({
   const [duration, setDuration] = useState('');
   const [intensity, setIntensity] = useState<Intensity>('Medium');
   const [burned, setBurned] = useState('');
+  const [save, setSave] = useState(false);
+
+  const saved = rankSavedWorkouts(data.savedWorkouts, data.workouts);
 
   useEffect(() => {
     if (target === null) return;
@@ -457,7 +635,16 @@ function WorkoutSheet({
     setDuration(editing ? String(editing.durationMin) : '');
     setIntensity(editing?.intensity ?? 'Medium');
     setBurned(editing ? String(editing.caloriesBurned) : '');
+    setSave(false);
   }, [target, editing]);
+
+  const useSaved = (workout: SavedWorkout) => {
+    setType(workout.type);
+    setSession(workout.session);
+    setDuration(String(workout.durationMin));
+    setIntensity(workout.intensity);
+    setBurned(String(workout.caloriesBurned));
+  };
 
   /** Same rule as a meal: a blank number is zero, not a reason to refuse. */
   const submit = () => {
@@ -467,17 +654,36 @@ function WorkoutSheet({
     const kcal = parseDecimalInput(burned) ?? 0;
     if (mins < 0 || mins > 600) return showToast('Duration must be 0–600 minutes');
     if (kcal < 0) return showToast('Calories burned must be a positive number');
-    onSubmit({
-      type,
-      session: session.trim(),
-      durationMin: Math.round(mins),
-      intensity,
-      caloriesBurned: Math.round(kcal),
-    });
+    onSubmit(
+      {
+        type,
+        session: session.trim(),
+        durationMin: Math.round(mins),
+        intensity,
+        caloriesBurned: Math.round(kcal),
+      },
+      { save },
+    );
   };
 
   return (
     <Sheet visible={target !== null} title={editing ? 'Edit workout' : 'Add a workout'} onClose={onClose}>
+      {!editing && saved.length > 0 && (
+        <SavedPicker
+          title="Saved workouts"
+          items={saved.map((w) => ({
+            id: w.id,
+            name: w.session,
+            detail: `${w.type} · ${savedWorkoutSummary(w)}`,
+          }))}
+          onUse={(id) => {
+            const workout = saved.find((w) => w.id === id);
+            if (workout) useSaved(workout);
+          }}
+          onRemove={removeSavedWorkout}
+        />
+      )}
+
       <TypePicker options={WORKOUT_TYPES} value={type} onChange={setType} />
       <TextField label="Session" value={session} onChangeText={setSession} placeholder="Treadmill intervals" />
       <Grid columns={2}>
@@ -485,6 +691,14 @@ function WorkoutSheet({
         <NumberField label="Burned" unit="kcal" value={burned} onChangeText={setBurned} />
       </Grid>
       <Segmented options={INTENSITIES} value={intensity} onChange={setIntensity} />
+      {!editing && (
+        <SaveForReuse
+          value={save}
+          onChange={setSave}
+          label="Keep this workout for reuse"
+          hint="It will appear at the top of this sheet next time."
+        />
+      )}
       <PrimaryButton
         label={editing ? 'Save workout' : 'Add workout'}
         onPress={submit}
