@@ -103,9 +103,9 @@ console.log('corner', logo.corner);
  * `bleed` fills behind it with the tile's corner gradient, for the assets that
  * must be opaque to the edge.
  */
-async function render(file, size, { scale = 1, bleed = false, transparent = false } = {}) {
+async function render(file, size, { scale = 1, bleed = false, transparent = false, matte = false } = {}) {
   const base64 = await page.evaluate(
-    async ({ src, size, scale, bleed, transparent, l }) => {
+    async ({ src, size, scale, bleed, transparent, matte, l }) => {
       const img = await new Promise((done, fail) => {
         const i = new Image();
         i.onload = () => done(i);
@@ -138,9 +138,46 @@ async function render(file, size, { scale = 1, bleed = false, transparent = fals
         (size - side) / 2, (size - side) / 2, side, side,
       );
 
+      if (matte) {
+        // Lift the artwork — scale, trend line, wordmark — off its tile, so
+        // it can sit on the brand colour with no tile edge around it. The
+        // tile is a dark teal gradient and the artwork is white and mint, so
+        // each pixel's alpha is how far it rises above the tile colour at
+        // that point, and its colour is un-mixed from the tile so the
+        // anti-aliased edges don't carry a teal fringe.
+        const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+        const from = hexRgb(l.corner.from);
+        const to = hexRgb(l.corner.to);
+        const px = ctx.getImageData(0, 0, size, size);
+        const d = px.data;
+        const lum = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            const i = (y * size + x) * 4;
+            if (d[i + 3] === 0) continue;
+            const t = Math.min(1, Math.max(0, (x + y) / (2 * size)));
+            const bg = from.map((v, k) => v + (to[k] - v) * t);
+            const rise = lum(d[i], d[i + 1], d[i + 2]) - lum(bg[0], bg[1], bg[2]);
+            // The threshold sits above the tile's own glossy highlight (a
+            // lighter teal sweep in the top corner), which would otherwise
+            // come along as a faint smear.
+            const a = Math.min(1, Math.max(0, (rise - 55) / 70)) * (d[i + 3] / 255);
+            if (a <= 0.01) {
+              d[i + 3] = 0;
+              continue;
+            }
+            for (let k = 0; k < 3; k++) {
+              d[i + k] = Math.min(255, Math.max(0, Math.round((d[i + k] - (1 - a) * bg[k]) / a)));
+            }
+            d[i + 3] = Math.round(a * 255);
+          }
+        }
+        ctx.putImageData(px, 0, 0);
+      }
+
       return c.toDataURL('image/png').split(',')[1];
     },
-    { src: dataUri, size, scale, bleed, transparent, l: logo },
+    { src: dataUri, size, scale, bleed, transparent, matte, l: logo },
   );
 
   writeFileSync(resolve(OUT, file), Buffer.from(base64, 'base64'));
@@ -151,14 +188,18 @@ async function render(file, size, { scale = 1, bleed = false, transparent = fals
 // the tile's own rounding leaves behind.
 await render('icon.png', 1024, { scale: 1, bleed: true });
 
-// Android adaptive: the launcher crops the outer third, so the whole logo is
-// scaled to 66% and the background carries the colour out to the edges.
+// Android adaptive: the background layer is the tile's own gradient, edge to
+// edge, and the foreground is the artwork lifted off the tile. Putting the
+// whole tile on the foreground drew a rounded square inside the launcher's
+// own shape — a box in a box. Scaled so the wordmark stays inside the safe
+// zone the launcher never crops.
 await render('android-icon-background.png', 512, { scale: 0, bleed: true });
-await render('android-icon-foreground.png', 512, { scale: 0.66, transparent: true });
+await render('android-icon-foreground.png', 512, { scale: 0.6, transparent: true, matte: true });
 
-// Splash and favicon: the logo, whole, on its own ground.
-await render('splash-icon.png', 1024, { scale: 0.92, transparent: true });
-await render('splash-icon-dark.png', 1024, { scale: 0.92, transparent: true });
+// Splash, and the in-app loading screen that continues it: the artwork on the
+// brand colour, so the native splash and the JS one line up exactly.
+await render('splash-icon.png', 1024, { scale: 1, transparent: true, matte: true });
+await render('splash-icon-dark.png', 1024, { scale: 1, transparent: true, matte: true });
 await render('favicon.png', 96, { scale: 1, bleed: true });
 
 await browser.close();
