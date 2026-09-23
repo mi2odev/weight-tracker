@@ -15,6 +15,7 @@ import {
   QUICK_MEAL_COUNT,
   quickMeals,
   findSavedWorkout,
+  matchesQuery,
   normaliseName,
   rankSavedMeals,
   rankSavedWorkouts,
@@ -281,5 +282,16 @@ describe('copying a day of meals', () => {
   it('copies nothing from an empty day or onto itself', () => {
     assert.deepEqual(copyMeals(log, '2026-09-01', '2026-09-23', (i) => `n${i}`), []);
     assert.deepEqual(copyMeals(log, '2026-09-22', '2026-09-22', (i) => `n${i}`), []);
+  });
+});
+
+describe('searching the saved list', () => {
+  it('matches every word, in any order, ignoring case', () => {
+    assert.equal(matchesQuery('Chicken, rice, roasted peppers · Lunch', 'RICE chick'), true);
+    assert.equal(matchesQuery('Chicken, rice, roasted peppers · Lunch', 'chicken soup'), false);
+  });
+
+  it('matches everything on an empty query', () => {
+    assert.equal(matchesQuery('Porridge', '   '), true);
   });
 });

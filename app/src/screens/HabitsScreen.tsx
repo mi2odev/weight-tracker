@@ -16,7 +16,7 @@ import { HABIT_KEYS } from '../data/types';
 import { consistencyPct, habitRatePct, weighInStreaks } from '../lib/calc';
 import { todayKey } from '../lib/date';
 
-export function HabitsScreen() {
+export function HabitsScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {
   const { colors } = useTheme();
   const { data } = useStore();
   const d = useDerived();
@@ -53,10 +53,10 @@ export function HabitsScreen() {
       <Card hero style={{ padding: 18, marginTop: space.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <Body style={{ fontFamily: font.semibold, fontSize: 14 }}>Daily habit score</Body>
-          <Caption style={{ fontSize: 11.5 }}>Last 5 weeks</Caption>
+          <Caption style={{ fontSize: 11.5 }}>Tap a day to open it</Caption>
         </View>
         <View style={{ marginTop: 14 }}>
-          <HeatMap entries={entries} profile={profile} asOf={today} />
+          <HeatMap entries={entries} profile={profile} asOf={today} onOpenDay={onOpenDay} />
         </View>
       </Card>
 

@@ -29,11 +29,13 @@ import {
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Overlays';
 import { Screen } from '../components/Screen';
+import { DateNavigator } from '../components/DateNavigator';
 import { Body, Caption } from '../components/Type';
 import { entryFor, mealTotals, workoutTotals } from '../lib/calc';
 import { addDays, formatShort, todayKey } from '../lib/date';
 import { parseDecimalInput } from '../lib/numberInput';
 import {
+  matchesQuery,
   quickMeals,
   rankSavedMeals,
   rankSavedWorkouts,
@@ -46,6 +48,7 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
   const {
     data,
     cursor,
+    setCursor,
     addMeal,
     updateMeal,
     removeMeal,
@@ -78,8 +81,12 @@ export function LogScreen({ onBack }: { onBack: () => void }) {
   const dayWeight = entryFor(data.entries, cursor)?.weightKg ?? null;
 
   return (
-    <Screen title="Food & training" meta={formatShort(cursor)} onBack={onBack}>
-      <SectionHeading title="Weigh-in" />
+    <Screen title="Food & training" onBack={onBack}>
+      <DateNavigator cursor={cursor} onChange={setCursor} />
+
+      <View style={{ marginTop: space.md }}>
+        <SectionHeading title="Weigh-in" />
+      </View>
       <Card padded={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Pressable
@@ -462,13 +469,56 @@ function SavedPicker({
   onRemove: (id: string) => void;
 }) {
   const { colors } = useTheme();
+  const [query, setQuery] = useState('');
+  const [showAll, setShowAll] = useState(false);
+
+  // A long library turns the sheet into a scroll before the form even starts,
+  // so past a handful it gets a search box and shows the most-used few.
+  const searchable = items.length > PICKER_PREVIEW;
+  const matches = items.filter((i) => matchesQuery(`${i.name} ${i.detail}`, query));
+  const shown = query.trim() || showAll ? matches : matches.slice(0, PICKER_PREVIEW);
+  const hidden = matches.length - shown.length;
 
   return (
     <View style={{ gap: space.xs }}>
       <Caption style={{ fontSize: 10.5, letterSpacing: 0.735, textTransform: 'uppercase', fontFamily: font.semibold }}>
         {title}
       </Caption>
-      {items.map((item) => (
+      {searchable && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space.sm,
+            minHeight: 42,
+            paddingHorizontal: 13,
+            borderRadius: radius.pill,
+            backgroundColor: colors.rail,
+          }}
+        >
+          <Icon name="search" size={14} color={colors.muted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={`Search ${items.length} saved`}
+            placeholderTextColor={colors.disabled}
+            accessibilityLabel={`Search ${title.toLowerCase()}`}
+            autoCorrect={false}
+            style={{ flex: 1, padding: 0, fontFamily: font.regular, fontSize: 14, color: colors.text, outlineWidth: 0 }}
+          />
+          {!!query && (
+            <Pressable accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={8} onPress={() => setQuery('')}>
+              <Icon name="close" size={12} color={colors.muted} strokeWidth={1.8} />
+            </Pressable>
+          )}
+        </View>
+      )}
+      {!shown.length && (
+        <Caption style={{ fontSize: 12, paddingHorizontal: space.xs, paddingVertical: space.xs }}>
+          Nothing saved matches “{query.trim()}”.
+        </Caption>
+      )}
+      {shown.map((item) => (
         <View
           key={item.id}
           style={{
@@ -511,9 +561,23 @@ function SavedPicker({
           </Pressable>
         </View>
       ))}
+      {hidden > 0 && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowAll(true)}
+          style={{ minHeight: 36, justifyContent: 'center', paddingHorizontal: space.xs }}
+        >
+          <Body style={{ fontFamily: font.semibold, fontSize: 13 }} color={colors.accent}>
+            Show {hidden} more
+          </Body>
+        </Pressable>
+      )}
     </View>
   );
 }
+
+/** Saved rows shown before "Show N more". */
+const PICKER_PREVIEW = 5;
 
 /** The "keep this for next time" switch at the foot of an entry sheet. */
 function SaveForReuse({
