@@ -31,13 +31,15 @@ import {
   MealEntry,
   Measurement,
   LockSettings,
-  NotificationSettings,
+  ReminderTime,
+  ReminderToggle,
   Profile,
   WeighIn,
   WorkoutEntry,
 } from './types';
 import { demoData, emptyData } from './seed';
-import { describeData, hasAnyData, migrate } from './schema';
+import { describeData, hasAnyData, INBOX_READ_CAP, migrate } from './schema';
+import { formatterFor } from '../lib/units';
 import { mealTotals, newlyAchievedMilestones, workoutTotals } from '../lib/calc';
 import { fireMilestoneReached, syncReminders } from '../lib/notifications';
 import { pickBackup, pickWeighInCsv, shareBackup, shareExport } from '../lib/export';
@@ -152,7 +154,10 @@ interface StoreValue {
   updateProfile: (patch: Partial<Profile>) => void;
   completeOnboarding: (profile: Profile) => void;
   replayOnboarding: () => void;
-  setNotification: (key: keyof NotificationSettings, value: boolean) => void;
+  setNotification: (key: ReminderToggle, value: boolean) => void;
+  setReminderTime: (key: ReminderTime, minutes: number) => void;
+  /** Marks in-app notifications as opened. See `lib/inbox.ts`. */
+  markInboxRead: (ids: string[]) => void;
   setLock: (patch: Partial<LockSettings>) => void;
   setDiagnostics: (patch: Partial<DiagnosticsSettings>) => void;
   /** Records that the "you are 18 now" notice has been shown, so it shows once. */
@@ -616,7 +621,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
         // Fired once, the first time the achieved date is set.
         if (prev.notifications.milestoneReached) {
-          fireMilestoneReached(target, kgFromStart, reward).catch(() => {});
+          const u = formatterFor(prev.profile.units);
+          fireMilestoneReached(u.weight(target), u.weight(kgFromStart), reward).catch(() => {});
         }
       } else if (date < prev.profile.startDate) {
         // Logging never fails — the entry is saved. But stats and habit ticks
@@ -1019,6 +1025,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [update],
   );
 
+  const setReminderTime = useCallback<StoreValue['setReminderTime']>(
+    (key, minutes) => {
+      const clamped = Math.min(1439, Math.max(0, Math.round(minutes)));
+      update((prev) => ({ ...prev, notifications: { ...prev.notifications, [key]: clamped } }));
+    },
+    [update],
+  );
+
+  const markInboxRead = useCallback<StoreValue['markInboxRead']>(
+    (ids) => {
+      update((prev) => {
+        const fresh = ids.filter((id) => !prev.inboxRead.includes(id));
+        if (!fresh.length) return prev;
+        return { ...prev, inboxRead: [...prev.inboxRead, ...fresh].slice(-INBOX_READ_CAP) };
+      });
+    },
+    [update],
+  );
+
   /**
    * Swapping the whole dataset keeps the outgoing one in the undo closure, so
    * loading the demo or resetting is recoverable for as long as the toast is
@@ -1229,6 +1254,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       completeOnboarding,
       replayOnboarding,
       setNotification,
+      setReminderTime,
+      markInboxRead,
       setLock,
       setDiagnostics,
       dismissAdulthoodNotice,
@@ -1275,6 +1302,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       completeOnboarding,
       replayOnboarding,
       setNotification,
+      setReminderTime,
+      markInboxRead,
       setLock,
       setDiagnostics,
       dismissAdulthoodNotice,

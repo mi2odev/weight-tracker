@@ -191,11 +191,27 @@ export interface LockSettings {
   graceSeconds: number;
 }
 
+/** The on/off switches among the notification settings. */
+export type ReminderToggle =
+  | 'morningWeighIn'
+  | 'eveningLog'
+  | 'weeklySummary'
+  | 'milestoneReached'
+  | 'water';
+
+/** The two reminders whose time the user picks. */
+export type ReminderTime = 'morningMinutes' | 'eveningMinutes';
+
 export interface NotificationSettings {
   morningWeighIn: boolean;
   eveningLog: boolean;
   weeklySummary: boolean;
   milestoneReached: boolean;
+  /** Nudges through the day while water is behind the target's pace. */
+  water: boolean;
+  /** Minutes after midnight — 420 is 07:00. */
+  morningMinutes: number;
+  eveningMinutes: number;
 }
 
 /**
@@ -211,11 +227,13 @@ export interface NotificationSettings {
  *     been shown.
  * 5 — adds `savedMeals` and `savedWorkouts`: reusable templates, so a meal
  *     eaten every morning is typed once rather than every day.
+ * 6 — reminder times become settings, a water reminder joins them, and
+ *     `inboxRead` records which in-app notifications have been opened.
  *
  * Lives here rather than in `schema.ts` so `seed.ts` can stamp it without the
  * two files importing each other.
  */
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 export interface AppData {
   /** The shape version this payload was written at. See `data/schema.ts`. */
@@ -246,6 +264,8 @@ export interface AppData {
    * targets available. Stored rather than derived so it cannot nag.
    */
   adulthoodNoticed: boolean;
+  /** Ids of in-app notifications already opened. See `lib/inbox.ts`. */
+  inboxRead: string[];
   onboarded: boolean;
 }
 

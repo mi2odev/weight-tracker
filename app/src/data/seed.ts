@@ -37,6 +37,9 @@ const DEFAULT_NOTIFICATIONS = {
   eveningLog: true,
   weeklySummary: true,
   milestoneReached: true,
+  water: true,
+  morningMinutes: 7 * 60,
+  eveningMinutes: 21 * 60,
 };
 
 export function defaultProfile(): Profile {
@@ -79,6 +82,7 @@ export function emptyData(): AppData {
     lock: { ...DEFAULT_LOCK },
     diagnostics: { ...DEFAULT_DIAGNOSTICS },
     adulthoodNoticed: false,
+    inboxRead: [],
     onboarded: false,
   };
 }
@@ -224,6 +228,7 @@ export function demoData(): AppData {
     lock: { ...DEFAULT_LOCK },
     diagnostics: { ...DEFAULT_DIAGNOSTICS },
     adulthoodNoticed: false,
+    inboxRead: [],
     onboarded: true,
   };
 }
