@@ -9,6 +9,7 @@ import { Body, Caption } from '../components/Type';
 import { SubScreen } from '../navigation/routes';
 
 const ITEMS: { key: SubScreen; label: string; sub: string; icon: IconName }[] = [
+  { key: 'inbox', label: 'Notifications', sub: 'Reminders, milestones and weekly reviews', icon: 'bell' },
   { key: 'milestones', label: 'Milestones', sub: 'Every 5 kg, with rewards', icon: 'star' },
   { key: 'body', label: 'Body measurements', sub: 'Waist, chest, arms, thighs, neck', icon: 'ruler' },
   { key: 'log', label: 'Food & training log', sub: 'Meals and workouts by day', icon: 'book' },
