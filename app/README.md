@@ -15,7 +15,7 @@ every stat, chart, roll-up, projection and insight recomputes from the data.
 npm install
 npm start          # Expo dev server — press i / a, or scan the QR code
 npm run typecheck  # app + tests
-npm test           # 333 tests — calc, units, CSV, backup, health, hydration,
+npm test           # 340 tests — calc, units, CSV, backup, health, hydration,
                    #             snapshots, lock rules, photo sweeps, crash scrubbing,
                    #             templates, reminder rules, inbox, weigh-in check
 ```
@@ -113,6 +113,13 @@ sharper reason: a field bound straight to a parsed number can never accept a
 decimal point. "2." round-trips through the parser as 2, the prop comes back
 "2", and the point is erased on the next render — so "2.5 L" of water was
 being stored as 25. `NumberField` now holds what was typed until blur.
+
+**Fields that add up.** Calories, Protein, Steps and Cardio on Today can add to
+what is already there: with 10 in the field, typing "+12" stores 22, and "-5"
+takes five off (never below zero). Phone number pads have no + key, so each of
+those fields has a + button that starts an addition. The sum is spelled out
+under the field while typing ("10 + 12 = 22"). The rule is `readFieldEntry` in
+`lib/numberInput.ts`, tested.
 
 **One reader for every number field.** `parseDecimalInput` strips a grouped
 separator before parsing, because `parseFloat('1,250')` is 1 and `parseInt`

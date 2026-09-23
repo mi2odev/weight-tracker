@@ -4,6 +4,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { font, MIN_TAP, radius, space, tnum } from '../theme/tokens';
 import { Body, Caption, Heading, Label } from './Type';
 import { Icon, IconName } from './Icon';
+import { parseDecimalInput, readFieldEntry } from '../lib/numberInput';
 
 export function PrimaryButton({
   label,
@@ -186,6 +187,7 @@ export function NumberField({
   onChangeText,
   placeholder = '—',
   valueColor,
+  additive = false,
 }: {
   label: string;
   hint?: string;
@@ -194,9 +196,18 @@ export function NumberField({
   onChangeText: (t: string) => void;
   placeholder?: string;
   valueColor?: string;
+  /**
+   * Lets the field add to itself: "+12" on a field holding 10 stores 22, and
+   * a + button starts that (phone number pads have no + key).
+   */
+  additive?: boolean;
 }) {
   const { colors } = useTheme();
   const [draft, setDraft] = React.useState<string | null>(null);
+  /** What the field held when editing began — what "+12" adds to. */
+  const base = React.useRef<number | null>(null);
+  /** Set by the + button so focusing starts an addition rather than an edit. */
+  const startAdding = React.useRef(false);
 
   /**
    * While focused the field shows what was typed, not what the store made of
@@ -218,6 +229,17 @@ export function NumberField({
       : value);
 
   const inputRef = React.useRef<TextInput>(null);
+
+  const entry = additive && draft != null ? readFieldEntry(draft, base.current) : null;
+  const adding = draft != null && /^\s*[+\-−]/.test(draft);
+  const beginAdd = () => {
+    base.current = parseDecimalInput(value);
+    if (inputRef.current?.isFocused()) setDraft('+');
+    else {
+      startAdding.current = true;
+      inputRef.current?.focus();
+    }
+  };
 
   return (
     <Pressable
@@ -261,11 +283,21 @@ export function NumberField({
           value={display}
           // Seeded from the raw value, never from the grouped display — the
           // caret should not land after a separator the user did not type.
-          onFocus={() => setDraft(value)}
+          onFocus={() => {
+            base.current = parseDecimalInput(value);
+            setDraft(startAdding.current ? '+' : value);
+            startAdding.current = false;
+          }}
           onBlur={() => setDraft(null)}
           onChangeText={(text) => {
             setDraft(text);
-            onChangeText(text);
+            if (!additive) {
+              onChangeText(text);
+              return;
+            }
+            // "+" alone waits for a number; anything else stores the result.
+            const next = readFieldEntry(text, base.current);
+            if (next.kind === 'value') onChangeText(next.value == null ? '' : String(next.value));
           }}
           placeholder={placeholder}
           placeholderTextColor={colors.disabled}
@@ -283,16 +315,49 @@ export function NumberField({
               fontFamily: font.semibold,
               fontSize: 20,
               letterSpacing: -0.4,
-              color: valueColor ?? colors.text,
+              // An addition in progress isn't a missed target yet.
+              color: adding ? colors.accent : (valueColor ?? colors.text),
             },
             tnum,
           ]}
         />
+        {additive && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Add to ${label}`}
+            hitSlop={8}
+            onPress={beginAdd}
+            style={({ pressed }) => ({
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              alignSelf: 'center',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: pressed ? colors.line : colors.tint,
+            })}
+          >
+            <Icon name="plus" size={14} color={colors.accent} strokeWidth={2.2} />
+          </Pressable>
+        )}
       </View>
-      {!!hint && <Caption numberOfLines={1}>{hint}</Caption>}
+      {adding && entry ? (
+        // The sum spelled out while adding, so it is clear what will be stored.
+        <Caption numberOfLines={1} color={colors.accent}>
+          {entry.kind === 'pending'
+            ? `Adding to ${formatAmount(base.current ?? 0)}…`
+            : `${formatAmount(base.current ?? 0)} ${draft!.trim()[0] === '+' ? '+' : '−'} ${formatAmount(
+                Math.abs((entry.value ?? 0) - (base.current ?? 0)),
+              )} = ${formatAmount(entry.value ?? 0)}`}
+        </Caption>
+      ) : (
+        !!hint && <Caption numberOfLines={1}>{hint}</Caption>
+      )}
     </Pressable>
   );
 }
+
+const formatAmount = (n: number) => n.toLocaleString('en-GB', { maximumFractionDigits: 2 });
 
 /** A full-width row with a label on the left and a value on the right. */
 export function ValueRow({

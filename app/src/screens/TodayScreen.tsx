@@ -391,6 +391,7 @@ export function TodayScreen({
         <Grid columns={2}>
         <NumberField
           label="Calories"
+          additive
           unit="kcal"
           // No target under 18: the app sets none, so the field is a plain
           // log rather than something to hit.
@@ -404,6 +405,7 @@ export function TodayScreen({
         />
         <NumberField
           label="Protein"
+          additive
           unit="g"
           hint={`Target ${profile.targetProteinG} g`}
           value={fieldText(entry?.proteinG)}
@@ -411,6 +413,7 @@ export function TodayScreen({
         />
         <NumberField
           label="Steps"
+          additive
           hint={targetHint(entry?.steps, profile.targetSteps, '')}
           value={fieldText(entry?.steps)}
           onChangeText={setNumericField('steps')}
@@ -418,6 +421,7 @@ export function TodayScreen({
         />
         <NumberField
           label="Cardio"
+          additive
           unit="min"
           hint="Any minutes count"
           value={fieldText(entry?.cardioMin)}
